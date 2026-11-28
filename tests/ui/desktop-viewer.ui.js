@@ -34,7 +34,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('clicking a card on the Deck tab opens the viewer', await p.isVisible('#lightbox.show'));
   check('the hover preview is not left on top of it', !(await p.isVisible('#zoom.show')));
   const name0 = await p.textContent('.lb-name'), count = await p.textContent('.lb-count');
-  check('it shows where you are in that group of cards', /^\d+ \/ \d+$/.test(count), count);
+  check('it shows where you are in that group of cards', /^\d+ of \d+$/.test(count), count);
   await p.waitForSelector('.lb-print', { timeout: 15000 }).catch(() => {});
   await p.waitForTimeout(500);
   const price = await p.textContent('.lb-price').catch(() => '');
