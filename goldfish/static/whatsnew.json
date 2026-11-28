@@ -2,6 +2,20 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 236,
+      "lines": [
+        "Taught in full: Nahiri the Harbinger, Nahiri the Lithomancer, Ob Nixilis of the Black Oath (+2), Lord Windgrace, Minsc & Boo (\u22122), Sorin Imperious Bloodlord (+1), Tevesh Szat (+1), Tezzeret Cruel Captain (0), Tyvar Kell (+1), Kaito Cunning Infiltrator (+1) and Professor Onyx.",
+        "Chandra, Awakened Inferno's \u2212X can now hit a planeswalker as well as a creature."
+      ]
+    },
+    {
+      "v": 235,
+      "lines": [
+        "Planeswalker abilities with \u2212X that deal damage now really remove X loyalty. You pick X; the autopilot pays the smallest X that does the job.",
+        "Taught in full: Chandra, Awakened Inferno; Chandra, Flamecaller; Commodore Guff; Dihada; Domri; Jace, Mirror Mage; Kaito, Bane of Nightmares; Narset of the Ancient Way; and Jaya Ballard's +1. Mana that can only be spent on certain spells is now tracked."
+      ]
+    },
+    {
       "v": 234,
       "lines": [
         "Honest card reading: a planeswalker or activated ability now counts as understood only when ICEYfish plays every sentence of it. Cards that dropped part of their text now show as not fully understood, so you can teach them.",
