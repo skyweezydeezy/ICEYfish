@@ -215,6 +215,27 @@
    "learnedVs": "field"
   },
   {
+   "file": "blood-bank.txt",
+   "name": "Blood Bank (Edgar Markov)",
+   "commanders": [
+    "Edgar Markov"
+   ],
+   "colors": "WBR",
+   "cards": 100,
+   "bracket": 3,
+   "checkedMedian": 7,
+   "by5": 6.2,
+   "by7": 62.7,
+   "earliestKill": 3,
+   "by2": 0,
+   "by3": 0.1,
+   "by4": 0.7,
+   "medianKill": 7,
+   "floor": 3,
+   "speedBracket": 3,
+   "checkedAt": "2026-11-28"
+  },
+  {
    "file": "court-of-ruin.txt",
    "name": "Court of Ruin (Kefka, Court Mage)",
    "commanders": [
