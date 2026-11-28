@@ -2,9 +2,10 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
-      "v": 231,
+      "v": 232,
       "lines": [
-        "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow."
+        "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow.",
+        "Tidal Loop (Hakbal): its Drive name now says Bracket 5; ICEYfish's check keeps it at Bracket 4 (Bracket 5 needs a win before turn 4 on average; its median is turn 7)."
       ]
     },
     {
