@@ -1671,7 +1671,7 @@
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
   const LB_SCOPE = '.table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
-  const lb = { list: [], i: 0, sel: null, els: [] };
+  const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
   const viewerActions = (card, el) => { for (const f of lbProviders) { const a = el && f(card, el); if (a && a.length) return a; } return null; };
@@ -1749,7 +1749,7 @@
   }
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
-  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; paintLb(); lightbox.scrollTop = 0; }
+  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
   function paintLb() {
     const card = lb.list[lb.i]; if (!card) return;
     const sel = lb.sel;
@@ -1779,9 +1779,11 @@
       if (acts) {
         const box = h('div', 'lb-acts'); box.appendChild(h('div', 'lb-sec', 'In this game'));
         const btns = h('div', 'lb-acts-row'); box.appendChild(btns);
-        acts.forEach(([label, run, style, stay]) => {
-          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label));
+        acts.forEach(([label, run, style, stay, off]) => {          // off: why it cannot be done now (greyed, with the reason) - T-134
+          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label) + (off ? `<small class="lb-off">${esc(off)}</small>` : ''));
+          if (off) { b.disabled = true; b.title = off; }
           b.addEventListener('click', () => {
+            if (Date.now() - lb.at < 350) return;          // T-102/T-134 ghost-tap guard: the tap that opened the viewer cannot press a button in it
             if (stay) { const sc = lightbox.scrollTop; run(); paintLb(); lightbox.scrollTop = sc; }          // tap, counters: the viewer stays and updates
             else { lbClose(); run(); }                                                                         // anything else: close it so the table shows the result
           });
@@ -1856,7 +1858,7 @@
       if (l.indexOf(card) >= 0) list = l;
     }
     zoom.classList.remove('show');   // the hover preview would sit on top of the viewer
-    lb.list = list; lb.i = list.indexOf(card); lb.sel = null;
+    lb.list = list; lb.i = list.indexOf(card); lb.sel = null; lb.at = Date.now();
     lb.els = list.map(() => null);                                       // the card on the table behind each entry, so its choices can be offered
     if (sc && !Array.isArray(scopeEl)) { const seen = new Set(); sc.querySelectorAll('.mtg').forEach(e => { const c = cardOf(e); if (c && !e.closest('#lightbox') && !seen.has(c)) { seen.add(c); const k = list.indexOf(c); if (k >= 0) lb.els[k] = e; } }); }
     if (scopeEl && scopeEl.nodeType === 1 && lb.i >= 0) lb.els[lb.i] = scopeEl;          // the very one you opened (not the first of a stack)

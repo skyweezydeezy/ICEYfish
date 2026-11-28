@@ -92,7 +92,7 @@
     const tok = P, sc = P.sc;
     P.busy = true; render();
     const v = await Core.toMyTurnA(sc, answer); if (P !== tok) return;
-    P.sel = null; P.atk = false; P.atkSel = new Set(); P.busy = false;
+    P.atk = false; P.atkSel = new Set(); P.busy = false;
     if (v) return finish(v);
     P.phase = 'me'; render();
   }
@@ -101,7 +101,7 @@
     const tok = P, sc = P.sc; P.busy = true; render();
     try {
       const ev = await Core.runAsync(sc, fn, answer); if (P !== tok) return;
-      tell(ev); P.sel = null; P.atk = false; P.atkSel = new Set(); P.busy = false;
+      tell(ev); P.atk = false; P.atkSel = new Set(); P.busy = false;
       const v = Core.verdict(sc); if (v) { sc.over = v; return finish(v); }
       render();
     } catch (e) { if (quit(e) || P !== tok) return; P.busy = false; say('Something went wrong: ' + (e.message || e)); render(); }
@@ -155,27 +155,23 @@
     const bf = root.querySelector('.pz-bf');
     bf.append(...g.battlefield.filter(p => !p.asLand).map(p => {
       const can = me && P.atk && G.canAttack(g, p), picked = P.atkSel.has(p.iid);
-      const btn = h('button', 'pz-perm' + (P.sel === 'p' + p.iid ? ' sel' : '') + (can ? ' can' : '') + (picked ? ' picked' : '') + (p.tapped ? ' tapped' : ''));
-      btn.type = 'button'; btn.dataset.iid = p.iid; btn.dataset.name = p.card.name; btn.disabled = !me; btn.title = p.card.name + (p.tapped ? ' (tapped)' : '');
+      const btn = h('button', 'pz-perm' + (can ? ' can' : '') + (picked ? ' picked' : '') + (p.tapped ? ' tapped' : ''));
+      btn.type = 'button'; btn.dataset.iid = p.iid; btn.dataset.name = p.card.name; btn.title = p.card.name + (p.tapped ? ' (tapped)' : '');
       btn.appendChild(tile(p, 'pz-bf-t'));
-      btn.onclick = e => { e.stopPropagation(); if (P.atk) { if (G.canAttack(g, p)) { if (P.atkSel.has(p.iid)) P.atkSel.delete(p.iid); else P.atkSel.add(p.iid); render(); } } else { P.sel = P.sel === 'p' + p.iid ? null : 'p' + p.iid; render(); } };
+      btn.onclick = e => { e.stopPropagation(); A.viewCard(p.card, btn.firstChild); };          // T-134: a tap opens the card; what it can do is a button in the viewer
       return btn;
     }));
     root.querySelector('.pz-hand-tiles').append(...hand.map(i => {
       const isLand = !!i.card.a.isLand, can = me && (isLand ? G.canPlayLand(g) : castable(g, i));
-      const btn = h('button', 'pz-card' + (P.sel === 'c' + i.iid ? ' sel' : '') + (can ? ' can' : ''));
-      btn.type = 'button'; btn.dataset.iid = i.iid; btn.dataset.name = i.card.name; btn.disabled = !me; btn.setAttribute('aria-pressed', String(P.sel === 'c' + i.iid)); btn.setAttribute('aria-label', i.card.name); btn.title = i.card.name;
+      const btn = h('button', 'pz-card' + (can ? ' can' : ''));
+      btn.type = 'button'; btn.dataset.iid = i.iid; btn.dataset.name = i.card.name; btn.setAttribute('aria-label', i.card.name); btn.title = i.card.name;
       btn.appendChild(tile(i, ''));
-      btn.onclick = e => { e.stopPropagation(); P.atk = false; P.atkSel = new Set(); P.sel = P.sel === 'c' + i.iid ? null : 'c' + i.iid; render(); };
+      btn.onclick = e => { e.stopPropagation(); A.viewCard(i.card, btn.firstChild); };
       return btn;
     }));
     const bar = root.querySelector('.pz-bar');
     if (!over) {
       const items = [];
-      const selHand = hand.find(i => P.sel === 'c' + i.iid), selPerm = g.battlefield.find(p => P.sel === 'p' + p.iid);
-      if (selHand) { const isLand = !!selHand.card.a.isLand, nm = selHand.card.name.split(' // ')[0]; items.push(`<button type="button" class="primary pz-do" ${me && (isLand ? G.canPlayLand(g) : castable(g, selHand)) ? '' : 'disabled'}>${isLand ? 'Play ' + esc(nm) : 'Cast ' + esc(nm)}</button>`); }
-      let menu = []; if (selPerm) { try { menu = G.abilityMenu(g, selPerm); } catch (e) { menu = []; } menu.forEach((m, i) => items.push(`<button type="button" class="pz-ab" data-i="${i}" ${me && m.ok ? '' : 'disabled'} title="${esc(m.why || '')}">${esc((m.label || 'Ability').slice(0, 60))}${m.cost ? ' · ' + esc(m.cost) : ''}</button>`)); if (!menu.length) items.push('<span class="pz-hint2">No abilities.</span>'); }
-      if (selPerm && selPerm.card.a.isPlaneswalker) { let st = null; try { st = G.loyaltyState(g, selPerm, g); } catch (e) { st = null; } if (st) st.list.forEach(it => items.push(`<button type="button" class="pz-pw" data-i="${it.i}" ${me && it.ok ? '' : 'disabled'} title="${esc(it.why || '')}">${esc(it.label)}: ${esc(String(it.text).slice(0, 48))}</button>`)); }
       const attackers = g.battlefield.filter(p => G.canAttack(g, p));
       if (P.atk) {
         items.push(`<button type="button" class="primary pz-decl" ${me && P.atkSel.size ? '' : 'disabled'}>Declare attack (${P.atkSel.size})</button>`, `<button type="button" class="ghost pz-all" ${me && attackers.length ? '' : 'disabled'}>Attack with all</button>`, '<button type="button" class="ghost pz-cancel">Cancel</button>');
@@ -185,10 +181,7 @@
         items.push('<button type="button" class="ghost pz-giveup">Give up</button>');
       }
       bar.innerHTML = items.join('') + (P.busy ? '<p class="hint pz-busy">Working…</p>' : '');
-      if (selHand) bar.querySelector('.pz-do').onclick = () => run(selHand.card.a.isLand ? (gs => G.playLandCard(gs[0], gs[0].hand.find(x => x.iid === selHand.iid))) : (gs => G.castCard(gs[0], pool(gs[0]).find(x => x.iid === selHand.iid))));
-      bar.querySelectorAll('.pz-ab').forEach(bt => { bt.onclick = () => { const i = +bt.dataset.i, iid = selPerm.iid; run(gs => { const p = gs[0].battlefield.find(x => x.iid === iid); return p ? G.useAbility(gs[0], p, i) : null; }); }; });
-      bar.querySelectorAll('.pz-pw').forEach(bt => { bt.onclick = () => { const i = +bt.dataset.i, iid = selPerm.iid; run(gs => { const p = gs[0].battlefield.find(x => x.iid === iid); return p ? G.useLoyalty(gs[0], p, i, gs[0]) : null; }); }; });
-      const atk = bar.querySelector('.pz-atk'); if (atk) atk.onclick = () => { P.atk = true; P.atkSel = new Set(); P.sel = null; render(); };
+      const atk = bar.querySelector('.pz-atk'); if (atk) atk.onclick = () => { P.atk = true; P.atkSel = new Set(); render(); };
       const decl = bar.querySelector('.pz-decl'); if (decl) decl.onclick = () => { const ids = [...P.atkSel]; run(gs => D.turn.combat(gs[0], { attackers: ids })); };
       const all = bar.querySelector('.pz-all'); if (all) all.onclick = () => { const ids = attackers.map(p => p.iid); run(gs => D.turn.combat(gs[0], { attackers: ids })); };
       const cn = bar.querySelector('.pz-cancel'); if (cn) cn.onclick = () => { P.atk = false; P.atkSel = new Set(); render(); };
@@ -215,10 +208,31 @@
     info.onclick = () => { fold.hidden = !fold.hidden; info.setAttribute('aria-expanded', String(!fold.hidden)); };
   }
   const pool = x => x.hand.concat(x.command || []);
+  // T-134: the card viewer is where a card's actions are. A tap on a card of yours opens it; Cast / Play, abilities, loyalty and the attack pick are buttons in it.
+  // Anything that cannot be done now is shown greyed with the reason, and with nothing to do the viewer is for reading only.
+  const dis = (ok, why) => ok ? '' : why;
+  A.addViewerActions((card, el) => {
+    const btn = el && el.closest && el.closest('.pz-card, .pz-perm'); if (!btn || !P || P.phase === 'over' || !P.sc) return null;
+    const g = P.sc.g, iid = +btn.dataset.iid, me = P.phase === 'me' && !P.busy, out = [], waiting = me ? '' : 'Not your turn yet';
+    const hand = g.hand.concat(g.command || []).find(i => i.iid === iid);
+    if (hand) {
+      const isLand = !!hand.card.a.isLand, nm = hand.card.name.split(' // ')[0], ok = isLand ? G.canPlayLand(g) : castable(g, hand);
+      out.push([(isLand ? 'Play ' : 'Cast ') + nm, () => run(isLand ? (gs => G.playLandCard(gs[0], gs[0].hand.find(x => x.iid === iid))) : (gs => G.castCard(gs[0], pool(gs[0]).find(x => x.iid === iid)))), 'primary', false, waiting || dis(ok, isLand ? 'No land drop left' : 'Not enough mana')]);
+      return out;
+    }
+    const perm = g.battlefield.find(p => p.iid === iid); if (!perm) return null;
+    if (P.atk && G.canAttack(g, perm)) { const on = P.atkSel.has(iid); out.push([on ? 'Keep it home' : 'Attack with this', () => { if (on) P.atkSel.delete(iid); else P.atkSel.add(iid); render(); }, 'primary', true, waiting]); }
+    let menu = []; try { menu = G.abilityMenu(g, perm); } catch (e) { menu = []; }
+    menu.forEach((m, i) => out.push([(m.label || 'Ability').slice(0, 60) + (m.cost ? ' · ' + m.cost : ''), () => run(gs => { const p = gs[0].battlefield.find(x => x.iid === iid); return p ? G.useAbility(gs[0], p, i) : null; }), '', false, waiting || dis(m.ok, m.why || 'Cannot be used now')]));
+    if (perm.card.a.isPlaneswalker) { let st = null; try { st = G.loyaltyState(g, perm, g); } catch (e) { st = null; } if (st) st.list.forEach(it => out.push([it.label + ': ' + String(it.text).slice(0, 48), () => run(gs => { const p = gs[0].battlefield.find(x => x.iid === iid); return p ? G.useLoyalty(gs[0], p, it.i, gs[0]) : null; }), '', false, waiting || dis(it.ok, it.why || 'Cannot be used now')])); }
+    return out;
+  });
 
   // the tab: its picker is made when it is first shown; leaving it closes an open question; Escape goes back to the picker
   new MutationObserver(() => { if (document.body.dataset.view === 'puzzle') mount(); else leave(); }).observe(document.body, { attributes: true, attributeFilter: ['data-view'] });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.dataset.view === 'puzzle' && P && !document.querySelector('.ch-sheet')) back(); });
+  let viewerWasOpen = false;          // Esc that closes the card viewer must not also leave the puzzle (T-134)
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') viewerWasOpen = !!document.querySelector('#lightbox.show'); }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !viewerWasOpen && document.body.dataset.view === 'puzzle' && P && !document.querySelector('.ch-sheet')) back(); });
   if (document.body.dataset.view === 'puzzle') mount();
 
   window.ISFPuzzle = { open, state: () => P, progress: load, picker: () => DATA && DATA.then(picker) };
