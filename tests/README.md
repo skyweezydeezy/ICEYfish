@@ -36,6 +36,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | food | Food economy, Food payoffs |
 | life | Lifegain, lifelink, Exquisite Blood / Sanguine Bond loop |
 | tokens | Token replacement effects and triggers |
+| sorin-vengeful | Sorin, Vengeful Bloodlord: lifelink for your creatures and planeswalkers on your turn only (his +2 gains life), −X returns the creature card with mana value X (target chosen, X loyalty removed, Vampire added), a person's choice |
 | sorin | Extort, postcombat transform, planeswalker back face |
 | liliana | Lifegain when a creature or planeswalker enters |
 | graveyard | Altar, Cauldron Familiar, Samwise, Dusk // Dawn, Gollum, leave triggers |
