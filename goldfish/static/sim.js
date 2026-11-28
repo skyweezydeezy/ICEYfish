@@ -6996,9 +6996,12 @@
         }
         case 'domeCopy': {                                                                                      // Chrome Dome: a token copy of another artifact you control, with haste; sacrificed at the beginning of the next end step
           if (g.dry || !source) break;
-          const arts = g.battlefield.filter(q => q !== source && q.card.a.isArtifact && !q.phased); if (!arts.length) break;
-          let cp = domePick(g, source) || arts.sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0];
-          if (g.ask) cp = decide(g, { kind: 'target', what: 'copy', options: arts, def: cp, source }) || cp;          // a person chooses what is copied
+          const arts = g.battlefield.filter(q => q !== source && q.card.a.isArtifact && !q.phased), L = lockRec ? null : tgtLock(g, f);
+          if (!arts.length) { if (lockRec) lockRec.map.set(f, { none: true }); else if (L) ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }
+          let cp = L ? L.t : domePick(g, source) || arts.sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0];
+          if (L && !(cp && arts.includes(cp) && lockLegal(g, cp, f))) { ev.push({ type: 'note', text: `${cp ? cp.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }          // CR 608.2b
+          if (g.ask && !L) cp = decide(g, { kind: 'target', what: 'copy', options: arts, def: cp, source }) || cp;          // a person chooses what is copied
+          if (lockRec) { lockRec.map.set(f, cp ? { t: cp } : { none: true }); break; }
           if (cp && g.battlefield.length < 250) {
             const np = enterWithTriggers(g, { iid: g.nextIid++, card: cp.card }, { token: true }, ev); np.token = true; np.sick = false; np.eotKw = new Set([...(np.eotKw || []), 'haste']); np.sacEnd = true;
             ev.push({ type: 'token', perm: np, inst: np.inst, source }); ev.push({ type: 'note', text: `${source.card.name}: a hasty token copy of ${cp.card.name}, sacrificed at the end step`, source });
@@ -7019,8 +7022,11 @@
           break;
         }
         case 'copyToken': {
-          let cp = f.self ? source : subject || (f.target && f.art ? g.battlefield.filter(q => q.card.a.isArtifact && !q.asLand && !q.card.a.isLegendary).sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0] : f.target ? g.battlefield.filter(q => isCreaturePerm(q) && !q.card.a.isLegendary && !q.token).sort((x, y) => creatureValue(g, y) - creatureValue(g, x))[0] : null);          // Saheeli's Artistry: "a copy of target artifact"          // "a copy of target creature": your best one
-          if (cp && g.ask && !g.dry && f.target && !f.self && !subject) cp = decide(g, { kind: 'target', what: 'copy', options: g.battlefield.filter(q => !q.asLand && (f.art ? q.card.a.isArtifact : isCreaturePerm(q))), def: cp, source }) || cp;          // a person chooses what is copied (Twinflame, Cackling Counterpart)
+          const L = lockRec ? null : tgtLock(g, f);
+          let cp = L ? L.t : f.self ? source : subject || (f.target && f.art ? g.battlefield.filter(q => q.card.a.isArtifact && !q.asLand && !q.card.a.isLegendary).sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0] : f.target ? g.battlefield.filter(q => isCreaturePerm(q) && !q.card.a.isLegendary && !q.token).sort((x, y) => creatureValue(g, y) - creatureValue(g, x))[0] : null);          // Saheeli's Artistry: "a copy of target artifact"          // "a copy of target creature": your best one
+          if (L && !(cp && lockLegal(g, cp, f) && !cp.asLand && (f.art ? cp.card.a.isArtifact : isCreaturePerm(cp)))) { ev.push({ type: 'note', text: `${cp ? cp.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }          // CR 608.2b
+          if (cp && !L && g.ask && !g.dry && f.target && !f.self && !subject) cp = decide(g, { kind: 'target', what: 'copy', options: g.battlefield.filter(q => !q.asLand && (f.art ? q.card.a.isArtifact : isCreaturePerm(q))), def: cp, source }) || cp;          // a person chooses what is copied (Twinflame, Cackling Counterpart)
+          if (lockRec) { if (f.target && !f.self && !subject) lockRec.map.set(f, cp ? { t: cp } : { none: true }); break; }
           if (cp && cp.card && !cp.asLand && g.battlefield.length < 250) {          // the same limit as createTokens (Scute Swarm copies itself with every land)
             const inst = { iid: g.nextIid++, card: f.notLegendary ? unlegendary(g, cp.card) : cp.card };
             const perm = enterWithTriggers(g, inst, { token: true }, ev); perm.token = true;
@@ -7504,7 +7510,10 @@
         case 'becomeArtifact': {                                                                             // Liquimetal Coating / Torque: a permanent is an artifact until end of turn (metalcraft, affinity...)
           const cands = g.battlefield.filter(q => !q.phased && !artOn(g, q) && (!f.nonland || !q.asLand));
           let t = cands.sort((x, y) => (x.asLand ? 1 : 0) - (y.asLand ? 1 : 0) || (x.token ? 1 : 0) - (y.token ? 1 : 0))[0];
-          if (t && g.ask && !g.dry && cands.length > 1) t = decide(g, { kind: 'target', what: 'becomeArtifact', options: cands, def: t, source }) || t;
+          const L = lockRec ? null : tgtLock(g, f); if (L) t = L.t;
+          if (L && !(t && !t.phased && lockLegal(g, t, f))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }          // CR 608.2b
+          if (t && !L && g.ask && !g.dry && cands.length > 1) t = decide(g, { kind: 'target', what: 'becomeArtifact', options: cands, def: t, source }) || t;
+          if (lockRec) { lockRec.map.set(f, t ? { t } : { none: true }); break; }
           if (!t) break; t.eotArt = true; touch(g); ev.push({ type: 'note', text: `${t.card.name} is an artifact until end of turn`, source }); break;
         }
         case 'yardBottom': {                                                                                 // Barkform Harvester: a card from your graveyard to the bottom of your library
@@ -8093,7 +8102,7 @@
         case 'halfLife': damageOpp(g, Math.ceil(oppLifeLeft(g) / 2), ev, source, false, true); break;          // life loss, not damage: Torbran does not add to it, prevention does not stop it
         case 'stitch': { const cr = () => g.graveyard.filter(i => i.card.a.isCreature); if (g.graveyard.length >= 7) { const b = bestReanimation(g, { from: 'own' }); let i = b ? b.i : null; if (g.ask && !g.dry) i = gyAsk(g, i, cr(), 'battlefield', source); if (i && g.graveyard.includes(i)) { g.graveyard.splice(g.graveyard.indexOf(i), 1); enterWithTriggers(g, i, {}, ev); } } else { let t = gyTarget(g, { filter: 'creature' }); if (g.ask && !g.dry) t = gyAsk(g, t, cr(), 'hand', source); if (t) { g.graveyard.splice(g.graveyard.indexOf(t), 1); g.hand.push(t); } } break; }
         case 'aleshaEnd': if (g.attackedThisTurn && source) { const b = bestReanimation(g, { from: 'own', maxMv: Math.max(0, powerOf(g, source)) }); if (b) { b.y.splice(b.y.indexOf(b.i), 1); enterWithTriggers(g, b.i, {}, ev); ev.push({ type: 'note', text: `${source.card.name} returns ${b.i.card.name}`, source }); } } break;
-        case 'skate': { const has = g.battlefield.filter(q => isCreaturePerm(q) && (q.counters || 0) > 0 || q.card.a.isPlaneswalker && q.loyalty > 0); const only = g.ask && !g.dry && has.length ? decide(g, { kind: 'target', what: 'skate', options: has, def: has.slice(), multi: true, pick: has.length, upTo: true, source }) : null; g.battlefield.forEach(q => { if (only && !only.includes(q)) return; if (isCreaturePerm(q) && (q.counters || 0) > 0) addCounters(g, q, '+1/+1', q.counters, ev, source, true); if (q.card.a.isPlaneswalker && q.loyalty > 0) q.loyalty *= 2; }); break; }          // Deepglow Skate: a person picks the permanents
+        case 'skate': { const has = g.battlefield.filter(q => isCreaturePerm(q) && (q.counters || 0) > 0 || q.card.a.isPlaneswalker && q.loyalty > 0), L = lockRec ? null : tgtLock(g, f); const only = L ? L.ts.map(x => x.q).filter(q => lockLegal(g, q, f)) : g.ask && !g.dry && has.length ? decide(g, { kind: 'target', what: 'skate', options: has, def: has.slice(), multi: true, pick: has.length, upTo: true, source }) : null; if (lockRec) { lockRec.map.set(f, { ts: (only || has).map(q => ({ q })) }); break; } g.battlefield.forEach(q => { if (only && !only.includes(q)) return; if (isCreaturePerm(q) && (q.counters || 0) > 0) addCounters(g, q, '+1/+1', q.counters, ev, source, true); if (q.card.a.isPlaneswalker && q.loyalty > 0) q.loyalty *= 2; }); break; }          // Deepglow Skate: a person picks the permanents
         case 'd20': { const roll = rollDice(g, 20, 1, ev, source);
           if (f.what === 'rows') { const row = f.rows.find(r => roll <= r[0]); if (row) applyEffects(g, row[1], source, ev, subject); }          // rules batch 79: a result table (Component Pouch, Treasure Chest)
           else
@@ -8117,9 +8126,11 @@
         case 'tempCreatureMana': g.tempCreatureMana = g.turn + 1; touch(g); break;
         case 'putFromHand': for (let k = 0; k < (f.n || 1); k++) { const ok = c => !c.card.commander && !entryBlocked(g, c.card, 'other') && (c.card.a.mv || 0) <= f.maxMv && (!f.vial || (c.card.a.mv || 0) === ((source && source.other && source.other.charge) || 0)) && (f.kind === 'planeswalker' ? c.card.a.isPlaneswalker : f.kind === 'artifact' ? c.card.a.isArtifact : f.kind === 'creature' ? c.card.a.isCreature : f.kind === 'spacecraft' ? /Spacecraft/.test(c.card.type_line || '') : (c.card.a.isPermanent && !c.card.a.saga && !c.card.a.isLand)); const cl = g.hand.filter(c => ok(c) && (!f.filter || matchesFilter(c.card, f.filter))).sort((x, y) => y.card.a.mv - x.card.a.mv); let c = cl[0]; if (f.vial && g.ask && !g.dry && cl.length) c = decide(g, { kind: 'target', what: 'lookBf', options: cl, def: cl[0], optional: true, source }) || null; if (!c) break; g.hand.splice(g.hand.indexOf(c), 1); enterWithTriggers(g, c, {}, ev); ev.push({ type: 'note', text: `${c.card.name} is put onto the battlefield`, source }); } break;
         case 'damageEachCreature': { const mine = g.battlefield.filter(q => isCreaturePerm(q) && toughnessOf(g, q) <= n), theirs = g.opp ? g.opp.battlefield.filter(q => isCreaturePerm(q) && toughnessOf(g.opp, q) <= n) : []; theirs.forEach(q => leavePerm(g.opp, q, ev)); mine.forEach(q => leavePerm(g, q, ev)); if (g.opp) flushLeaves(g.opp, ev); flushLeaves(g, ev); break; }
-        case 'animateArtifacts': { const arts = g.battlefield.filter(q => q.card.a.isArtifact && !isCreaturePerm(q) && !q.asLand);
+        case 'animateArtifacts': { if (lockRec && (!f.one || (source && source.card.a.isAura))) break; const arts = g.battlefield.filter(q => q.card.a.isArtifact && !isCreaturePerm(q) && !q.asLand), L = f.one && !lockRec ? tgtLock(g, f) : null;
           if (f.one) arts.sort((x, y) => (x.token ? 1 : 0) - (y.token ? 1 : 0) || (y.card.a.mv || 0) - (x.card.a.mv || 0));          // one target: the biggest real artifact
-          let one = arts.slice(0, 1); if (f.one && one.length && g.ask && !g.dry && !(source && source.card.a.isAura)) { const c = decide(g, { kind: 'target', what: 'animate', options: arts, def: one[0], f, source }); if (c) one = [c]; }          // Rise and Shine, Tezzeret: a person picks the artifact (an Aura's is the one it enchants)
+          let one = arts.slice(0, 1); if (L) { if (!(L.t && L.t.card.a.isArtifact && !L.t.asLand && lockLegal(g, L.t, f))) { ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } one = [L.t]; }          // CR 608.2b
+          else if (f.one && one.length && g.ask && !g.dry && !(source && source.card.a.isAura)) { const c = decide(g, { kind: 'target', what: 'animate', options: arts, def: one[0], f, source }); if (c) one = [c]; }          // Rise and Shine, Tezzeret: a person picks the artifact (an Aura's is the one it enchants)
+          if (lockRec) { lockRec.map.set(f, one.length ? { t: one[0] } : { none: true }); break; }
           (f.one ? one : arts).forEach(q => { q.animated = { p: f.p, t: f.t, kw: f.kw || [], perm: !!f.perm }; if (f.untap) q.tapped = false; if (f.counters) addCounters(g, q, '+1/+1', f.counters, ev, source, true); }); touch(g); break; }
         case 'copyNext': g.copyNext = { turn: g.turn, n: f.n, times: f.times || 1 }; break;
         case 'reanimateTotal': { let left = n; const cs = g.graveyard.filter(i => i.card.a.isCreature && !i.card.commander).sort((x, y) => reanimateValue(g, y) - reanimateValue(g, x)); for (const c of cs) { if ((c.card.a.mv || 0) > left) continue; left -= (c.card.a.mv || 0); g.graveyard.splice(g.graveyard.indexOf(c), 1); enterWithTriggers(g, c, {}, ev); } break; }
@@ -8144,8 +8155,11 @@
         case 'transformNext': if (source) source.transformNext = true; break;          // Aang, at the Crossroads: transform at the beginning of the next upkeep (beginTurn0)
         case 'untapPerms': {                                                                                   // T-100: Teferi, Temporal Archmage (up to four), Formidable Speaker (another one): the tapped sources of the most mana first
           const worth = q => (q.produce ? q.produce.amount : 0) + (isCreaturePerm(q) && q.attackedThisTurn ? 0.5 : 0), pool = g.battlefield.filter(q => q.tapped && !q.phased && q !== (f.other ? source : null));
-          let ps = pool.filter(q => worth(q) >= 1).sort((x, y) => worth(y) - worth(x)).slice(0, f.n);
-          if (g.ask && !g.dry && pool.length) { const pk = decide(g, { kind: 'target', what: 'untapMany', multi: true, pick: f.n, upTo: true, min: 0, options: pool, def: ps, source }); if (Array.isArray(pk)) ps = pk.slice(0, f.n); }          // a person chooses (up to the number, none is allowed)
+          const L = lockRec ? null : tgtLock(g, f);
+          let ps = L ? L.ts.map(x => x.q).filter(q => !q.phased && lockLegal(g, q, f)) : pool.filter(q => worth(q) >= 1).sort((x, y) => worth(y) - worth(x)).slice(0, f.n);          // CR 608.2b: a target that is gone is simply not untapped
+          if (L && ps.length < L.ts.length) ev.push({ type: 'note', text: `${L.ts.length - ps.length} target${L.ts.length - ps.length === 1 ? ' is' : 's are'} no longer legal`, source });
+          if (!L && g.ask && !g.dry && pool.length) { const pk = decide(g, { kind: 'target', what: 'untapMany', multi: true, pick: f.n, upTo: true, min: 0, options: pool, def: ps, source }); if (Array.isArray(pk)) ps = pk.slice(0, f.n); }          // a person chooses (up to the number, none is allowed)
+          if (lockRec) { lockRec.map.set(f, { ts: ps.map(q => ({ q })) }); ps.forEach(q => lockRec.taken.add(q)); break; }
           ps.forEach(q => { q.tapped = false; }); touch(g);
           if (ps.length) ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untapped ${ps.map(q => q.card.name).join(', ')}`, source });
           break;
@@ -8555,7 +8569,7 @@
           ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}${t.card.name} gets +${Math.max(0, powerOf(g, t)) / 2}/+0 and trample`, source });
           break;
         }
-        case 'untapAnother': { const opts = g.battlefield.filter(q => q !== source && q.tapped && (isCreaturePerm(q) || q.card.a.isArtifact)); let t = opts.slice().sort((x, y) => untapValue(g, y) - untapValue(g, x))[0]; if (t && g.ask) t = decide(g, { kind: 'target', what: 'untap', options: opts, def: t, source }); if (t) { t.tapped = false; touch(g); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untapped ${t.card.name}`, source }); } break; }          // Mobile Garrison
+        case 'untapAnother': { const opts = g.battlefield.filter(q => q !== source && q.tapped && (isCreaturePerm(q) || q.card.a.isArtifact)); const L = lockRec ? null : tgtLock(g, f); let t = L ? L.t : opts.slice().sort((x, y) => untapValue(g, y) - untapValue(g, x))[0]; if (L && !(t && !t.phased && lockLegal(g, t, f))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } if (t && g.ask && !L) t = decide(g, { kind: 'target', what: 'untap', options: opts, def: t, source }); if (lockRec) { lockRec.map.set(f, t ? { t } : { none: true }); break; } if (t) { t.tapped = false; touch(g); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untapped ${t.card.name}`, source }); } break; }          // Mobile Garrison
         case 'untapOne': { const t = g.battlefield.filter(q => q.tapped && (q.asLand || q.produce)).sort((x, y) => untapValue(g, y) - untapValue(g, x))[0]; if (t) { t.tapped = false; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untapped ${t.card.name}`, source }); } break; }          // Derevi
         case 'brunaAuras': {                                                                                 // Bruna: every helpful Aura moves to her, and those in your hand and graveyard come in on her
           if (!source || !g.battlefield.includes(source)) break;
@@ -15082,7 +15096,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   //
   const lockableD = f => false;          // goad, stealOne (without mvX), threaten, hostage, fiendHunter, drakeSwap / totemSwap / gateExile / breathFury
   //
-  const lockableE = f => false;          // untapPerms, untapAnother, becomeArtifact, animateArtifacts, skate, mirrorCopy, copyToken, domeCopy
+  const lockableE = f => f.type === 'untapPerms' || f.type === 'untapAnother' || f.type === 'becomeArtifact' || f.type === 'skate' || f.type === 'domeCopy' || (f.type === 'animateArtifacts' && !!f.one) || (f.type === 'copyToken' && !!f.target && !f.self);          // (mirrorCopy is left out: it is a replacement as the artifact enters, not a target) untapPerms, untapAnother, becomeArtifact, animateArtifacts, skate, mirrorCopy, copyToken, domeCopy
   //
   const lockableF = f => false;          // graveyard and other non-battlefield targets: yardExileOne, yardBottom, sozinReanimate, deathReturn, returnOwn, bounceUp
   //
