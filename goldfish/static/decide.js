@@ -67,7 +67,7 @@
       if (isDeck(v)) return 'deck';
       if (isCard(v)) return 'card:' + v.name;
       if (ids.has(v)) return '#' + ids.get(v);
-      if (!cardData.has(v)) ids.set(v, ids.size);                                                        // card data is compared by value
+      if (!cardData.has(v) && !(Array.isArray(v) && !v.length)) ids.set(v, ids.size);                    // card data is compared by value; an empty list is not written out, so it takes no number (T-140: a queue created on demand by one path and not by the other made equal games number their objects differently)
       if (Array.isArray(v)) return v.map(x => walk(x));
       if (v instanceof Set) return { set: [...v].map(x => walk(x)).sort() };
       if (v instanceof Map) return { map: [...v].map(([k, x]) => [walk(k), walk(x)]) };
