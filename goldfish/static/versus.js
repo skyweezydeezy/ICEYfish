@@ -1256,7 +1256,7 @@
           const ids = stk.dataset.iids.split(',').map(Number), all = ids.every(id => gm.pick.has(id));
           const toggle = () => { ids.forEach(id => { if (all) gm.pick.delete(id); else gm.pick.add(id); }); sfx('tap'); render(mode); };
           const face = stk.querySelector('.mtg');          // T-102, phones: a tap selects it, an option attacks or holds it back (Attack / All / None still finish)
-          if (A.isPhoneTouch() && face && A.cardOf(face)) return A.selectCard(face, A.cardOf(face), [[all ? 'Hold it back' : 'Attack with it', toggle, 'primary']]);
+          if (A.isPhoneTouch() && !bypassSel && face && A.cardOf(face)) return A.selectCard(face, A.cardOf(face), [[all ? 'Hold it back' : 'Attack with it', toggle, 'primary']]);
           toggle();
         }
         return;

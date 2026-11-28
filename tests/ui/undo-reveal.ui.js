@@ -34,7 +34,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   if (land != null) {
     const s0 = await st();
     await p.locator(`#zHand .mtg[data-iid="${land}"]`).click({ force: true }); await p.waitForTimeout(300);
-    await p.locator('#ctxMenu button.primary').first().click(); await p.waitForTimeout(700);
+    await p.waitForTimeout(450); await p.locator('#lightbox .lb-act.primary').first().click(); await p.waitForTimeout(700);
     const s1 = await st();
     check('playing the land moved it to the battlefield', s1.hand === s0.hand - 1 && s1.bf === s0.bf + 1, JSON.stringify(s1));
     await p.click('#tUndo'); await p.waitForTimeout(500);
@@ -42,7 +42,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     check('Undo takes the land back', s2.hand === s0.hand && s2.bf === s0.bf, JSON.stringify(s2));
     // play it again, then draw a card from the library: the draw cannot be undone
     await p.locator(`#zHand .mtg[data-iid="${land}"]`).click({ force: true }); await p.waitForTimeout(300);
-    await p.locator('#ctxMenu button.primary').first().click(); await p.waitForTimeout(700);
+    await p.waitForTimeout(450); await p.locator('#lightbox .lb-act.primary').first().click(); await p.waitForTimeout(700);
     await p.click('#zLibrary .card-back'); await p.waitForTimeout(700);
     const s3 = await st();
     check('the library pile drew a card', s3.lib === s1.lib - 1 && s3.hand === s1.hand + 1, JSON.stringify(s3));

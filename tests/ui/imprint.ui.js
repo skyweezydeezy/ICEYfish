@@ -1,6 +1,7 @@
 // The card imprinted on a permanent is shown with it: Isochron Scepter and Chrome Mox on the Goldfish Table (real casts),
 // and Isochron Scepter on the 1v1 table. Clicking the imprinted card opens it in the card viewer.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 const DECK = ['1 Isochron Scepter', '1 Chrome Mox', '4 Lightning Bolt', '4 Shock', '4 Opt', '4 Goblin Guide', '22 Mountain', '20 Island'].join('\n');
@@ -41,7 +42,7 @@ const DECK = ['1 Isochron Scepter', '1 Chrome Mox', '4 Lightning Bolt', '4 Shock
     await p.click('#ctxMenu button:has-text("Cast (ignore mana)")');
     if (pick) {          // T-086: a person is asked which card to imprint (the sheet lists only the legal cards)
       await p.waitForSelector('.ch-sheet', { timeout: 15000 });
-      await p.click('.ch-sheet .ch-opt[title^="' + pick + '"]'); await p.click('.ch-sheet .ch-ok');
+      await p.click('.ch-sheet .ch-opt[title^="' + pick + '"]'); await viewerPick(p); await p.click('.ch-sheet .ch-ok');
       await p.waitForFunction(() => !document.querySelector('.ch-sheet'), null, { timeout: 10000 });
     }
     await p.waitForTimeout(1500);

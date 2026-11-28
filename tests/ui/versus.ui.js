@@ -1,5 +1,6 @@
 // Browser test for the 1v1 and Pod tabs (needs playwright, a static server on :8800 and internet access to Scryfall).
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const UA = 'goldfish-calc-test/0.1';
 let pass = 0, fail = 0;
@@ -64,8 +65,8 @@ const shot = process.env.VERSUS_SHOTS;
   check('Mulligan deals seven new cards', m1.n === 7 && m1.mull === 1 && m1.hand !== h1 && /keep 6/.test(await p.$eval('#tab-duel .vs-mull', b => b.textContent)));
   await p.click('#tab-duel .vs-mull');
   check('after a second mulligan Keep waits until you pick a card for the bottom', await p.$eval('#tab-duel .vs-keep', b => b.disabled));
-  await p.evaluate(() => document.querySelector('#tab-duel .vs-hand .vs-card').click());
-  check('...clicking a card marks it', (await p.$$('#tab-duel .vs-card.pick')).length === 1 && !(await p.$eval('#tab-duel .vs-keep', b => b.disabled)));
+  await p.evaluate(() => document.querySelector('#tab-duel .vs-hand .vs-card').click()); await viewerPick(p);          // T-134: the card opens in the viewer; "Put it on the bottom" is its button
+  check('...choosing a card for the bottom marks it', (await p.$$('#tab-duel .vs-card.pick')).length === 1 && !(await p.$eval('#tab-duel .vs-keep', b => b.disabled)));
   await p.click('#tab-duel .vs-keep');
   await until('duel', () => { const g = window.__isfVersus.duel.game; return g.phase === 'main'; });
   check('...and you keep six', await p.evaluate(() => { const g = window.__isfVersus.duel.game.games[0]; return g.openingHand.length === 6 && g.bottomed.length === 1; }));

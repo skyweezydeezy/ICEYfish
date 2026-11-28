@@ -1,6 +1,7 @@
 // T-097: in Practice, Springleaf Drum ("{T}, Tap an untapped creature you control: Add one mana of any color") makes mana: Lightning Bolt glows with only the Drum
 // and a summoning-sick creature on the table, casting it asks which creature to tap (two are there), and the chosen creature and the Drum end up tapped.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 const DECK = ['1 Springleaf Drum', '4 Lightning Bolt', '4 Goblin Guide', '4 Llanowar Elves', '20 Mountain', '10 Island'].join('\n');
@@ -42,7 +43,7 @@ const DECK = ['1 Springleaf Drum', '4 Lightning Bolt', '4 Goblin Guide', '4 Llan
   check('casting asks which permanent to tap: the Goblin Guide and the Elves are offered', !!sheet && /tap which/i.test(sheet.title) && sheet.opts.length === 2 && sheet.opts.some(t => /^Goblin Guide/.test(t)) && sheet.opts.some(t => /^Llanowar Elves/.test(t)), JSON.stringify(sheet));
   // the one that is not the default is chosen
   const picked = await p.evaluate(() => { const o = document.querySelector('.ch-sheet .ch-opt:not(.def)'); return o ? o.title.split(' (')[0] : null; });
-  await p.click('.ch-sheet .ch-opt:not(.def)'); await p.click('.ch-sheet .ch-ok');
+  await p.click('.ch-sheet .ch-opt:not(.def)'); await viewerPick(p); await p.click('.ch-sheet .ch-ok');
   await p.waitForFunction(() => !document.querySelector('.ch-sheet'), null, { timeout: 10000 });
   await p.waitForTimeout(800);
   const s1 = await state();

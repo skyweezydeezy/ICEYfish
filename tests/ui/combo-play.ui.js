@@ -1,6 +1,7 @@
 // T-061: combo play in the Goldfish Table (needs playwright, a static server on :8800 and internet access to Scryfall).
 // An assembled combo is acknowledged with a banner and asked about; each answer does what it says; infinite mana shows ∞ in the mana pool.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 (async () => {
@@ -42,7 +43,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('the options fit the outcome: win, ∞, numbers, don\'t go off now', names.some(n => /Spend it: win/.test(n)) && names.some(n => /∞/.test(n)) && names.some(n => /^25 mana/.test(n)) && names.some(n => /Don't go off now/.test(n)), names.join(' | '));
   check('"How much mana?" has a number box', await p.isVisible('.ch-sheet.combo .ch-mana-n'));
   check('the autopilot\'s pick (win) is starred', (await p.$$eval('.ch-sheet.combo .ch-opt.def .ch-name', e => e.map(x => x.textContent))).join('').includes('win'));
-  const pick = async re => { const i = names.findIndex(n => re.test(n)); await p.click(`.ch-sheet.combo .ch-opt >> nth=${i}`); await p.click('.ch-sheet.combo .ch-ok'); await p.waitForSelector('.ch-sheet.combo', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(400); };
+  const pick = async re => { const i = names.findIndex(n => re.test(n)); await p.click(`.ch-sheet.combo .ch-opt >> nth=${i}`); await viewerPick(p); await p.click('.ch-sheet.combo .ch-ok'); await p.waitForSelector('.ch-sheet.combo', { state: 'detached', timeout: 15000 }); await p.waitForTimeout(400); };
   await pick(/Don't go off now/);
   let s = await state();
   check('"Don\'t go off now": no win, no ∞', s.kill == null && !s.inf, JSON.stringify(s));

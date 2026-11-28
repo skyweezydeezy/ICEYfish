@@ -8,6 +8,7 @@
 // After each path both devices must be in the same game (id), have the same move count (what one sent the other has) and the same
 // fingerprint, and play must go on. Needs playwright, the :8800 server and Scryfall.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const mockBroker = require('../fixtures/mock-broker');
 const UA = 'goldfish-calc-test/0.1';
@@ -21,6 +22,7 @@ const wait = (p, fn, arg, ms) => p.waitForFunction(fn, arg, { timeout: ms || 300
 const tap = async (p, sel, ms) => {
   await wait(p, s => { const e = document.querySelector(s); return !!e && !e.disabled && e.getClientRects().length > 0; }, sel, ms || 30000);
   await p.evaluate(s => document.querySelector(s).click(), sel);
+    if (/vs-card/.test(sel)) await viewerPick(p);          // T-134: a card opens in the viewer; its action is the button there
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -176,7 +178,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await Promise.all(pages().map(p => wait(p, () => window.__isfRemote.connected(), null, 120000)));
   const still = await st(B);
   check('(e) ...both connected again, and Sam\'s question is still there to answer', still.choice === 'counter', still.choice);
-  await B.evaluate(() => { const o = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => /Counterspell/.test(x.textContent)); if (o) o.click(); document.querySelector('.ch-sheet .ch-ok').click(); });
+  await B.evaluate(() => { const o = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => /Counterspell/.test(x.textContent)); if (o) o.click(); }); await viewerPick(B); await B.evaluate(() => { document.querySelector('.ch-sheet .ch-ok').click(); });
   await together('(e) Sam answers the counterspell question after the drop: same game, move count and table');
   await playOn('(e) ...and play goes on');
 
