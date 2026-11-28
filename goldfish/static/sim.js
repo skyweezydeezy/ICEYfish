@@ -257,6 +257,33 @@
     return { type: 'token', n: 1, creature: true, p: +p, t: +t, colors, subtypes, keywords: kwList(kws), artifact: false, name: subtypes.join(' ') || 'Creature' };
   }
 
+  // T-139: parseEffects collects effects from the whole text, so a line read 'ok' as soon as ANY sentence gave an effect and the rest was dropped without a trace.
+  // parseEffectsWhole reads the text as one and also each sentence on its own (only "then ..." and "repeat ..." belong to the sentence before; an "if", "otherwise" or "unless" sentence must be read itself or the line is partial);
+  // r.unread lists the sentences that gave no effect. The effects are exactly parseEffects(text)'s: only the honesty of the status changes.
+  function parseEffectsWhole(text) {
+    const r = parseEffects(text);
+    if (!r.fx.length) return r;
+    const parts = [];
+    for (const s of String(text).replace(/\([^)]*\)/g, '').split(/(?<=[.!?]["”]?)\s+(?=[A-Z~"“•{(])/)) {
+      const t = s.trim(); if (!t) continue;
+      if (parts.length && /^(then|repeat this)\b/i.test(t) && !/\b(unless|if)\b/i.test(t)) parts[parts.length - 1] += ' ' + t; else parts.push(t);
+    }
+    // a sentence counts as read when adding it changes the effects read from the text up to it (the first one: when it gives an effect or is neutral).
+    // A text with fewer effects than sentences is partial as well, except for a sentence that gave nothing of its own but that an earlier effect absorbed ("Its controller gains life equal to its power").
+    if (parts.length > 1) {
+      const sig = t => JSON.stringify(parseEffects(t).fx);
+      let absorbed = 0;
+      const bad = parts.filter((t, i) => {
+        if (!i) { const q = parseEffects(t); return !q.fx.length && !q.neutral; }
+        const changed = sig(parts.slice(0, i + 1).join(' ')) !== sig(parts.slice(0, i).join(' '));
+        if (changed && !parseEffects(t).fx.length && /^(?:its|that|their) (?:controller|owner) (?:gains?|loses?) /i.test(t)) absorbed++;
+        return !changed && !/^(?:its|that|their) (?:controller|owner) (?:gains?|loses?) /i.test(t);
+      });
+      if (bad.length) r.unread = bad; else if (r.fx.length < parts.length - absorbed) r.unread = ['(' + r.fx.length + ' effects for ' + parts.length + ' sentences)'];
+    }
+    return r;
+  }
+
   function parseEffects(text) {
     const fx = [];
     let neutral = false, approx = false, m;
@@ -3060,9 +3087,9 @@
           : /^target player mills (\w+) cards\.?$/i.test(pwt) ? { fx: [{ type: 'millOpp', n: NUM[pwt.match(/mills (\w+) cards/i)[1].toLowerCase()] || +pwt.match(/mills (\w+) cards/i)[1] || 20 }] }          // Jace Beleren
           : /^until your next turn, you may cast sorcery spells as though they had flash/i.test(pwt) ? { fx: [{ type: 'flashUntil', phrases: [['sorcery']] }] }
           : /^~ deals (\d+) damage to each non-[a-z]+ creature\.?$/i.test(pwt) ? { fx: [{ type: 'sweepDamage', n: +pwt.match(/deals (\d+)/i)[1], noExile: true, noFly: false }] }          // Chandra, Awakened Inferno (every creature: rules batch 38)
-          : parseEffects(pwt);     // Sorin's -6 needs an opponent's creature
+          : parseEffectsWhole(pwt);     // Sorin's -6 needs an opponent's creature
         a.pwAbilities.push({ cost, x: m[2] === 'X', fx: r.fx, text: raw });         // x marks "-X": a real "-1" is not the same thing
-        rec.status = r.fx.length ? 'ok' : r.neutral ? 'neutral' : 'ignored';
+        rec.status = r.fx.length ? (r.unread ? 'partial' : 'ok') : r.neutral ? 'neutral' : 'ignored';          // T-139: a generic read is ok only when every sentence gave an effect
         continue;
       }
       if ((m = line.match(/^((?:\{[^}]+\})+): transform ~\./i))) { a.activated.push({ cost: parseCost(m[1]), tap: false, fx: [{ type: 'transform', same: true }], text: raw }); a.transformAbility = true; rec.status = 'ok'; continue; }          // Jennifer Walters
@@ -3409,11 +3436,11 @@
       }
       if (/enters(?: the battlefield)? tapped|^~ can't block|^~ can't be (blocked|countered)|^you have no maximum hand size|^~ doesn't untap|^as ~ enters|^~ is every creature type|^~ can block|^this spell can't be countered|^~ can't attack|attacks? each combat if able|^~ must be blocked/i.test(line)) { rec.status = 'neutral'; continue; }
       if ((m = line.match(/^([^:"]+): (.*)$/)) && /\{/.test(m[1])) {
-        const r = parseEffects(m[2]);
+        const r = parseEffectsWhole(m[2]);          // T-139: partial when a sentence of the text gave no effect
         const otherCost = /sacrifice|discard|exile|pay|remove|return/i.test(m[1]);
         const cost = parseCost(m[1].replace(/\{T\}|\{Q\}/g, ''));
         if (r.fx.length && !otherCost && r.fx.some(f => ['damage', 'drain', 'token', 'draw', 'counters', 'eachDraw', 'yardCastArtifact', 'mill', 'lookFilter', 'oppDiscard', 'millOpp', 'poison', 'oppHandExile', 'oppExileTop'].includes(f.type) || ((f.type === 'pumpAll' || f.type === 'pumpOne') && (f.keywords || []).includes('lifelink')))) {          // lifelink grants (Vito, Heliod) are worth the mana for the life they bring
-          a.activated.push({ cost, tap: /\{T\}/.test(m[1]), fx: r.fx, text: raw }); rec.status = 'ok';
+          a.activated.push({ cost, tap: /\{T\}/.test(m[1]), fx: r.fx, text: raw }); rec.status = r.unread ? 'partial' : 'ok';
         } else rec.status = r.neutral ? 'neutral' : 'ignored';
         continue;
       }
