@@ -1,6 +1,6 @@
 # MAIN (Visuals) handoff: MAIN 3 -> MAIN 4 (2026-11-28 ~17:15 UTC)
 
-MAIN 3 = session_01K5kL4WCRt94PhekjADso9A (context passed 600k; hand over per CLAUDE.md). Read this, CLAUDE.md and PROJECT_STATE.md (both on claude/main-coordination), then check them against the repository.
+MAIN 3 = session_01K5kL4WCRt94PhekjADso9A (context passed 600k; hand over per CLAUDE.md). MAIN 4 = session_01K5kL4X71yAbkpEVcRH5Z38. Read this, CLAUDE.md and PROJECT_STATE.md (both on claude/main-coordination), then check them against the repository.
 
 ## State at handover
 - **Live: Version 234** (PR #208, e352dbf, Pages green). No merge running, no PR open from MAIN. Default branch: claude/visual-goldfish-calculator-1ztks5.
@@ -9,7 +9,7 @@ MAIN 3 = session_01K5kL4WCRt94PhekjADso9A (context passed 600k; hand over per CL
 
 ## First actions for MAIN 4
 1. **Update the MAIN session id at the top of CLAUDE.md** (the "Visuals session" id, two places) to MAIN 4's id, in MAIN 4's first release. CLAUDE.md lives on the default branch, so it ships with the next merge. MAIN 3 already messaged every active session with MAIN 4's id.
-2. The hourly Teach watch (trig_01LCRJ6VtDu526QoprLEiQK7, at :11) was re-pointed to MAIN 4 by MAIN 3. Check with get_trigger.
+2. The hourly Teach watch is now trig_01FDfMCz6oxPYXbxKFxzgFnn (at :11), bound to MAIN 4 (session_01K5kL4X71yAbkpEVcRH5Z38); the old trig_01LCRJ6VtDu526QoprLEiQK7 was deleted. Check with get_trigger.
 3. **Archive MAIN 3** (session_01K5kL4WCRt94PhekjADso9A) once you're running. Nothing of it is unmerged.
 
 ## Active sessions (all Sonnet/medium except the Haiku watcher)
