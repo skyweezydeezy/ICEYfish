@@ -10267,9 +10267,9 @@
       inst.extraX = 0; inst.xZero = true; const zeroOk = !!canPay(effectiveCost(g, inst), allUnits(g)); inst.xZero = false;          // T-135: X may be 0 (CR 107.3)
       inst.extraX = was;
       if (top >= 0 || zeroOk) {
-        let xs = []; for (let x = 1; x <= top + 1; x++) xs.push(x);
-        if (g.opp && inst.card.a.spellFx.some(f => f.type === 'stealOne' && f.mvX)) { const mvs = new Set(g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !q.card.commander).map(q => q.card.a.mv || 0)); const fx2 = xs.filter(x => mvs.has(x)); if (fx2.length) xs = fx2; }          // Entrancing Melody: only a value some creature of theirs has (the target is chosen next)
-        if (zeroOk) xs.unshift(0);
+        let xs = [], mvOnly = null; for (let x = 1; x <= top + 1; x++) xs.push(x);
+        if (g.opp && inst.card.a.spellFx.some(f => f.type === 'stealOne' && f.mvX)) { const mvs = new Set(g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !q.card.commander).map(q => q.card.a.mv || 0)); const fx2 = xs.filter(x => mvs.has(x)); if (fx2.length) { xs = fx2; mvOnly = mvs; } }          // Entrancing Melody: only a value some creature of theirs has (the target is chosen next)
+        if (zeroOk && (!mvOnly || mvOnly.has(0))) xs.unshift(0);
         let def = Math.min(top + 1, 1 + (was == null ? top : was)); if (!xs.includes(def)) def = xs[xs.length - 1];
         const pk = decide(g, { kind: 'x', options: xs, def, source: inst, less: g.xCastTurn !== g.turn && bfInfo(g).xDiscount ? bfInfo(g).xDiscount.reduce((t, z) => t + Math.max(0, z.counters || 0), 0) : 0 });
         if (pk === 0) { inst.xZero = true; inst.extraX = 0; } else inst.extraX = pk - 1;
