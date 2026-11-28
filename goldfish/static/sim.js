@@ -7435,9 +7435,14 @@
         case 'legolasReflex': { const def = g.battlefield.filter(isCreaturePerm).sort((x, y) => (y.tapped ? 1 : 0) - (x.tapped ? 1 : 0) || powerOf(g, y) - powerOf(g, x))[0]; const t = ownCreature(g, def, 'pump', source); if (t) legolasReflex(g, t, ev, source); break; }          // Legolas's Quick Reflexes
         case 'goad': {                                                                                       // goad: until your next turn the creature attacks each combat if able (and a player other than you if able); Balladeer's also can't block this turn
           if (!g.opp) break;
-          const cands = eachFoe(g, () => g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q)));
-          let t = cands.slice().sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0] || null;
+          const L = lockRec ? null : tgtLock(g, f); let t;          // T-143: the target is chosen as the ability goes on the stack, checked again as it resolves
+          if (L) { t = L.t; if (!(t && lockLegal(g, t, { what: 'creature' }))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else {
+          const cands = eachFoe(g, () => g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !(lockRec && lockRec.taken.has(q))));
+          t = cands.slice().sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0] || null;
           if (g.ask && !g.dry && cands.length) t = decide(g, { kind: 'target', what: 'goad', options: cands, def: t, source }) || t;
+          }
+          if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (!t || against(g, t, () => answered(g, t, 'exile', source, ev))) break;
           t.goaded = turnSeq(g) + 1; if (f.noBlock) t.cantBlockTurn = turnSeq(g);
           ev.push({ type: 'note', text: `${t.card.name} is goaded${f.noBlock ? " and can't block this turn" : ''}`, source }); break;
@@ -7682,8 +7687,8 @@
         case 'stealOne': if (g.opp) {          // Agent of Treachery, Entrancing Melody (mana value X), Thieving Skydiver (kicked: an artifact with mana value X or less)
           const X = f.mvX ? xOfInst(g.lastCast) : f.kickX ? ((source && source.inst && source.inst.kickX) || (g.lastCast && g.lastCast.kicked && g.lastCast.kickX) || 0) : null;
           if (f.kickX && !(X > 0)) break;
-          const L = lockRec || !f.mvX ? null : tgtLock(g, f); let t;
-          if (L) { t = L.t; if (!(t && lockLegal(g, t, f) && (t.card.a.mv || 0) === X)) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the spell does nothing`, source }); break; } }          // CR 608.2b: still a creature of theirs with mana value X
+          const L = lockRec ? null : tgtLock(g, f); let t;
+          if (L) { t = L.t; if (!(t && lockLegal(g, t, f) && (!f.mvX || (t.card.a.mv || 0) === X) && (!f.kickX || (t.card.a.mv || 0) <= X) && (f.what !== 'artifact' || (t.card.a.isArtifact && !t.asLand)))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: ${f.mvX ? 'the spell' : 'the ability'} does nothing`, source }); break; } }          // CR 608.2b: still a creature of theirs with mana value X
           else { t = stealPick(g, g.opp, f, X); if (f.mvX && g.ask && !g.dry) { const opts = g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !q.card.commander && (q.card.a.mv || 0) === X); if (opts.length) t = decide(g, { kind: 'target', what: 'steal', options: opts, def: t || opts[0], source }) || t; } }          // a person chooses among the creatures with mana value X, as the spell is cast (locked)
           if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (!t || answered(g, t, 'exile', source, ev)) break;
@@ -7697,8 +7702,13 @@
           ev.push({ type: 'note', text: `Firestorm: ${X} damage to ${hit} permanent${hit === 1 ? '' : 's'}${face ? ' and to the other player' : ''}`, source });
         } break;
         case 'drakeSwap': if (source && g.battlefield.includes(source)) {          // Gilded Drake: exchanged for their best creature; with none (or no opponent) it is sacrificed
-          let t = g.opp ? bestOppCreature(g, q => targetable(g.opp, q)) : null;
+          const L = lockRec ? null : tgtLock(g, f); let t;          // T-143: "up to one target creature": chosen as the ability goes on the stack ({ none } = chose none: it is sacrificed)
+          if (L) { t = L.t || null; if (t && !lockLegal(g, t, { what: 'creature' })) { ev.push({ type: 'note', text: `${t.card.name} is no longer a legal target: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else {
+          t = g.opp ? bestOppCreature(g, q => targetable(g.opp, q)) : null;
           if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'drake', options: g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q)), def: t, source }) || t;          // a person picks the creature it is exchanged for
+          }
+          if (lockRec) { lockRec.map.set(f, t ? { t } : { none: true }); if (t) lockRec.taken.add(t); break; }
           if (!t || answered(g, t, 'exile', source, ev)) { leavePerm(g, source, ev); flushLeaves(g, ev); ev.push({ type: 'note', text: `${source.card.name}: no exchange, so it is sacrificed`, source }); break; }
           stealPerm(g, t, ev, false); stealPermToOpp(g, source); ev.push({ type: 'note', text: `${source.card.name} is exchanged for ${t.card.name}`, source });
         } break;
@@ -7770,8 +7780,13 @@
         }
         case 'paruns': { const e = source && source.attachedTo != null ? g.battlefield.find(x => x.iid === source.attachedTo && isCreaturePerm(x)) : null; if (e) { e.tapped = !!f.tap; touch(g); ev.push({ type: 'note', text: `${source.card.name}: ${e.card.name} is ${f.tap ? 'tapped' : 'untapped'}`, source }); } break; }          // Sword of the Paruns
         case 'totemSwap': if (g.opp && source && g.battlefield.includes(source)) {          // Avarice Totem: for their best nonland permanent
-          let t = g.opp.battlefield.filter(q => !q.asLand && !q.card.commander && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0];
+          const L = lockRec ? null : tgtLock(g, f); let t;          // T-143: the target is chosen as the ability goes on the stack
+          if (L) { t = L.t; if (!(t && !t.asLand && lockLegal(g, t, f))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else {
+          t = g.opp.battlefield.filter(q => !q.asLand && !q.card.commander && targetable(g.opp, q) && !(lockRec && lockRec.taken.has(q))).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0];
           if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'drake', options: g.opp.battlefield.filter(q => !q.asLand && targetable(g.opp, q)), def: t, source }) || t;
+          }
+          if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (!t || answered(g, t, 'exile', source, ev)) break;
           stealPerm(g, t, ev, false); stealPermToOpp(g, source); ev.push({ type: 'note', text: `${source.card.name} is exchanged for ${t.card.name}`, source });
         } break;
@@ -7977,13 +7992,23 @@
           break;
         }
         case 'hostage': if (g.opp) {                                                                           // Hostage Taker: exile their best creature or artifact; you may cast it with any mana
-          const cands = g.opp.battlefield.filter(q => (isCreaturePerm(q) || q.card.a.isArtifact) && !q.asLand && !q.card.commander && !q.token && q.inst).sort((x, y) => (isCreaturePerm(y) ? creatureValue(g.opp, y) : y.card.a.mv) - (isCreaturePerm(x) ? creatureValue(g.opp, x) : x.card.a.mv));
-          let t = cands[0]; if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'hostage', options: cands, def: t, source }) || t;          // a person picks which
+          const L = lockRec ? null : tgtLock(g, f); let t;          // T-143: the target is chosen as the ability goes on the stack
+          if (L) { t = L.t; if (!(t && !t.asLand && t.inst && (isCreaturePerm(t) || t.card.a.isArtifact) && lockLegal(g, t, f))) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else {
+          const cands = g.opp.battlefield.filter(q => (isCreaturePerm(q) || q.card.a.isArtifact) && !q.asLand && !q.card.commander && !q.token && q.inst && !(lockRec && lockRec.taken.has(q))).sort((x, y) => (isCreaturePerm(y) ? creatureValue(g.opp, y) : y.card.a.mv) - (isCreaturePerm(x) ? creatureValue(g.opp, x) : x.card.a.mv));
+          t = cands[0]; if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'hostage', options: cands, def: t, source }) || t;          // a person picks which
+          }
+          if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (t && source) { removePerm(g.opp, t); t.inst.heldBy = source.iid; t.inst.homeZone = 'bf'; t.inst.anyMana = true; t.inst.foreign = true; g.exile.push(t.inst); ev.push({ type: 'note', text: `${source.card.name} exiles ${t.card.name}: you may cast it`, source }); }
         } break;
         case 'fiendHunter': if (g.opp && source && g.battlefield.includes(source)) {          // Fiend Hunter: exile another target creature until it leaves (a token is gone for good); the opponent's best one, in a match
-          const cands = g.opp.battlefield.filter(q => isCreaturePerm(q) && !q.card.commander && targetable(g.opp, q)).sort((x, y) => creatureValue(g.opp, y) - creatureValue(g.opp, x));
-          let t = cands[0]; if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'fiendhunter', options: cands, def: t, optional: true, source }) || null;
+          const L = lockRec ? null : tgtLock(g, f); let t;          // T-143: "you may exile another target creature": chosen (or declined, { none }) as the ability goes on the stack
+          if (L) { t = L.t || null; if (!t) break; if (!lockLegal(g, t, { what: 'creature' })) { ev.push({ type: 'note', text: `${t.card.name} is no longer a legal target: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else {
+          const cands = g.opp.battlefield.filter(q => isCreaturePerm(q) && !q.card.commander && targetable(g.opp, q) && !(lockRec && lockRec.taken.has(q))).sort((x, y) => creatureValue(g.opp, y) - creatureValue(g.opp, x));
+          t = cands[0]; if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'fiendhunter', options: cands, def: t, optional: true, source }) || null;
+          }
+          if (lockRec) { lockRec.map.set(f, t ? { t } : { none: true }); if (t) lockRec.taken.add(t); break; }
           if (t) { removePerm(g.opp, t); if (!t.token && t.inst) { t.inst.heldBy = source.iid; t.inst.homeZone = 'bf'; g.exile.push(t.inst); } ev.push({ type: 'note', text: `${source.card.name} exiles ${t.card.name}`, source }); }
         } break;
         case 'daredevil': if (g.opp) {                                                                         // Dire Fleet Daredevil: cast an instant or sorcery from their graveyard this turn
@@ -15119,7 +15144,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   //
   const lockableC = f => f.type === 'fight' || f.type === 'flickerOne' || f.type === 'flickerwisp' || f.type === 'flicker';          // fight, flickerOne / flickerTwo / flickerAll / flickerwisp / flicker (oath)
   //
-  const lockableD = f => false;          // goad, stealOne (without mvX), threaten, hostage, fiendHunter, drakeSwap / totemSwap / gateExile / breathFury
+  const lockableD = f => f.type === 'goad' || f.type === 'hostage' || f.type === 'fiendHunter' || f.type === 'drakeSwap' || f.type === 'totemSwap' || (f.type === 'stealOne' && !f.mvX);          // goad, stealOne (without mvX), threaten, hostage, fiendHunter, drakeSwap / totemSwap / gateExile / breathFury
   //
   const lockableE = f => false;          // untapPerms, untapAnother, becomeArtifact, animateArtifacts, skate, mirrorCopy, copyToken, domeCopy
   //
