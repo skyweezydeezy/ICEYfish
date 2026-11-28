@@ -213,9 +213,9 @@ const bubbleIn = p => p.evaluate(() => { const b = document.querySelector('.tut-
     await p.evaluate(v => { localStorage.setItem('isf_whatsnew', String(v - 2)); localStorage.removeItem('isf_state'); }, now);
     await p.reload();
     await p.waitForSelector('.tut-new', { timeout: 6000 }).catch(() => {});
-    const wn = await p.evaluate(() => [...document.querySelectorAll('.tut-new li')].map(l => l.textContent));
-    check('what\'s new: after an update it lists only what is new since your last version', wn.length === 2 && /Brand new/.test(wn[0]) && /Older/.test(wn[1]), wn.join(' | '));
-    await p.click('.tut-next');
+    const wn = await p.evaluate(() => [document.querySelector('.tut-new li').textContent, document.querySelector('.tut-count').textContent]);
+    check('what\'s new: after an update it shows only what is new since your last version, newest card first', /Brand new/.test(wn[0]) && wn[1] === '1 of 2', wn.join(' | '));
+    await p.click('.tut-next'); await p.click('.tut-next');
     await p.reload(); await p.waitForTimeout(1500);
     check('what\'s new: once', !(await p.$('.tut-new')));
     await p.evaluate(() => localStorage.removeItem('isf_tutorial'));          // what Reset (Remember State) does
@@ -223,7 +223,7 @@ const bubbleIn = p => p.evaluate(() => { const b = document.querySelector('.tut-
     await p.evaluate(() => { localStorage.setItem('isf_tutorial', JSON.stringify({ seen: {}, welcome: 1 })); }); await p.reload(); await p.waitForTimeout(900);
     await p.keyboard.press('Escape');
     await p.click('.top-help'); await p.click('.tut-m-new'); await p.waitForSelector('.tut-new', { timeout: 4000 }).catch(() => {});
-    check('what\'s new: also from the ? menu', (await p.$$('.tut-new li')).length === 3);
+    check('what\'s new: also from the ? menu', (await p.evaluate(() => document.querySelector('.tut-count').textContent)) === '1 of 3');
     await p.keyboard.press('Escape');
     check('stage 4: no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
     await ctx.close();
