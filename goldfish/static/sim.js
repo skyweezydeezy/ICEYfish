@@ -332,6 +332,8 @@
       if (c.k === 'selfCounters' && ((p.other && p.other[c.kind]) || 0) < c.n) return `it needs ${c.n} ${c.kind} counters`;
       if (c.k === 'yardCard') { const w = c.what === 'creature' ? i => i.card.a.isCreature : i => i.card.a.isPermanent || i.card.a.isLand; if (![g].concat(otherPlayers(g)).some(o => o.graveyard.some(i => w(i) || c.any))) return 'no graveyard has a card to exile'; }
       if (c.k === 'atkModified' && !g.battlefield.some(q => q.attacking && !q.phased && isCreaturePerm(q) && isModified(g, q))) return 'you need an attacking modified creature';
+      if (c.k === 'godTarget' && !g.battlefield.some(q => isGodPerm(q) && !q.phased)) return 'you control no God';
+      if (c.k === 'legendTarget' && !g.battlefield.some(q => isCreaturePerm(q) && q.card.a.isLegendary && !q.phased)) return 'you control no legendary creature';
       if (c.k === 'once' && p.onceUsed && p.onceUsed[ab.text] === g.turn) return 'only once each turn';
       if (c.k === 'energySpent' && !(g.energySpentTurn === g.turn && (g.energySpent || 0) >= c.n)) return `you have not paid or lost ${c.n} or more {E} this turn`;
       if (c.k === 'lifeOver' && g.life < (g.opts.startLife || 40) + c.n) return `it needs ${c.n} more life than your starting life total`;
@@ -817,6 +819,15 @@
       // ---- rules batch 58: the top-5000 pool (one card each)
       { const ACT = (cost, fx, extra, st) => { a.activated.push(Object.assign({ cost: parseCost(cost), fx, text: raw }, extra || {})); rec.status = st || 'ok'; if (st === 'partial') rec.tag = 'approx'; };
         if (/^at the beginning of your end step, put a loyalty counter on another target planeswalker you control\.?$/i.test(line)) { a.triggers.push({ kinds: ['end'], fx: [{ type: 'pwCounterOther' }], text: raw }); rec.status = 'ok'; continue; }          // T-139: Commodore Guff
+        { const bm = line.match(/^((?:\{[^}]+\})+): until end of turn, ~ becomes a (\d+)\/(\d+) red goblin creature with "whenever ~ attacks, create a 1\/1 red goblin creature token that's tapped and attacking\." it's still a land\.?$/i); if (bm) { a.selfAnimate = { cost: parseCost(bm[1]), p: +bm[2], t: +bm[3], eot: true }; a.triggers.push({ kinds: ['attack'], who: '~', fx: [{ type: 'attackToken', tok: { type: 'token', n: 1, tapped: true, creature: true, p: 1, t: 1, colors: ['R'], subtypes: ['Goblin'], keywords: [], artifact: false, name: 'Goblin' } }], text: raw }); rec.status = 'ok'; continue; } }          // T-139 part 3: Den of the Bugbear
+        if (/^\{2\}\{w\}, \{t\}: whenever you attack this turn, create two 1\/1 red warrior creature tokens that are tapped and attacking\. sacrifice them at the beginning of the next end step\.?$/i.test(line)) { ACT('{2}{W}', [{ type: 'attackWatch', fx: [{ type: 'attackToken', n: 2, sacEnd: true, tok: { type: 'token', n: 1, tapped: true, creature: true, p: 1, t: 1, colors: ['R'], subtypes: ['Warrior'], keywords: [], artifact: false, name: 'Warrior' } }] }], { tap: true, autoGate: 'attackSoon' }); continue; }          // T-139 part 3: Dalkovan Encampment
+        if (/^\{3\}\{b\}, \{t\}: put a shadow counter on target creature\. for as long as that creature has a shadow counter on it, it's a wraith in addition to its other types\.?(?: \(.*\))?$/i.test(line)) { ACT('{3}{B}', [{ type: 'shadowCounter' }], { tap: true, autoGate: 'shadowWorth' }); continue; }          // T-139 part 3: Minas Morgul
+        if (/^\{2\}, \{t\}: target legendary creature becomes a god in addition to its other types\. put a \+1\/\+1 counter on it\.?$/i.test(line)) { ACT('{2}', [{ type: 'godCounter' }], { tap: true, late: true, only: [{ k: 'legendTarget' }] }); continue; }          // T-139 part 3: Tyrite Sanctum
+        if (/^\{4\}, \{t\}, sacrifice ~: put an indestructible counter on target god\.?$/i.test(line)) { ACT('{4}', [{ type: 'indestructCounter' }], { tap: true, sacSelf: true, only: [{ k: 'godTarget' }], autoGate: 'never' }); continue; }          // T-139 part 3: Tyrite Sanctum (the autopilot has no use for it)
+        if (/^\{1\}, \{t\}: roll x six-sided dice, where x is the number of bobbleheads you control\. create a tapped treasure token for each even result\. if you rolled 6 exactly seven times, you win the game\.?$/i.test(line)) { ACT('{1}', [{ type: 'bobble' }], { tap: true, late: true }); continue; }          // T-139 part 3: Luck Bobblehead
+        if (/^\{2\}\{u\}, \{t\}: each player mills three cards\. exile up to two creature cards put into graveyards this way\. create an x\/x blue zombie creature token, where x is the total power of the cards exiled this way\.?$/i.test(line)) { ACT('{2}{U}', [{ type: 'stitcher' }], { tap: true, late: true }); continue; }          // T-139 part 3: Stitcher Geralf
+        if (/^\{t\}: draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana value\. it gains "when the last time counter is removed from ~, if it's exiled, you may cast it without paying its mana cost\. if you cast a creature spell this way, it gains haste until end of turn\." then remove a time counter from each other card you own in exile\.?$/i.test(line)) { ACT('', [{ type: 'alaundo' }], { tap: true, autoGate: 'alaundoWorth' }); continue; }          // T-139 part 3: Alaundo the Seer
+        if (/^\{t\}: exile target card from a graveyard\. when a creature card is exiled this way, put a \+1\/\+1 counter on target creature you control\.?$/i.test(line)) { ACT('', [{ type: 'yardExileThen', what: 'creature', then: 'counterOther' }], { tap: true, only: [{ k: 'yardCard', any: true }], autoGate: 'yardWant', late: true }); continue; }          // T-139 part 3: Agatha's Soul Cauldron
         if (/^\{r\}: creatures you control gain haste until end of turn\.?$/i.test(line)) { ACT('{R}', [{ type: 'pumpAll', p: 0, t: 0, keywords: ['haste'] }], { autoGate: 'hasteSick' }); continue; }          // T-139 part 3: Goro-Goro
         if (/^\{3\}\{r\}\{r\}: create a 5\/5 red dragon spirit creature token with flying\. activate only if you control an attacking modified creature\.?(?: \(.*\))?$/i.test(line)) { ACT('{3}{R}{R}', [{ type: 'token', n: 1, tapped: false, creature: true, p: 5, t: 5, colors: ['R'], subtypes: ['Dragon', 'Spirit'], keywords: ['flying'], artifact: false, name: 'Dragon Spirit' }], { only: [{ k: 'atkModified' }], atkStep: true }); continue; }          // T-139 part 3: Goro-Goro (made while attackers are declared)
         if (/^\{w\}: exile target card from a graveyard\. if it was a permanent card, put a \+1\/\+1 counter on ~\.?$/i.test(line)) { ACT('{W}', [{ type: 'yardExileThen', what: 'permanent', then: 'counter' }], { only: [{ k: 'yardCard', any: true }], autoGate: 'yardWant' }); continue; }          // T-139 part 3: Lion Sash
@@ -8080,7 +8091,7 @@
           if (g.ask && !g.dry) { const opts = g.battlefield.filter(q => !q.token && q.inst && (f.creatures ? isCreaturePerm(q) : (isCreaturePerm(q) || q.asLand || q.card.a.isArtifact))); if (opts.length > ps.length || opts.length > 2) { const pk = decide(g, { kind: 'target', what: 'flickerTwo', options: opts, def: ps, multi: true, pick: 2, upTo: true, source }); ps = Array.isArray(pk) ? pk : ps; } }          // a person chooses up to two
           for (const q of ps) { removePerm(g, q); const np = enterWithTriggers(g, q.inst, {}, ev); np.sick = isCreaturePerm(np); } ev.push({ type: 'note', text: `Flickered ${ps.map(q => q.card.name).join(' and ')}`, source }); break; }          // Ghostly Flicker
         case 'hideaway': if (source) { const top = g.library.slice(0, f.n); const best = top.filter(i => !i.card.a.isLand).sort((x, y) => y.card.a.mv - x.card.a.mv)[0]; if (best) { g.library.splice(g.library.indexOf(best), 1); source.hidden = best; } const rest = g.library.splice(0, Math.max(0, f.n - (best ? 1 : 0))); g.library.push(...rest); } break;
-        case 'attackToken': { createTokens(g, f.tok, f.n || 1, ev, source); for (const r of g.battlefield.slice(-(3 + (f.n || 1)))) if (r.token && r.card.name === f.tok.name && r.enteredTurn === g.turn && !r.attacking && !r.atkTok) { r.atkTok = true; r.tapped = true; r.sick = false; r.attacking = true; r.attackedTurn = g.turn; (g._extraAtk = g._extraAtk || []).push(r); } break; }          // Najeela: the token enters tapped and attacking
+        case 'attackToken': { createTokens(g, f.tok, f.n || 1, ev, source); for (const r of g.battlefield.slice(-(3 + (f.n || 1)))) if (r.token && r.card.name === f.tok.name && r.enteredTurn === g.turn && !r.attacking && !r.atkTok) { r.atkTok = true; if (f.sacEnd) r.sacEnd = true; r.tapped = true; r.sick = false; r.attacking = true; r.attackedTurn = g.turn; (g._extraAtk = g._extraAtk || []).push(r); } break; }          // Najeela: the token enters tapped and attacking
         case 'mobilize': { createTokens(g, { type: 'token', n: 1, tapped: true, creature: true, p: 1, t: 1, colors: ['R'], subtypes: ['Warrior'], keywords: [], artifact: false, name: 'Warrior' }, n, ev, source);
           for (const r of g.battlefield.slice(-n)) if (r.token && /Warrior/.test(r.card.name)) { r.tapped = true; r.sick = false; r.attacking = true; r.sacEnd = true; r.attackedTurn = g.turn; (g._extraAtk = g._extraAtk || []).push(r); } break; }          // Mobilize: tapped and attacking, sacrificed at the end step
         case 'fabricateSubj': if (subject && g.battlefield.includes(subject)) applyEffects(g, [{ type: 'fabricate', n: f.n }], subject, ev, null); break;          // rules batch 55: Cayth (the entering creature fabricates)
@@ -8998,6 +9009,7 @@
           ev.push({ type: 'note', text: `${pick.card.name} is exiled from ${o.theirs ? 'their' : 'your'} graveyard`, source });
           if (want(pick)) {
             if (f.then === 'counter' && source && g.battlefield.includes(source)) addCounters(g, source, '+1/+1', 1, ev, source);
+            else if (f.then === 'counterOther') { const t = bestCreature(g); if (t) addCounters(g, t, '+1/+1', 1, ev, source); }
             else if (f.then === 'human') createTokens(g, { type: 'token', n: 1, creature: true, p: 1, t: 1, colors: ['W'], subtypes: ['Human', 'Soldier'], keywords: [], artifact: false, name: 'Human Soldier' }, 1, ev, source);
           }
           break;
@@ -9017,6 +9029,51 @@
           if (top.card.a.isCreature) createTokens(g, { type: 'token', n: 1, creature: true, p: 1, t: 1, colors: ['G'], subtypes: ['Saproling'], keywords: [], artifact: false, name: 'Saproling' }, 1, ev, source);
           else if (top.card.a.isLand) { g.library.shift(); const np = enterWithTriggers(g, top, {}, ev); ev.push({ type: 'rampLand', inst: top, perm: np, source }); }
           else gainLife(g, 2, ev, source);
+          break;
+        }
+        case 'attackWatch': {          // T-139 part 3: Dalkovan Encampment: "whenever you attack this turn": remembered here, run when attackers are declared
+          g.attackPend = g.attackPend && g.attackPend.turn === g.turn ? g.attackPend : { turn: g.turn, list: [] };
+          g.attackPend.list.push({ fx: f.fx, src: source }); ev.push({ type: 'note', text: `${source ? source.card.name : 'Ability'}: whenever you attack this turn, two Warriors will join the attack`, source }); break;
+        }
+        case 'shadowCounter': {          // T-139 part 3: Minas Morgul: a shadow counter (shadow, and a Wraith) on your best attacker
+          const t = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased && !hasKw(g, q, 'shadow') && targetable(g, q)).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0]; if (!t) break;
+          t.kwCounters = new Set([...(t.kwCounters || []), 'shadow']); t.addTypes = [...new Set([...(t.addTypes || []), 'Wraith'])]; touch(g);
+          ev.push({ type: 'note', text: `${t.card.name} gets a shadow counter: it has shadow and is a Wraith`, source }); break;
+        }
+        case 'godCounter': {          // T-139 part 3: Tyrite Sanctum: a legendary creature becomes a God, with a +1/+1 counter
+          const t = g.battlefield.filter(q => isCreaturePerm(q) && q.card.a.isLegendary && !q.phased && targetable(g, q)).sort((x, y) => (isGodPerm(x) ? 1 : 0) - (isGodPerm(y) ? 1 : 0) || powerOf(g, y) - powerOf(g, x))[0]; if (!t) break;
+          t.addTypes = [...new Set([...(t.addTypes || []), 'God'])]; addCounters(g, t, '+1/+1', 1, ev, source); ev.push({ type: 'note', text: `${t.card.name} becomes a God in addition to its other types`, source }); break;
+        }
+        case 'indestructCounter': {          // T-139 part 3: Tyrite Sanctum: an indestructible counter on a God
+          const t = g.battlefield.filter(q => isGodPerm(q) && !q.phased && !(q.kwCounters && q.kwCounters.has('indestructible'))).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0]; if (!t) break;
+          t.kwCounters = new Set([...(t.kwCounters || []), 'indestructible']); touch(g); ev.push({ type: 'note', text: `${t.card.name} gets an indestructible counter`, source }); break;
+        }
+        case 'bobble': {          // T-139 part 3: Luck Bobblehead: roll X dice (X = Bobbleheads you control), a tapped Treasure for each even result; seven 6s win the game
+          const x = Math.max(1, g.battlefield.filter(q => !q.phased && /\bBobblehead\b/.test(q.card.type_line || '')).length); let even = 0, sixes = 0;
+          for (let k = 0; k < x; k++) { const r = 1 + Math.floor(g.rnd() * 6); if (r % 2 === 0) even++; if (r === 6) sixes++; }
+          ev.push({ type: 'note', text: `${source ? source.card.name : 'Luck Bobblehead'}: rolls ${x} dice: ${even} even`, source });
+          if (even) createTokens(g, { type: 'token', n: 1, tapped: true, creature: false, name: 'Treasure', artifact: true }, even, ev, source);
+          if (sixes === 7) applyEffects(g, [{ type: 'win' }], source, ev, null);
+          break;
+        }
+        case 'stitcher': {          // T-139 part 3: Stitcher Geralf: each player mills three, exile up to two creature cards put into graveyards this way, an X/X Zombie (X: their total power)
+          const got = []; for (const o of [g].concat(otherPlayers(g))) { const cs = []; for (let k = 0; k < 3 && o.library.length; k++) { const c = o.library.shift(); o.graveyard.push(c); cs.push(c); got.push({ c, o }); ev.push({ type: 'note', text: `${o === g ? 'You mill' : 'They mill'} ${c.card.name}`, source }); } if (cs.length && !g.dry) milledEvent(o, cs, ev); }
+          const cr = got.filter(x => x.c.card.a.isCreature && x.o.graveyard.includes(x.c)).sort((x, y) => (y.c.card.a.power || 0) - (x.c.card.a.power || 0)).slice(0, 2);
+          const X = cr.reduce((t, x) => t + (x.c.card.a.power || 0), 0);
+          for (const x of cr) { x.o.graveyard.splice(x.o.graveyard.indexOf(x.c), 1); x.o.exile.push(x.c); ev.push({ type: 'note', text: `${x.c.card.name} is exiled (power ${x.c.card.a.power || 0})`, source }); }
+          createTokens(g, { type: 'token', n: 1, creature: true, p: X, t: X, colors: ['U'], subtypes: ['Zombie'], keywords: [], artifact: false, name: 'Zombie' }, 1, ev, source);
+          break;
+        }
+        case 'alaundo': {          // T-139 part 3: Alaundo the Seer: draw, exile a card from hand with time counters equal to its mana value (cast free when the last is removed), then remove a counter from each other exiled card
+          draw(g, 1, ev); const hand = g.hand.slice();
+          if (hand.length) {
+            const nl = hand.filter(i => !i.card.a.isLand && (i.card.a.mv || 0) >= 1);
+            let pick = (nl.length ? nl.slice().sort((x, y) => (x.card.a.mv || 0) - (y.card.a.mv || 0) || discardValue(g, y) - discardValue(g, x))[0] : hand.slice().sort((x, y) => discardValue(g, x) - discardValue(g, y))[0]);
+            if (g.ask && !g.dry) pick = decide(g, { kind: 'discard', options: hand, def: pick, ability: 'Alaundo the Seer: exile a card from your hand', source }) || pick;
+            g.hand.splice(g.hand.indexOf(pick), 1); pick.suspendN = pick.card.a.mv || 0; g.exile.push(pick);
+            ev.push({ type: 'note', text: `${pick.card.name} is exiled with ${pick.suspendN} time counter${pick.suspendN === 1 ? '' : 's'}`, source });
+            for (const i of g.exile.slice()) if (i !== pick && i.suspendN > 0 && --i.suspendN === 0) { i.freeCast = true; const ce = castCard(g, i, true); i.freeCast = false; const sp = g.battlefield.find(q => q.inst === i); if (sp && isCreaturePerm(sp)) sp.sick = false; ev.push({ type: 'note', text: `${i.card.name}: the last time counter is removed, it is cast for free`, source }); if (ce) ev.push(...ce); }
+          }
           break;
         }
         case 'noCounterCreat': g.noCounterCreat = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}creature spells you cast this turn can't be countered`, source }); break;
@@ -12267,7 +12324,9 @@ g.actSeq = (g.actSeq || 0) + 1;
     return g.battlefield.filter(q => q !== dome && q.card.a.isArtifact && !q.phased && !q.asLand && !q.card.a.isLegendary).map(q => ({ q, v: val(q) })).filter(x => x.v >= 3).sort((x, y) => y.v - x.v).map(x => x.q)[0] || null;
   }
   // T-139 part 3: an ability that can only be activated while attackers are declared ("Activate only if you control an attacking modified creature", Goro-Goro): the autopilot uses it here, with the mana left
+  const isGodPerm = q => isCreaturePerm(q) && (/\bGod\b/.test((q.card.type_line || '').split('—')[1] || '') || (q.addTypes || []).includes('God'));          // a God: printed, or made one by Tyrite Sanctum
   function attackStepAbilities(g, ev) {
+    if (g.attackPend && g.attackPend.turn === g.turn) for (const w of g.attackPend.list) applyEffects(g, w.fx, w.src, ev, null);          // Dalkovan Encampment: "whenever you attack this turn"
     for (const p of g.battlefield.slice()) for (const ab of p.card.a.activated || []) {
       if (!ab.atkStep || !g.battlefield.includes(p)) continue;
       for (let k = 0; k < 3; k++) {
@@ -12288,6 +12347,9 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (ab.gate === 'forgeCmdr') return g.battlefield.some(q => q.card.commander && q.enteredTurn === g.turn && (isCreaturePerm(q) || q.card.a.isPlaneswalker));          // T-139: Forge of Heroes
     if (ab.gate === 'hasteSick') return !g.dry && !g.combatDone && g.activeTurn !== false && g.battlefield.filter(q => isCreaturePerm(q) && q.sick && !hasKw(g, q, 'haste') && !q.tapped).reduce((t, q) => t + Math.max(0, powerOf(g, q)), 0) >= 3;          // Goro-Goro: before combat, for creatures that came this turn
     if (ab.gate === 'yardWant') { if (g.dry) return false; const f = ab.fx[0], w = f.what === 'creature' ? i => i.card.a.isCreature : i => i.card.a.isPermanent || i.card.a.isLand; return otherPlayers(g).some(o => o.graveyard.some(w)) || g.graveyard.some(i => w(i) && !i.card.commander && reanimateValue(g, i) < 3 && !i.card.a.yardActivate && !i.card.a.landfallReturn); }          // Lion Sash, General's Enforcer: only for a card that pays off
+    if (ab.gate === 'attackSoon') return !g.dry && !g.combatDone && g.activeTurn !== false && g.battlefield.some(q => canAttack(g, q));          // Dalkovan Encampment: before combat, with something that can attack
+    if (ab.gate === 'shadowWorth') return !g.dry && !g.combatDone && g.activeTurn !== false && !!g.opp && g.battlefield.some(q => canAttack(g, q) && !hasKw(g, q, 'shadow') && !hasKw(g, q, 'flying') && powerOf(g, q) >= 2);          // Minas Morgul: an attacker that blockers would stop
+    if (ab.gate === 'alaundoWorth') return !g.dry && g.library.length > 3 && g.hand.some(i => !i.card.a.isLand && (i.card.a.mv || 0) >= 1 && (i.card.a.mv || 0) <= 4 && !canPay(effectiveCost(g, i), allUnits(g)));          // Alaundo: a card that is not cast this turn anyway, for later and free
     if (ab.gate === 'never') return false;          // a person's ability: the autopilot has no use for it
     if (ab.gate === 'oppLib') return !g.dry && !!g.opp && g.opp.library.length > 0;          // Knacksaw Clique: always worth a card
     if (ab.gate === 'oppYardWorth') return !g.dry && !!g.opp && otherPlayers(g).some(o => o.graveyard.some(i => reanimateValue(g, i) >= 4));          // Soul-Guide Lantern: a graveyard with something to reanimate
