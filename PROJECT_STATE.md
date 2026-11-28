@@ -50,6 +50,8 @@ Firm requirements. The user's own wording is in `CLAUDE.md`; this is the list, n
 
 ## 2. Architecture and accepted decisions
 
+- [R] 15:20 UTC queue: v232 = Teach Ajani, Sleeper Agent (claude/card-teaching @ f01bff7; fingerprint moves to 5b6f7a93..., loyalty-program deck only). Then v233 = T-134 swipe (Puzzle) + Tidal Loop (Drive B5, verified B4). Teach #205 (Chandra, Torch of Defiance; owner's pipeline test) -> Card teaching 13. T-139 honest coverage + 41 planeswalkers -> Card teaching 14. T-135 (top of library) finishing Experimental Frenzy. T-137 reworking the seed search (standard B3 opponent, two-stage, interactive, rarity). T-138 seeded Duel UI tests -> T-133 session.
+- [V] False 'ok' root cause (Card teaching 13, 2026-11-28): generic loyalty fallback marks ok if any sentence parses; 48 abilities on 42 cards drop text (docs/agents/pw-generic-ok.md on claude/card-teaching). Fix: ok only when every sentence is consumed (T-139).
 - [V] Tabs (user, 2026-11-28, screenshot docs/briefs/t136-tabs-two-rows.jpg): Practice, Duel and Pod use the same two rows of four as the other screens. T-136 -> T-133 session `session_01K5kL4WQAKjGVM4hR6jeABs`, claude/t136-tabs-two-rows.
 - [V] Fastest-kill replay (user, 2026-11-28): each deck's Build tab offers "Fastest win vs <deck>: turn N ▶ Watch", a stored seed of a 1v1 Duel vs a real deck (the user chose real deck over goldfish), opening on the Duel table from the dice roll with every replay control. T-137 `session_01K5kL4X2fXkUeJBKhNxqX1n`, claude/t137-fastest-kill-replay.
 - [V] Swipe (user, 2026-11-28): "If cards are adjacent to other cards on the screen always add a swipe function to the card when it is selected." Viewer swipes left/right through the same group in screen order, stops at the ends, "3 of 7" indicator, arrows + </> kept, vertical scroll never moves. Added to T-134 (all screens; Puzzle first).
@@ -129,6 +131,7 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 231** (2026-11-28 15:11 UTC): PR #204, 4/4 + Pages green: T-136 two rows of tabs on Practice/Duel/Pod (CSS only). versus-fit, remote-mobile, duel-loop-phone, step-strip, versus, versus-end ok; puzzles flaky once (ghost-tap timing), 118/118 alone.
 - [V] **Version 230** (2026-11-28 14:24 UTC): PR #202, 4/4 + Pages green: Blood Bank (Edgar Markov) verified B3 (Drive B4) + Teach Master of Dark Rites (false ok fixed). Engine 289, sweep bad 0.
 - [V] **Version 229** (2026-11-28 13:26 UTC): PR #201, 4/4 + Pages green: **T-127 stage 6, full priority ON by default** (smart stops trimmed; lone goldfish runs no rounds) + Rules Lawyers update (14 cards, B4 re-verified). Stage-6 tree: engine 287, sweep bad 0, **full UI 85/85**; final tree: engine 288, sweep bad 0, UI priority/decisions/versus/puzzles. Default fingerprint now a2e96ee33608669c02845f94a0b1448c (ISF_PRIORITY=0 keeps b8ce7c97...).
 - [V] **Version 228** (2026-11-28 13:04 UTC): PR #200: Teach Sorin, Vengeful Bloodlord (claude/card-teaching @ 8a17675), merged on its own. Engine 288, sweep bad 0.
