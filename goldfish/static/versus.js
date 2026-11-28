@@ -559,6 +559,20 @@
     if (!ev) return note(mode, gm, g, `${inst.card.name} was not cast.`);
     note(mode, gm, g, ''); humanDone(mode, ev, null, g);
   });
+  // T-135: play the top card of your library (Bolas's Citadel, Future Sight, Courser, Mystic Forge...): a land, a spell paid with mana, or a spell paid with life.
+  // Sorcery timing unless it is an instant or has flash; the rest (the stack, responses, the log) is the engine's, as for a card from the hand.
+  const topTiming = (gm, g, tp, o) => {
+    if (!mainOf(gm, g.pid) && !respOf(gm, g.pid)) return 'Not your turn to act';
+    if (respOf(gm, g.pid) && (o.via === 'land' || !G.instantSpeedFor(g, tp.inst.card))) return 'Only instants and cards with flash, now';
+    return null;
+  };
+  const playTopCard = (mode, seat, via) => mine(mode, seat, async (gm, g) => {
+    const tp = G.topPlay(g), o = tp && tp.options.find(x => x.via === via); if (!o) return;
+    const why = topTiming(gm, g, tp, o) || (o.ok ? null : o.why); if (why) return nope(mode, gm, g, why);
+    const name = tp.inst.card.name, ev = await act(mode, gs => G.playTop(gs[g.pid], via));
+    if (!ev) return note(mode, gm, g, `${name} was not played.`);
+    note(mode, gm, g, ''); humanDone(mode, ev, null, g);
+  });
   // a planeswalker's loyalty abilities: the menu (decide.js loyaltyQuestion), then the chosen ability resolves (its own choices asked)
   const openLoyalty = (mode, seat, iid) => mine(mode, seat, async (gm, g) => {
     const active = respOf(gm, g.pid) ? gm.respond.g : null;          // another player's turn: Teferi, Master of Time
@@ -722,9 +736,9 @@
   // on another device it is sent to them, and each device makes the moves of both seats in turn, each only when that seat has priority
   // (its main phase, its window at the end of the other's turn, its opening hand). A move the rules do not allow does nothing, on both.
   const pass = (mode, seat, noStop) => { const gm = V[mode].game; if (!respOf(gm, seat)) return; if (noStop) { if (gm.remote == null) gm.noStop = true; else gm.noStops.add(seat); } gm.respond.done(); };
-  const ACTIONS = { play: playCard, loyalty: openLoyalty, veil: useVeil, cycle: cycleCard, abilities: useAbilities, ability: useAbility, beginAttack, attack, end: endHumanTurn, pass,
+  const ACTIONS = { play: playCard, playTop: playTopCard, loyalty: openLoyalty, veil: useVeil, cycle: cycleCard, abilities: useAbilities, ability: useAbility, beginAttack, attack, end: endHumanTurn, pass,
     mull: MULL.mull, keep: MULL.keep, mullAuto: MULL.mullAuto };
-  const RESPOND = new Set(['play', 'loyalty', 'cycle', 'abilities', 'ability', 'pass']);
+  const RESPOND = new Set(['play', 'playTop', 'loyalty', 'cycle', 'abilities', 'ability', 'pass']);
   function ready(gm, seat, name) {
     if (gm.over || gm.acting || gm.choice) return false;
     if (MULL[name]) return !!gm.mulling[seat];
@@ -894,7 +908,7 @@
       return p;
     };
     const tv = G.topCardView(g), shown = tv === 'all' || (tv === 'owner' && mine);          // Mystic Forge and the like: its player sees the top card face up; the others see a card back (a revealed top card is open to everyone)
-    pile('lib' + (shown ? ' top-open' : ''), 'Library', 'Lib', g.library.length, g.library.length ? (shown ? node(st, `lt${g.pid}:${g.library[0].iid}`, g.library[0].card) : backEl(st, 'lib' + g.pid, 'card-back' + (g.library.length > 1 ? ' pile' : ''), g.pid)) : null);
+    pile('lib' + (shown ? ' top-open' : ''), 'Library', 'Lib', g.library.length, g.library.length ? (shown ? (e => { e.dataset.iid = g.library[0].iid; return e; })(node(st, `lt${g.pid}:${g.library[0].iid}`, g.library[0].card)) : backEl(st, 'lib' + g.pid, 'card-back' + (g.library.length > 1 ? ' pile' : ''), g.pid)) : null);
     let cz = null;
     if (g.command.length) {
       cz = h('div', 'vs-czone');
@@ -1044,7 +1058,7 @@
       const a = i.card.a, e = node(st, `h${g.pid}:${i.iid}`, i.card), slot = h('div', 'vs-slot');
       e.classList.add('vs-card'); e.dataset.iid = i.iid;
       if (mull) { e.classList.add(need ? 'can' : 'show'); if (gm.bottom.has(i.iid)) { e.classList.add('pick'); e.appendChild(h('span', 'tag', 'to the bottom')); } }
-      else if (quick ? quick.has(i) : mine && (a.isLand ? landOk : castable(g, i))) e.classList.add('can');
+      else if (quick ? quick.has(i) : mine && !G.handBan(g) && (a.isLand ? landOk : castable(g, i))) e.classList.add('can');
       if (human && reply(i)) e.title = 'A counterspell: you are asked when an opponent casts a spell.'; else e.removeAttribute('title');
       slot.appendChild(e);
       if (mine && a.mdfcLand && !a.isLand && landOk) { const b = h('button', 'ghost vs-asland', 'Play as land'); b.dataset.iid = i.iid; slot.appendChild(b); }
@@ -1129,8 +1143,14 @@
     const root = el && el.closest ? el.closest('#tab-duel, #tab-pod') : null; if (!root) return null;
     const mode = root.id === 'tab-pod' ? 'pod' : 'duel', gm = V[mode].game;
     if (!gm || gm.human == null || gm.over || gm.acting || gm.choice) return null;
-    const iid = el.dataset.iid; if (iid == null || !el.closest('.vs-hand, .vs-seat.me')) return null;
+    const iid = el.dataset.iid;
+    if (iid != null && el.closest('.vs-seat.me .vs-pile.lib.top-open')) {          // T-135: the exposed top card of your library: what the cards in play let you do with it, greyed with the reason when not now
+      const g = gm.games[gm.human], tp = G.topPlay(g); if (!tp || String(tp.inst.iid) !== String(iid)) return null;
+      return tp.options.map(o => { const why = topTiming(gm, g, tp, o) || (o.ok ? null : o.why); return [o.label + (o.source ? ` (${o.source})` : ''), () => input(mode, 'playTop', o.via), why ? '' : 'primary', false, why]; });
+    }
+    if (iid == null || !el.closest('.vs-hand, .vs-seat.me')) return null;
     const out = [];
+    if (el.closest('.vs-hand') && G.handBan(gm.games[gm.human]) && gm.phase !== 'mull') return [[card.a && card.a.isLand ? '▶ Play land' : '▶ Cast', () => {}, '', false, `${G.handBan(gm.games[gm.human])}: you can't play cards from your hand`]];          // T-135
     const fresh = sel => () => { const t = root.querySelector(sel); if (t) { bypassSel = true; try { t.click(); } finally { bypassSel = false; } } };
     const cardSel = `.vs-card[data-iid="${iid}"]`;
     if (el.classList.contains('vs-card') && el.classList.contains('can')) {

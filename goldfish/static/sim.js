@@ -2013,7 +2013,9 @@
       if (/^you may play lands from your graveyard/i.test(line)) { a.statics.landsFromYard = true; rec.status = 'ok'; continue; }                                                   // Crucible of Worlds, Conduit of Worlds
       if (/^you may play lands from the top of your library/i.test(line)) { a.statics.landsFromTop = true; rec.status = 'ok'; continue; }                                          // Oracle of Mul Daya
       if (/^play with the top card of your library revealed/i.test(line)) { rec.status = 'ok'; continue; }
-      if (/^you may cast artifact spells and colorless spells from the top of your library/i.test(line)) { a.topCast = 'artifact'; rec.status = 'ok'; continue; }                 // Mystic Forge
+      if (/^you can't play lands or cast spells from your hand\.?$/i.test(line)) { a.noHandPlay = true; rec.status = 'ok'; continue; }          // T-135: Experimental Frenzy (CR 305.1, 601.2: lands and spells only from the top)
+      { const sd = line.match(/^((?:\{[^}]+\})+): destroy (?:~|this enchantment)\.?$/i); if (sd) { a.selfDestroy = sd[1]; rec.status = 'ok'; continue; } }          // T-135: Experimental Frenzy: {3}{R}: destroy it
+      if (/^you may cast artifact spells and colorless spells from the top of your library/i.test(line)) { a.topCast = 'artifact|colorless'; rec.status = 'ok'; continue; }                 // Mystic Forge (T-135: colorless spells too)
       { const wg = line.match(/^whenever enchanted (land|forest|island|swamp|mountain|plains) is tapped for mana, its controller adds an additional (\{[wubrg]\}|one mana of the chosen color|one mana of any color)/i); if (wg) { a.landAura = { colors: /\{/.test(wg[2]) ? [wg[2][1].toUpperCase()] : null }; a.enchantLand = true; rec.status = 'ok'; continue; } }          // Wild Growth, Utopia Sprawl
       if (/^enchant (land|forest|island|swamp|mountain|plains)\b/i.test(line)) { a.enchantLand = true; rec.status = 'ok'; continue; }
       if (/^as ~ enters, choose a color/i.test(line)) { rec.status = 'ok'; continue; }
@@ -5474,11 +5476,14 @@
     return !!t && colorsOf(g.opp, t.card).includes('B');
   }
   function effectiveCost(g, inst) {
-    const c = effectiveCost1(g, inst);
+    let c = effectiveCost1(g, inst);
     inst._phyLife = 0;
+    if (inst.xZero && c.x) c = Object.assign({}, c, { generic: Math.max(0, c.generic - c.x), x: 0 });          // T-135 (the base X = 1 sits in the generic part, a.cost): a person chose X = 0 (CR 107.3): no mana for X
     if (!c.phy || !c.phy.length) return c;
     const r = phyResolve(g, c, inst._phyPick); inst._phyLife = r.life; return r.cost;
   }
+  // the cost increases (Sphere of Resistance, Thalia...): how many generic mana a spell costs more (CR 601.2f; they apply on top of an alternative cost too)
+  function taxOf(g, inst) { let t = 0; for (const q of bothSides(g)) { const st = q.card.a.statics; if (st.taxAll) t += st.taxAll; if (st.taxNoncreature && !inst.card.a.isCreature) t += st.taxNoncreature; if (st.taxOpp && !g.battlefield.includes(q)) t += st.taxOpp; if (st.taxOffTurn && g.activeTurn === false) t += st.taxOffTurn; } return t; }
   function effectiveCost1(g, inst) {
     let c = effectiveCost0(g, inst);
     inst._krrik = 0; inst._defiler = 0; inst._spree = 0;          // _spree: the chosen mode's number, from 1 (0 = none)
@@ -5496,7 +5501,7 @@
     if (bfInfo(g).krrik && !inst.card.a.isLand) { const room = Math.max(0, Math.floor((g.life - 15) / 2)), pips = c.pips.slice(); let k = 0; while (k < room) { const i = pips.findIndex(x => x.length === 1 && x[0] === 'B'); if (i < 0) break; pips.splice(i, 1); k++; } if (k) { inst._krrik = k; c = Object.assign({}, c, { generic: c.generic, pips }); } }          // K'rrik: 2 life for a {B}, keeping 15 life
     for (const q of (tableHas(g, 'statics.pipReduce') ? g.battlefield : NONE)) { const pr = q.card.a.statics.pipReduce; if (!pr || inst.card.a.isLand || q.card === inst.card || !matchesFilter(inst.card, pr.filter)) continue; const pips = c.pips.slice(); for (const col of pr.colors) { const i = pips.findIndex(x => x.length === 1 && x[0] === col); if (i >= 0) pips.splice(i, 1); } c = Object.assign({}, c, { generic: c.generic, pips }); }          // Morophon: one less of each colored mana
     if (g.taxSeen || (g.opp && g.opp.taxSeen)) {                                                          // Sphere of Resistance, Thalia, Thorn of Amethyst: both players pay more
-      let t = 0; for (const q of bothSides(g)) { const st = q.card.a.statics; if (st.taxAll) t += st.taxAll; if (st.taxNoncreature && !inst.card.a.isCreature) t += st.taxNoncreature; if (st.taxOpp && !g.battlefield.includes(q)) t += st.taxOpp; if (st.taxOffTurn && g.activeTurn === false) t += st.taxOffTurn; }          // God-Pharaoh's Statue, Defense Grid
+      const t = taxOf(g, inst);          // God-Pharaoh's Statue, Defense Grid
       if (t) c = Object.assign({}, c, { generic: c.generic + t, pips: c.pips });
     }
     { const yl = bfInfo(g).yardLess; if (yl && c.generic > 0 && g.graveyard.includes(inst)) c = Object.assign({}, c, { generic: Math.max(0, c.generic - yl), pips: c.pips }); }          // Emet-Selch
@@ -6796,7 +6801,7 @@
       else if (n === 'SELFPOWER') n = source ? Math.max(0, powerOf(g, source)) : 0;
       else if (n === 'SUBJTOUGH') n = subject && isCreaturePerm(subject) ? Math.max(0, toughnessOf(g, subject)) : 0;          // Angelic Chorus: the entering creature's toughness
       else if (n === 'SUBJPOWER') n = subject ? (g.battlefield.includes(subject) ? Math.max(0, powerOf(g, subject)) : subject.lastPower || 0) : 0;          // Lifeblood Hydra: its power as it died
-      else if (n === 'HALFCASTX') n = g.lastCast && g.lastCast.card.a.cost.x ? Math.floor((1 + (g.lastCast.extraX || 0)) / 2) : 0;          // Hydroid Krasis
+      else if (n === 'HALFCASTX') n = g.lastCast && g.lastCast.card.a.cost.x ? Math.floor(xOfInst(g.lastCast) / 2) : 0;          // Hydroid Krasis
       else if (n === 'CREATURES') n = g.battlefield.filter(isCreaturePerm).length;          // Will of the Mardu
       else if (n === 'SRCPOWER') n = source ? Math.max(0, powerOf(g, source)) : 0;          // Jacked Rabbit
       else if (n === 'GREATESTOTHERPOWER') n = Math.min(20, g.battlefield.filter(q => q !== source && isCreaturePerm(q)).reduce((m, q) => Math.max(m, powerOf(g, q)), 0));          // Prime Speaker Zegana
@@ -7482,7 +7487,7 @@
           removePerm(g.opp, t); g.opp.phased = (g.opp.phased || []).concat(t); ev.push({ type: 'note', text: `${t.card.name} phases out until its controller's next turn`, source });
         } break;
         case 'swine': if (g.opp) {          // Curse of the Swine: X of their creatures exiled, a 2/2 Boar each
-          const X = 1 + ((g.lastCast && g.lastCast.extraX) || 0), ts = swineTargets(g).slice(0, X);
+          const X = xOfInst(g.lastCast), ts = swineTargets(g).slice(0, X);
           for (const t of ts) { if (answered(g, t, 'exile', source, ev)) continue; const o = g.opp; leavePerm(o, t, ev, 'exile'); flushLeaves(o, ev); createTokens(o, { type: 'token', n: 1, creature: true, p: 2, t: 2, colors: ['G'], subtypes: ['Boar'], keywords: [], artifact: false, name: 'Boar' }, 1, ev, null); }
           ev.push({ type: 'note', text: `Curse of the Swine: ${ts.length} creature${ts.length === 1 ? '' : 's'} exiled, a 2/2 Boar for each`, source });
         } break;
@@ -7495,7 +7500,7 @@
           ev.push({ type: 'note', text: `Two piles: the other player sacrifices ${small.length} permanent${small.length === 1 ? '' : 's'}`, source });
         } break;
         case 'stealOne': if (g.opp) {          // Agent of Treachery, Entrancing Melody (mana value X), Thieving Skydiver (kicked: an artifact with mana value X or less)
-          const X = f.mvX ? 1 + ((g.lastCast && g.lastCast.extraX) || 0) : f.kickX ? ((source && source.inst && source.inst.kickX) || (g.lastCast && g.lastCast.kicked && g.lastCast.kickX) || 0) : null;
+          const X = f.mvX ? xOfInst(g.lastCast) : f.kickX ? ((source && source.inst && source.inst.kickX) || (g.lastCast && g.lastCast.kicked && g.lastCast.kickX) || 0) : null;
           if (f.kickX && !(X > 0)) break;
           const L = lockRec || !f.mvX ? null : tgtLock(g, f); let t;
           if (L) { t = L.t; if (!(t && lockLegal(g, t, f) && (t.card.a.mv || 0) === X)) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the spell does nothing`, source }); break; } }          // CR 608.2b: still a creature of theirs with mana value X
@@ -9523,7 +9528,7 @@
   }
   function resolveSpell(g, inst, ev) {
     const a = inst.card.a;
-    g.xValue = a.cost.x ? (1 + (inst.extraX || 0)) * (a.isPermanent && bfInfo(g).xDouble ? Math.pow(2, bfInfo(g).xDouble) : 1) : (inst.kicked && inst.kickX) || null;          // Unbound Flourishing doubles X for permanents; the X of an X spell, for "deals X damage" and "enters with X counters"
+    g.xValue = a.cost.x ? xOfInst(inst) * (a.isPermanent && bfInfo(g).xDouble ? Math.pow(2, bfInfo(g).xDouble) : 1) : (inst.kicked && inst.kickX) || null;          // Unbound Flourishing doubles X for permanents; the X of an X spell, for "deals X damage" and "enters with X counters"
     try {
       resolveSpellInner(g, inst, ev, a);
       if (inst._copies && !g.dry) {                                                                   // copies made when it was cast (Echoes of Eternity, Ulalek): a permanent's copy is a token
@@ -10087,11 +10092,75 @@
 
   // ---------- Casting ----------
   // casting from the top of the library: Bolas's Citadel (life), Emperor Mihail II and Realmwalker (mana, for Merfolk)
-  function citadelOk(g) { const t = g.library[0]; return !!t && (tableHas(g, 'citadel') && g.battlefield.some(q => q.card.a.citadel)) && !t.card.a.isLand && !t.card.a.cost.x && g.life > t.card.a.castMv + (g.opp ? 14 : 10); }
+  // Bolas's Citadel itself (Citadel Siege also sets a.citadel, but it cannot play cards from the top: T-135)
+  function bolasOn(g) { return tableHas(g, 'citadel') && g.battlefield.some(q => q.card.a.citadel && q.card.a.topLook); }
+  function citadelOk(g) { const t = g.library[0]; return !!t && bolasOn(g) && !t.card.a.isLand && !t.card.a.cost.x && g.life > t.card.a.castMv + (g.opp ? 14 : 10) && (!(g.taxSeen || (g.opp && g.opp.taxSeen) || g.triniSeen || (g.opp && g.opp.triniSeen)) || canPay(lifeExtra(g, t), allUnits(g))); }
   const chipOn = (g, q) => q.card.a.chipTop && q.attachedTo != null && g.battlefield.some(h => h.iid === q.attachedTo);
   const covenOk = g => new Set(g.battlefield.filter(isCreaturePerm).map(q => powerOf(g, q))).size >= 3;
-  function topCastOk(g) { const t = g.library[0]; return !!t && !t.card.a.isLand && !t.card.a.cost.x && g.battlefield.some(q => (q.card.a.topCast && (q.card.a.topCast === 'any' || (q.card.a.topCast === 'mv4+' ? (t.card.a.mv || 0) >= 4 : q.card.a.topCast === 'afterSpell' ? (g.spellsCast || 0) > 0 : matchesFilter(t.card, q.card.a.topCast)))) || chipOn(g, q) || (q.card.a.topCastCoven && t.card.a.isCreature && covenOk(g))); }
+  // T-135: the permanent that lets g cast this top card with mana (undefined: none). A filter is a card type, a list ("a|b"), or "colorless" (Mystic Forge).
+  const topFilterOk = (card, f) => f.split('|').some(x => x === 'colorless' ? !(card.colors || []).length : matchesFilter(card, x));
+  function topCastSrc(g, t) { return g.battlefield.find(q => { const a = q.card.a; return (a.topCast && (a.topCast === 'any' || (a.topCast === 'mv4+' ? (t.card.a.mv || 0) >= 4 : a.topCast === 'afterSpell' ? (g.spellsCast || 0) > 0 : topFilterOk(t.card, a.topCast)))) || chipOn(g, q) || (a.topCastCoven && t.card.a.isCreature && covenOk(g)); }); }
+  function topCastOk(g) { const t = g.library[0]; return !!t && !t.card.a.isLand && !t.card.a.cost.x && !!topCastSrc(g, t); }
   function topCastable(g) { return citadelOk(g) || topCastOk(g); }
+  // ---------- T-135: the top card of your library, played by a person ----------
+  // topPlay(g): null when the top card is not open to its player (Mystic Forge, Bolas's Citadel: "look at the top card any time"; Courser, Future Sight:
+  // "play with the top card revealed"), else { inst, view, options: [{ via: 'land'|'mana'|'life', label, source, ok, why }] }. Options the cards in play
+  // do not offer at all are left out; one they offer but that cannot be done right now says why (why). playTop(g, via) does it, or returns null.
+  // The rules (CR 601.2, 118.9, 119.4, 305): a spell cast from the top goes through castCard (the stack, priority, responses); Bolas's Citadel's life is
+  // paid instead of the mana cost (an alternative cost, X = 0), and only if the life total is at least that much; a land counts as the land drop.
+  // X of a spell as cast: the engine's X is 1 + extraX (the autopilot never picks 0); a spell cast for life through Bolas's Citadel has X = 0 (CR 107.3b)
+  const xOfInst = i => (i && (i.viaCitadel || i.xZero) ? 0 : 1 + ((i && i.extraX) || 0));
+  // Bolas's Citadel pays life instead of the mana cost, but cost increases still apply (CR 118.9d, 601.2f): the mana that is owed on top (Trinisphere raises a free spell to {3})
+  function lifeExtra(g, inst) {
+    let t = taxOf(g, inst);
+    if ((g.triniSeen || (g.opp && g.opp.triniSeen)) && t < 3 && tableHas(g, 'trini') && bothSides(g).some(q => q.card.a.trini && !q.tapped)) t = 3;
+    return { generic: t, pips: [], x: 0 };
+  }
+  const lifeMv = a => (a.cost.x ? a.mv : a.castMv) || 0;          // the life paid: its mana value, with X = 0
+  function topWhy(g) {
+    const q = g.battlefield.find(x => x.card.a.topCast || x.card.a.topCastCoven), f = q && q.card.a.topCast;
+    if (q && !f) return 'Needs three creatures with different powers';
+    if (f === 'artifact|colorless') return 'Not an artifact or colorless spell';
+    if (f === 'mv4+') return 'Mana value is less than 4';
+    if (f === 'afterSpell') return "You haven't cast a spell this turn";
+    if (f && f !== 'any') return `Not ${/^[aeiou]/.test(f) ? 'an' : 'a'} ${f.replace(/\|/g, ' or ')} spell`;
+    return 'Nothing lets you cast it from the top of your library';
+  }
+  function topPlay(g) {
+    const t = g.library[0], view = t ? topCardView(g) : null;
+    if (!t || !view) return null;
+    const a = t.card.a, out = { inst: t, view, options: [] };
+    if (a.isLand) {
+      const src = g.battlefield.find(q => q.card.a.statics.landsFromTop || (q.card.a.citadel && q.card.a.topLook) || chipOn(g, q));
+      if (src) { const ok = g.landsPlayedThisTurn < landsAllowed(g); out.options.push({ via: 'land', label: '▶ Play land', source: src.card.name, ok, why: ok ? null : 'You have already played your land for this turn' }); }
+      return out;
+    }
+    {
+      const ms = topCastSrc(g, t), any = ms || g.battlefield.find(q => q.card.a.topCast || q.card.a.topCastCoven || chipOn(g, q));
+      if (any) {
+        let why = null;
+        if (!ms) why = topWhy(g);
+        else if (castBlocked(g, t)) why = 'Something stops you from casting it';
+        else { const was = t.extraX; t.extraX = 0; try { if (!canPay(effectiveCost(g, t), allUnits(g))) why = 'Not enough mana'; } finally { t.extraX = was; } }
+        out.options.push({ via: 'mana', label: '▶ Cast', source: any.card.name, ok: !why, why });
+      }
+      const bo = g.battlefield.find(q => q.card.a.citadel && q.card.a.topLook);
+      if (bo && tableHas(g, 'citadel')) {
+        const mv = lifeMv(a), ex = lifeExtra(g, t).generic, why = castBlocked(g, t) ? 'Something stops you from casting it' : g.life < mv ? `Not enough life (costs ${mv}, you have ${g.life})` : ex && !canPay(lifeExtra(g, t), allUnits(g)) ? `Not enough mana for the {${ex}} extra cost` : null;
+        out.options.push({ via: 'life', label: `▶ Cast for ${mv} life${ex ? ` + {${ex}}` : ''}`, source: bo.card.name, ok: !why, why, life: mv });
+      }
+    }
+    return out;
+  }
+  // The person plays the top card: events like castCard / playLandCard give (a land: [the land event, ...its events]), or null when it cannot be done.
+  function playTop(g, via) {
+    const tp = topPlay(g), o = tp && tp.options.find(x => x.via === via);
+    if (!o || !o.ok) return null;
+    const inst = tp.inst;
+    if (via === 'land') { const le = playLandCard(g, inst, false); return [le].concat(le.ev); }
+    inst.fromTop = true; inst.viaCitadel = via === 'life'; inst._topSrc = o.source; if (via === 'life') inst.extraX = 0;
+    try { return castCard(g, inst, false); } finally { inst.viaCitadel = false; inst.fromTop = false; inst._topSrc = null; }
+  }
   // Deeproot Historian: Merfolk and Druid cards in the graveyard have retrace (cast them by discarding a land card as an additional cost)
   function retraceOk(g, i) {
     if ((!i.card.a.isCreature && !(i.card.a.isPermanent && !i.card.a.isLand)) || i.card.commander || !g.hand.some(h => h.card.a.isLand)) return false;
@@ -10114,7 +10183,7 @@
     const mv = mistriseHold(g, inst);          // Mistrise Village is kept out of the payment of a spell it should protect
     const item = { kind: 'spell', controller: g, source: inst, inst, seq: stackDepth(g) };
     tableStack(g).push(item);          // on the stack while it is cast and resolves (a rehearsal's copy gets its own empty stack: cloneState)
-    try { const r = castCard0(g, inst, force); if (r && g._silEv) { r.unshift(...g._silEv); } return r; } finally { inst._phyPick = null; { const st = tableStack(g), at = st.lastIndexOf(item); if (at >= 0) st.splice(at, 1); } g._silEv = null; g._payFor = prev; if (mv && mv._hold) { mv._hold = false; mv.tapped = false; } }
+    try { const r = castCard0(g, inst, force); if (r && g._silEv) { r.unshift(...g._silEv); } return r; } finally { inst._phyPick = null; inst.xZero = false; { const st = tableStack(g), at = st.lastIndexOf(item); if (at >= 0) st.splice(at, 1); } g._silEv = null; g._payFor = prev; if (mv && mv._hold) { mv._hold = false; mv.tapped = false; } }
   }
   function silenceFirst(g, inst) {
     if (!g.opp || g.dry || inst.card.a.silence) return;
@@ -10194,15 +10263,18 @@
       inst._blackOnly = decide(g, { kind: 'protect', options: ['Target a black permanent'], def: auto ? 'Target a black permanent' : null, optional: true, why: `${inst.card.name} costs {2} less if it targets a black permanent`, target: null, source: inst }) != null;
     }
     // X: a person chooses it (the autopilot puts all its spare mana into X). The most that can be paid counts every reduction, Zimone's included.
-    if (g.ask && !g.dry && !force && inst.card.a.cost.x && !inst.freeCast) {
+    if (g.ask && !g.dry && !force && inst.card.a.cost.x && !inst.freeCast && !inst.viaCitadel) {          // (Bolas's Citadel: no mana is paid, so X is 0)
       const was = inst.extraX; let top = -1;
       for (let e = 0; e <= 40; e++) { inst.extraX = e; if (canPay(effectiveCost(g, inst), allUnits(g))) top = e; else break; }
+      inst.extraX = 0; inst.xZero = true; const zeroOk = !!canPay(effectiveCost(g, inst), allUnits(g)); inst.xZero = false;          // T-135: X may be 0 (CR 107.3)
       inst.extraX = was;
-      if (top >= 0) {
-        let xs = []; for (let x = 1; x <= top + 1; x++) xs.push(x);
-        if (g.opp && inst.card.a.spellFx.some(f => f.type === 'stealOne' && f.mvX)) { const mvs = new Set(g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !q.card.commander).map(q => q.card.a.mv || 0)); const fx2 = xs.filter(x => mvs.has(x)); if (fx2.length) xs = fx2; }          // Entrancing Melody: only a value some creature of theirs has (the target is chosen next)
+      if (top >= 0 || zeroOk) {
+        let xs = [], mvOnly = null; for (let x = 1; x <= top + 1; x++) xs.push(x);
+        if (g.opp && inst.card.a.spellFx.some(f => f.type === 'stealOne' && f.mvX)) { const mvs = new Set(g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q) && !q.card.commander).map(q => q.card.a.mv || 0)); const fx2 = xs.filter(x => mvs.has(x)); if (fx2.length) { xs = fx2; mvOnly = mvs; } }          // Entrancing Melody: only a value some creature of theirs has (the target is chosen next)
+        if (zeroOk && (!mvOnly || mvOnly.has(0))) xs.unshift(0);
         let def = Math.min(top + 1, 1 + (was == null ? top : was)); if (!xs.includes(def)) def = xs[xs.length - 1];
-        inst.extraX = decide(g, { kind: 'x', options: xs, def, source: inst, less: g.xCastTurn !== g.turn && bfInfo(g).xDiscount ? bfInfo(g).xDiscount.reduce((t, z) => t + Math.max(0, z.counters || 0), 0) : 0 }) - 1;
+        const pk = decide(g, { kind: 'x', options: xs, def, source: inst, less: g.xCastTurn !== g.turn && bfInfo(g).xDiscount ? bfInfo(g).xDiscount.reduce((t, z) => t + Math.max(0, z.counters || 0), 0) : 0 });
+        if (pk === 0) { inst.xZero = true; inst.extraX = 0; } else inst.extraX = pk - 1;
       }
     }
     const ev = [];
@@ -10212,7 +10284,7 @@
       const fl = fodderList(g, true).slice(0, inst.card.a.flashSac);
       if (fl.length < inst.card.a.flashSac && !force) return null;
       flashVictims = fl.map(x => x.p); n = 0;
-    } else if (inst.viaCitadel && g.library[0] === inst) { g.library.shift(); g.life -= inst.card.a.castMv; ev.push({ type: 'note', text: `Bolas's Citadel: paid ${inst.card.a.castMv} life to cast ${inst.card.name} from the top of the library` }); n = 0; checkDeath(g, ev); }
+    } else if (inst.viaCitadel && g.library[0] === inst) { const xc = lifeExtra(g, inst); n = xc.generic ? pay(g, xc) : 0; if (n == null) return null; g.library.shift(); g.life -= lifeMv(inst.card.a); ev.push({ type: 'note', text: `${inst.card.name} cast from the top of the library (Bolas's Citadel, ${lifeMv(inst.card.a)} life${xc.generic ? ` + {${xc.generic}}` : ''})` }); checkDeath(g, ev); }
     else if (inst.escaping && g.graveyard.includes(inst)) {                                                                       // Woe Strider: escape, exiling four other cards
       n = pay(g, inst.card.a.escape.cost);
       if (n != null) { const others = g.graveyard.filter(i => i !== inst).sort((x, y) => escapeKeep(g, x) - escapeKeep(g, y)).slice(0, inst.card.a.escape.n); others.forEach(i => { g.graveyard.splice(g.graveyard.indexOf(i), 1); g.exile.push(i); }); ev.push({ type: 'note', text: `Escape: exiled ${others.map(i => i.card.name).join(', ')}` }); inst.escapedNow = true; }
@@ -10300,7 +10372,7 @@
       }
       inst.broodCast = null; inst.chainerCast = null; inst.mayhemTurn = null;
     }
-    else if (g.library[0] === inst) g.library.shift();
+    else if (g.library[0] === inst) { g.library.shift(); if (!g.dry) { const sc = inst._topSrc || (topCastSrc(g, inst) || {}).card; ev.push({ type: 'note', text: `${inst.card.name} cast from the top of the library${sc ? ' (' + (sc.name || sc) + ')' : ''}` }); } }
     else if (g.exile.includes(inst)) { g.exile.splice(g.exile.indexOf(inst), 1); inst.heldBy = null; inst.airbent = false; }
     resolveSpell(g, inst, ev);
     if (inst.dashing) { inst.dashing = false; const dp = g.battlefield.find(q => q.inst === inst); if (dp) { dp.sick = false; dp.dash = true; } }
@@ -10486,7 +10558,7 @@
   function castOne(g) { return acting(g, () => castOne0(g)); }          // a spell is cast and resolves; then the stack (its triggers), state-based actions
   function castOne0(g) {
     const units = allUnits(g), units0 = units;
-    if (!units.length && !(g.library[0] && (tableHas(g, 'citadel') && g.battlefield.some(q => q.card.a.citadel))) && !(tableHas(g, 'kci') && g.battlefield.some(q => q.card.a.kci)) && !(tableHas(g, 'ramosMana') && g.battlefield.some(q => q.card.a.ramosMana && (q.counters || 0) >= 5)) && !(bfInfo(g).aluren || (g.opp && bfInfo(g.opp).aluren))) return null;
+    if (!units.length && !(g.library[0] && bolasOn(g)) && !(tableHas(g, 'kci') && g.battlefield.some(q => q.card.a.kci)) && !(tableHas(g, 'ramosMana') && g.battlefield.some(q => q.card.a.ramosMana && (q.counters || 0) >= 5)) && !(bfInfo(g).aluren || (g.opp && bfInfo(g.opp).aluren))) return null;
     const isZ = p => /\bZombie\b/.test((p.card.type_line || '')) || p.zombie;
     const hasZ = g.battlefield.some(isZ);
 g.actSeq = (g.actSeq || 0) + 1;
@@ -11117,6 +11189,9 @@ g.actSeq = (g.actSeq || 0) + 1;
         p.tapped = true; leavePerm(g, f, ev); flushLeaves(g, ev); if (!g.graveyard.includes(c)) return;
         g.graveyard.splice(g.graveyard.indexOf(c), 1); const perm = enterWithTriggers(g, c, {}, ev); ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${f.card.name}, ${c.card.name} returns`, source: p }, { type: 'rampLand', inst: c, perm, source: p });
       }); }
+    if (a.selfDestroy && onBf) { const c = parseCost(a.selfDestroy);          // T-135: Experimental Frenzy
+      add(`Destroy ${p.card.name}`, c, blocked || payWhy(c), ev => { pay(g, c); leavePerm(g, p, ev); flushLeaves(g, ev); ev.push({ type: 'note', text: `${p.card.name} is destroyed`, source: p }); });
+    }
     if (a.zulAshur) { const zs = g.graveyard.filter(i => i.card.a.isCreature && matchesFilter(i.card, 'zombie') && i.zulCast !== g.turn);          // Zul Ashur, Lich Lord: then cast it from the graveyard (its menu there)
       add('You may cast target Zombie creature card from your graveyard this turn', '{T}', blocked || sickTap(g, p) || (zs.length ? null : 'no Zombie creature card in your graveyard'), ev => {
         let c = zs.slice().sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0]; if (g.ask && zs.length > 1) c = decide(g, { kind: 'search', options: zs, def: c, f: { dest: 'cast' }, source: p }) || c;
@@ -12191,7 +12266,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     g.battlefield.forEach(p => { if (p.card.a.statics) n += p.card.a.statics.extraLands; });
     return n;
   }
-  function canPlayLand(g) { return g.landsPlayedThisTurn < landsAllowed(g) && g.hand.some(c => c.card.a.isLand || c.card.a.mdfcLand); }
+  function canPlayLand(g) { return g.landsPlayedThisTurn < landsAllowed(g) && !handBan(g) && g.hand.some(c => c.card.a.isLand || c.card.a.mdfcLand); }
 
   function cloneState(g) {
     // a dry run must never touch the other player: give the copy its own stand-in opponent and match record
@@ -12411,6 +12486,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   function playLandCard(g, inst, asMdfc) {
     const ev = [];
     if (g.hand.includes(inst)) g.hand.splice(g.hand.indexOf(inst), 1);
+    else if (g.library[0] === inst) { g.library.shift(); const sl = g.battlefield.find(q => q.card.a.statics.landsFromTop || (q.card.a.citadel && q.card.a.topLook) || chipOn(g, q)); ev.push({ type: 'note', text: `${inst.card.name} played from the top of the library${sl ? ' (' + sl.card.name + ')' : ''}` }); }          // T-135
     const perm = enterWithTriggers(g, inst, { asMdfcLand: asMdfc }, ev);
     gateHit(g, inst.card, ev);
     if (inst.card.a.chasm && !g.dry) sacCheapest(g, ev, q => q.asLand && q !== perm, inst.card.name);          // Glacial Chasm: another land
@@ -12853,7 +12929,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (!g.hand.some(i => i.card.a.isLand) && g.battlefield.some(q => q.card.a.statics.landsFromTop || chipOn(g, q)) && g.library[0] && g.library[0].card.a.isLand) g.hand.push(g.library.shift());          // Oracle of Mul Daya
     }
     if (g.wrennEmblem && !g.hand.some(i => i.card.a.isLand) && g.landsPlayedThisTurn < landsAllowed(g)) { const gl = g.graveyard.find(i => i.card.a.isLand); if (gl) { g.graveyard.splice(g.graveyard.indexOf(gl), 1); g.hand.push(gl); } }          // Wrenn's emblem: play a land from the graveyard
-    if ((tableHas(g, 'citadel') && g.battlefield.some(q => q.card.a.citadel)) && g.library[0] && g.library[0].card.a.isLand && !g.hand.some(i => i.card.a.isLand) && g.landsPlayedThisTurn < landsAllowed(g)) g.hand.push(g.library.shift());          // Bolas's Citadel: play a land from the top of the library
+    if (bolasOn(g) && g.library[0] && g.library[0].card.a.isLand && !g.hand.some(i => i.card.a.isLand) && g.landsPlayedThisTurn < landsAllowed(g)) g.hand.push(g.library.shift());          // Bolas's Citadel: play a land from the top of the library
     const le = playLand(g);
     g.manaAvailThisTurn = allUnits(g).length;
     g.landsThisTurn = g.battlefield.filter(p => p.asLand).length;
@@ -15165,8 +15241,11 @@ g.actSeq = (g.actSeq || 0) + 1;
   const castsThisTurn = g => g.castSeqT === turnSeq(g) ? g.castSeqN || 0 : 0;
   // may g cast this spell now? Rule of Law and Ethersworn Canonist (anyone's), Grafdigger's Cage (anyone's), and the other players' Silence, Grand
   // Abolisher and Dragonlord Dromoka (on their turn), Drannith Magistrate (only from the hand), Void Winnower (no even mana value), Sen Triplets
+  // T-135: Experimental Frenzy: you can't play lands or cast spells from your hand. The card that says so (null: nothing does)
+  function handBan(g) { if (!tableHas(g, 'noHandPlay')) return null; const q = g.battlefield.find(x => x.card.a.noHandPlay); return q ? q.card.name : null; }
   function castBlocked(g, inst) {
     const a = inst.card.a; if (a.isLand) return false;
+    if (g.hand.includes(inst) && handBan(g)) return true;
     const fromHand = g.hand.includes(inst) && !inst.foreign, n = castsThisTurn(g), ts = turnSeq(g);
     const all = g.battlefield.map(q => ({ q, o: g })).concat(othersPerms(g));
     for (const { q, o } of all) {
@@ -15890,7 +15969,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     parseEffects, analyze, buildDeck, tokenCard, newGame, mulligan, chooseBottom, draw, enter, enterWithTriggers, manaUnits, allUnits, canPay, payAssign, payWaste, floatingLoss, emptyPool,
     traceCoverage: on => { TRACING = !!on; }, effectiveCost, castCard, castOne, useAbilities, castPhase, playLand, playLandCard, chooseLand, canPlayLand, beginTurn, landStep, combat,
     postCombat, transformPerm, leavePerm, fodderList, endTurn, playTurn, simulate, monteCarlo, monteCarloPart, monteCarloMerge, createTokens, removePerm, applyEffects, damageOpp,
-    topCardView, powerOf, toughnessOf, hasKw, isCreaturePerm, hyperPmf, hyperAtLeast, keepable, landCount, mulberry32, shuffle, pay, madness, fxValue,
+    topCardView, topPlay, playTop, handBan, powerOf, toughnessOf, hasKw, isCreaturePerm, hyperPmf, hyperAtLeast, keepable, landCount, mulberry32, shuffle, pay, madness, fxValue,
     topCastable, instantWindow, isInstantInteraction, interactionHit, holdForInstant, spellScore, commanderBonus, lockOf, untapStep, lockWorth,
     lockUpkeep, ghostTurn, castBlocked, abilBlocked, searchRule, comboLines, infiniteMana, bestTutorTarget, stealPerm, discardWorst, setTribe: t => { curTribe = t; }, playMatch,
     comparePolicies, tribeOf, labChoices, LAB_CHOICES, pol, crackFetch, matchMonteCarlo, comparePoliciesPart, comparePoliciesMerge, matchMonteCarloPart, matchMonteCarloMerge, matchLog, linkMatch, matchOver, chooseBlocks,

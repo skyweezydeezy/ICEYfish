@@ -2,10 +2,18 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
-      "v": 232,
+      "v": 233,
       "lines": [
         "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow.",
+        "Top of your library: with Bolas's Citadel, Mystic Forge, Future Sight, Courser of Kruphix or Experimental Frenzy in play, tap the face-up top card to play it: Play land, Cast, or Cast for N life (Citadel, plus any tax like Thalia's). What isn't allowed shows greyed with the reason.",
+        "X can now be 0 when you cast an X spell.",
         "Tidal Loop (Hakbal): its Drive name now says Bracket 5; ICEYfish's check keeps it at Bracket 4 (Bracket 5 needs a win before turn 4 on average; its median is turn 7)."
+      ]
+    },
+    {
+      "v": 231,
+      "lines": [
+        "On a phone, Practice, Duel and Pod now show the tabs in two rows of four, like every other screen."
       ]
     },
     {

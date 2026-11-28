@@ -94,8 +94,8 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('casting Stonecoil Serpent asks for X', xq);
   if (xq) {
     const names = await p.$$eval('.ch-sheet .ch-opt', bs => bs.map(x => x.textContent.trim().slice(0, 6)));
-    check('...X = 1 to 4 with four lands', names.length === 4, names.join(','));
-    check('...listed in number order, the most you can pay preselected', names.map(s => s.match(/X = (\d+)/)[1]).join(',') === '1,2,3,4' && await p.$eval('.ch-sheet .ch-opt:last-child', b => b.classList.contains('sel')), names.join(','));
+    check('...X = 0 to 4 with four lands (X may be 0, CR 107.3)', names.length === 5, names.join(','));
+    check('...listed in number order, the most you can pay preselected', names.map(s => s.match(/X = (\d+)/)[1]).join(',') === '0,1,2,3,4' && await p.$eval('.ch-sheet .ch-opt:last-child', b => b.classList.contains('sel')), names.join(','));
     await p.click('.ch-sheet .ch-opt:has-text("X = 2")'); await p.click('.ch-sheet .ch-ok'); await p.waitForTimeout(1200);
     const sp = await p.evaluate(() => { const g = window.__isf.game, q = g.battlefield.find(x => /Stonecoil/.test(x.card.name)); return q ? q.counters : -1; });
     check('...X = 2: it enters with two counters', sp === 2, sp);
