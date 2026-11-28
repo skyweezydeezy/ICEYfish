@@ -3519,11 +3519,18 @@
     });
     const txt = ' ' + toks.map(k => k.w).join(' ') + ' ', f = new Set();
     for (const [k, re] of [['target', / target /], ['each', / each /], ['may', / may /], ['sac', / sacrifice /], ['counter', / counters? /], ['eot', / until end of turn /], ['opp', / opponents? /], ['ctl', / you control /]]) if (re.test(txt)) f.add(k);
+    // words that change how much, where or who: a template that differs in any of them is out (score 0), never a close guess (MAIN, 2026-11-28)
+    const hard = new Set();
+    for (const [k, re] of [['twice', / twice /], ['double', / (?:double|doubles|doubled) /], ['half', / half /], ['triple', / (?:triple|triples) /], ['x', / x /], ['upto', / up to /], ['another', / another /], ['other', / other /], ['token', / tokens? /], ['nontoken', / nontoken /], ['zone', / from (?:your |a |an |their |that player's )?(?:graveyard|hand|library|exile) /], ['dontctl', / you don't control /], ['instead', / instead /], ['cant', / can't /], ['unless', / unless /]]) if (re.test(txt)) hard.add(k);
+    for (const k of ['target', 'each', 'opp', 'ctl', 'eot']) if (f.has(k)) hard.add(k);
+    for (const m of txt.matchAll(/ to (?:your |the |its owner's |their |that player's |a )?(hand|battlefield|graveyard|library|exile) /g)) hard.add('to:' + m[1]);          // where it goes: hand is not battlefield
     const first = toks.length ? toks[0].w : ''; f.add('@' + (first === 'whenever' || first === 'when' ? 'when' : first === 'at' ? 'at' : toks.some(k => k.w === ':') ? 'cost' : 'other'));
-    return { toks, uni, bi, uw, bw, f, sig: toks.filter(k => k.t).map(k => k.t).join('') };
+    return { toks, uni, bi, uw, bw, f, hard, sig: toks.filter(k => k.t).map(k => k.t).join('') };
   }
   // graded membership 0..1: weighted word overlap and two-word overlap, less a penalty for each key word the two lines do not share
   function fzScore(A, B) {
+    for (const k of A.hard) if (!B.hard.has(k)) return 0;          // a key word one line has and the other lacks: no guess
+    for (const k of B.hard) if (!A.hard.has(k)) return 0;
     const dice = (x, y, tx, ty) => { let s = 0; for (const [k, v] of x) { const u = y.get(k); if (u) s += Math.min(v, u); } return tx + ty ? 2 * s / (tx + ty) : 0; };
     const base = 0.4 * dice(A.uni, B.uni, A.uw, B.uw) + 0.6 * dice(A.bi, B.bi, A.bw, B.bw);
     let diff = 0; for (const k of A.f) if (!B.f.has(k)) diff++; for (const k of B.f) if (!A.f.has(k)) diff++;
