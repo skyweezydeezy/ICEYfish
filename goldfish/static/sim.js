@@ -133,6 +133,7 @@
       case 'creature': return a.isCreature;
       case 'types': return matchesFilter(c, R.ts.join('|'));          // Master of Dark Rites: Vampire, Cleric and/or Demon spells
       case 'type': return (R.anySpell || a.isCreature) && matchesFilter(c, R.t);
+      case 'mvMin': return (a.mv || 0) >= R.n;          // Ashling, Rimebound: mana value 4 or greater
       case 'legendary': return a.isLegendary;
       case 'eldrazi': return !colorsOf(g, c).length && matchesFilter(c, 'eldrazi');
       case 'colorless': return !colorsOf(g, c).length;
@@ -828,6 +829,10 @@
         if (/^\{2\}\{u\}, \{t\}: each player mills three cards\. exile up to two creature cards put into graveyards this way\. create an x\/x blue zombie creature token, where x is the total power of the cards exiled this way\.?$/i.test(line)) { ACT('{2}{U}', [{ type: 'stitcher' }], { tap: true, late: true }); continue; }          // T-139 part 3: Stitcher Geralf
         if (/^\{t\}: draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana value\. it gains "when the last time counter is removed from ~, if it's exiled, you may cast it without paying its mana cost\. if you cast a creature spell this way, it gains haste until end of turn\." then remove a time counter from each other card you own in exile\.?$/i.test(line)) { ACT('', [{ type: 'alaundo' }], { tap: true, autoGate: 'alaundoWorth' }); continue; }          // T-139 part 3: Alaundo the Seer
         if (/^\{t\}: exile target card from a graveyard\. when a creature card is exiled this way, put a \+1\/\+1 counter on target creature you control\.?$/i.test(line)) { ACT('', [{ type: 'yardExileThen', what: 'creature', then: 'counterOther' }], { tap: true, only: [{ k: 'yardCard', any: true }], autoGate: 'yardWant', late: true }); continue; }          // T-139 part 3: Agatha's Soul Cauldron
+        if (/^whenever ~ enters or transforms into ~(?:, rekindled)?, you may discard a card\. if you do, draw a card\.?$/i.test(line)) { a.triggers.push({ kinds: ['etb', 'transformIn'], who: '~', fx: [{ type: 'discardFor', n: 1, may: true, then: [{ type: 'draw', n: 1 }] }], text: raw }); rec.status = 'ok'; continue; }          // T-139 part 3: Ashling, Rekindled
+        if (/^whenever ~ transforms into ~ and at the beginning of your first main phase, add two mana of any one color\. spend this mana only to cast spells with mana value 4 or greater\.?$/i.test(line)) { const fx = [{ type: 'restrictMana', colors: ['W', 'U', 'B', 'R', 'G'], amount: 2, anyOne: true, R: { k: 'mvMin', n: 4 } }]; a.triggers.push({ kinds: ['transformIn'], who: '~', fx, text: raw }, { kinds: ['main'], who: '~', fx, text: raw }); rec.status = 'ok'; continue; }          // T-139 part 3: Ashling, Rimebound
+        if (/^\{t\}: draw two cards\. target opponent gains control of ~\. activate only during your turn\.?$/i.test(line)) { ACT('', [{ type: 'draw', n: 2 }, { type: 'giveAway' }], { tap: true, only: [{ k: 'turn' }], late: true, autoGate: 'defectorWorth' }); continue; }          // T-139 part 3: Humble Defector
+        if (/^when you draw your third card in a turn, exile ~, then return (?:her|him|it) to the battlefield transformed under (?:her|his|its) owner's control\.?$/i.test(line)) { a.triggers.push({ kinds: ['onDraw'], drawNth: 3, who: '~', fx: [{ type: 'flipExile' }], text: raw }); rec.status = 'ok'; continue; }          // T-139 part 3: Tamiyo, Inquisitive Student
         if (/^\{r\}: creatures you control gain haste until end of turn\.?$/i.test(line)) { ACT('{R}', [{ type: 'pumpAll', p: 0, t: 0, keywords: ['haste'] }], { autoGate: 'hasteSick' }); continue; }          // T-139 part 3: Goro-Goro
         if (/^\{3\}\{r\}\{r\}: create a 5\/5 red dragon spirit creature token with flying\. activate only if you control an attacking modified creature\.?(?: \(.*\))?$/i.test(line)) { ACT('{3}{R}{R}', [{ type: 'token', n: 1, tapped: false, creature: true, p: 5, t: 5, colors: ['R'], subtypes: ['Dragon', 'Spirit'], keywords: ['flying'], artifact: false, name: 'Dragon Spirit' }], { only: [{ k: 'atkModified' }], atkStep: true }); continue; }          // T-139 part 3: Goro-Goro (made while attackers are declared)
         if (/^\{w\}: exile target card from a graveyard\. if it was a permanent card, put a \+1\/\+1 counter on ~\.?$/i.test(line)) { ACT('{W}', [{ type: 'yardExileThen', what: 'permanent', then: 'counter' }], { only: [{ k: 'yardCard', any: true }], autoGate: 'yardWant' }); continue; }          // T-139 part 3: Lion Sash
@@ -3232,6 +3237,14 @@
           : /^put a \+1\/\+1 counter on each creature you control\. those creatures gain flying until your next turn\.?$/i.test(pwt) ? { fx: [{ type: 'counters', kind: '+1/+1', n: 1, scope: 'each', other: false, excl: false, types: [] }, { type: 'flyNext' }] }          // T-139: Elspeth, Storm Slayer
           : /^you get an emblem with "lands you control have indestructible\."\s*search your library for any number of forest cards, put them onto the battlefield tapped, then shuffle\.?$/i.test(pwt) ? { fx: [{ type: 'emblem', p: 0, t: 0, keywords: ['indestructible'], types: ['land'] }, { type: 'ramp', bf: 99, hand: 0, tapped: true, basicOnly: false, types: ['Forest'] }] }          // T-139: Nissa, Who Shakes the World
           : /^you may sacrifice a creature\. when you do, destroy target creature or planeswalker\.?$/i.test(pwt) ? { fx: [{ type: 'removal', how: 'destroy', what: 'creatureOrPw', crimeT: 'creature or planeswalker', sacCreature: true }] }          // T-139: Grist, the Hunger Tide
+          : /^you get an emblem with "at the beginning of combat on your turn, put three \+1\/\+1 counters on target artifact you control\. if it's not a creature, it becomes a 0\/0 robot artifact creature\."$/i.test(pwt) ? { fx: [{ type: 'tezEmblem' }] }          // T-139 part 3: Tezzeret, Cruel Captain -7
+          : /^until your next turn, up to two target creatures each have base power and toughness 0\/3 and lose all abilities\.?$/i.test(pwt) ? { fx: [{ type: 'willBase' }] }          // Will Kenrith +2
+          : /^target player draws two cards\. until your next turn, instant, sorcery, and planeswalker spells that player casts cost \{2\} less to cast\.?$/i.test(pwt) ? { fx: [{ type: 'draw', n: 2 }, { type: 'willDisc' }] }          // Will Kenrith -2
+          : /^target player gets an emblem with "whenever you cast an instant or sorcery spell, copy it\. you may choose new targets for the copy\."$/i.test(pwt) ? { fx: [{ type: 'willEmblem' }] }          // Will Kenrith -8
+          : /^choose up to two target creatures\. until your next turn, whenever either of those creatures deals combat damage, you draw a card\.?$/i.test(pwt) ? { fx: [{ type: 'tamiyoWatch' }] }          // Tamiyo, Field Researcher +1
+          : /^gain control of all commanders\. put all commanders from the command zone onto the battlefield under your control\.?$/i.test(pwt) ? { fx: [{ type: 'teveshUlt' }] }          // Tevesh Szat -10
+          : /^exile up to one target artifact or creature\. return that card to the battlefield under its owner's control at the beginning of that player's next end step\.?$/i.test(pwt) ? { fx: [{ type: 'wandererExile' }] }          // The Eternal Wanderer +1
+          : /^mill seven cards\. return all non-aura enchantment cards from your graveyard to the battlefield, then do the same for aura cards\.?$/i.test(pwt) ? { fx: [{ type: 'estridUlt' }] }          // Estrid, the Masked -7
           : parseEffectsWhole(pwt);     // Sorin's -6 needs an opponent's creature
         a.pwAbilities.push({ cost, x: m[2] === 'X', fx: r.fx, text: raw });         // x marks "-X": a real "-1" is not the same thing
         rec.status = r.fx.length ? (r.unread ? 'partial' : 'ok') : r.neutral ? 'neutral' : 'ignored';          // T-139: a generic read is ok only when every sentence gave an effect
@@ -4403,6 +4416,7 @@
   // and Foods, so those checks never have to walk a 150-token board. A permanent entering is added in place (see enter());
   // anything else that changes the board (leaving, attaching, emblems) just invalidates the cache and it is rebuilt on the next look.
   function addToInfo(info, q) {
+    if (q.baseTimed) return;          // T-139 part 3: Will Kenrith's +2: it lost all abilities
     const a = q.card.a, st = a.statics;
     if (st.anthems.length) { for (const an of st.anthems) { info.anthems.push({ src: q, an }); if (an.other) info.selfSrc.add(q); } info.byCard.clear(); }
     if (q.attachedTo != null && a.attachBonus) { let l = info.attach.get(q.attachedTo); if (!l) info.attach.set(q.attachedTo, l = []); l.push(a.attachBonus.per ? Object.assign({ src: q }, a.attachBonus) : a.attachBonus); }          // a "for each" bonus keeps its Aura or Equipment (its own counters)
@@ -4612,6 +4626,7 @@
     for (const l of info.lieutenants) if (g.battlefield.some(q => q.card.commander)) n += l.src === p ? (k === 'p' ? l.lt.sp : l.lt.st) : (k === 'p' ? l.lt.op : l.lt.ot);
     if (g.gauntletSeen || (g.opp && g.opp.gauntletSeen)) for (const q of bothSides(g)) if (q.card.a.gauntletAnthem && q.gauntletColor && colorsOf(g, p.card).includes(q.gauntletColor)) n += 1;          // Gauntlet of Power
     if (info.porcelain && g.battlefield.includes(p)) { const c = g.battlefield.filter(isCreaturePerm).length; n += c - (k === 'p' ? (p.card.a.power || 0) : (p.card.a.toughness || 0)); }          // Porcelain Gallery
+    if (p.baseTimed && isCreaturePerm(p)) n += p.baseTimed[k] - (k === 'p' ? (p.card.a.power || 0) : (p.card.a.toughness || 0));          // T-139 part 3: Will Kenrith's +2: base power and toughness 0/3
     { const be = g.baseEot && g.baseEot.turn === g.turn ? g.baseEot.x : info.worldOoze ? 6 : null; if (be != null && isCreaturePerm(p) && g.battlefield.includes(p)) n += be - (k === 'p' ? (p.card.a.power || 0) : (p.card.a.toughness || 0)); }          // rules batch 60: base P/T (Biomass Mutation until end of turn, March of the World Ooze)
     if (info.inspiringLeader && p.token && g.battlefield.some(q => q.card.commander && isCreaturePerm(q))) n += info.inspiringLeader * 2;          // Inspiring Leader
     if (info.tenLands && g.battlefield.filter(q => q.asLand).length >= 10) n += k === 'p' ? info.tenLands.p : info.tenLands.t;          // Fecund Greenshell
@@ -4683,7 +4698,7 @@
     return -oppMinusOf(g, 't') + yardLandBuff(g, p, 't') + condAnthem(g, p, 't') + (pe ? pe.t * countWhat(g, pe.what, p) : 0) + (spa ? spa.t * g.battlefield.filter(q => artOn(g, q)).length : 0) + (lbf && g.life >= lbf.min ? lbf.t : 0) + coatBonus(g, p) + (cda && cda.t ? countWhat(g, cda.what, p) : 0) + (p.animated ? p.animated.t + (p.animated.lands ? g.battlefield.filter(q => q.asLand).length : 0) : ((g.opp && g.opp.splendorSeen && splendored(g)) || mahaOn(g) ? 1 : (p.level ? levelStat(p, 't') : (p.setT != null ? p.setT : (p.card.a.toughness || 0))))) - (p.slime ? slimeOn(g, p) : 0) + (p.counters || 0) - ((p.other && p.other['-0/-1']) || 0) + anthemsFor(g, p).dt + (pc ? pc.t * (pc.legendOther ? legendColors(g, p) : bfInfo(g).colors.size) : 0) + (p.eotT || 0) + (p.role ? 1 : 0) + g.eot.t;
   }
   function hasKw(g, p, k) {
-    if (p.eotNoKw) return false;
+    if (p.eotNoKw || p.baseTimed) return false;
     if (k === 'vigilance' && p.asLand && p.animated && tableHas(g, 'statics.landVigil') && g.battlefield.some(q => q.card.a.statics.landVigil)) return true;          // Aang, Destined Savior: land creatures you control have vigilance          // Sudden Spoiling: no abilities until end of turn
     if (k === 'trample' && !g.dry && g.opp && otherPlayers(g).some(o => (tableHas(o, 'noTrampleOpp') && o.battlefield.some(q => q.card.a.noTrampleOpp)))) return false;          // Archetype of Aggression
     if (k === 'hexproof' && !g.dry && g.opp && isCreaturePerm(p) && otherPlayers(g).some(o => (tableHas(o, 'noHexOpp') && o.battlefield.some(q => q.card.a.noHexOpp)))) return false;          // Archetype of Endurance
@@ -5684,6 +5699,7 @@
     let c = effectiveCost1(g, inst);
     if (g.freeCastEmblem && !g.dry && g.hand.includes(inst) && !inst.card.a.isLand) c = { generic: 0, pips: [], x: 0 };          // T-139: Tamiyo, Field Researcher's emblem
     else if (g.affNext === g.turn && c.generic > 0) c = Object.assign({}, c, { generic: Math.max(0, c.generic - g.battlefield.filter(q => q.card.a.isArtifact && !q.phased).length) });          // T-139: Saheeli, the Gifted +1 (affinity for artifacts)
+    if (g.willDisc === g.turn && c.generic > 0 && (inst.card.a.isInstantSorcery || inst.card.a.isPlaneswalker)) c = Object.assign({}, c, { generic: Math.max(0, c.generic - 2) });          // T-139 part 3: Will Kenrith -2: instants, sorceries and planeswalkers cost {2} less until your next turn
     inst._phyLife = 0;
     if (inst.xZero && c.x) c = Object.assign({}, c, { generic: Math.max(0, c.generic - c.x), x: 0 });          // T-135 (the base X = 1 sits in the generic part, a.cost): a person chose X = 0 (CR 107.3): no mana for X
     if (!c.phy || !c.phy.length) return c;
@@ -6073,6 +6089,7 @@
   const ONCE = new WeakMap();
   const onceEachTurn = t => { let r = ONCE.get(t); if (r === undefined) ONCE.set(t, r = /(?:triggers|do this) only once each turn/i.test(t.text || '')); return r; };
   function fire(g, trig, source, ev, subject, amount) {
+    if (source && source.baseTimed) return;          // lost all abilities (Will Kenrith)
     if (source && onceEachTurn(trig)) { const k = turnSeq(g) + ':' + g.turn, used = source.onceUsed || []; if (used.some(u => u.t === trig && u.k === k)) return; source.onceUsed = used.filter(u => u.t !== trig).concat([{ t: trig, k }]); }          // a new list each time: a rehearsal's copy of the permanent must not use up the real one's turn
     const h = isReplacement(trig) ? null : actingHost(g);
     if (h) { (h.trigQ || (h.trigQ = [])).push({ g, trig, source, subject, amount, x: g.xValue, last: g.lastCast, much: g.thatMuch, sc: g.spellsCast }); return; }
@@ -8887,7 +8904,8 @@
           if (c.card.a.isPlaneswalker) { c.loyalty = (c.loyalty || 0) + 1; touch(g); ev.push({ type: 'note', text: `${c.card.name} gets a loyalty counter`, source }); }
           break;
         }
-        case 'restrictMana': { for (let i = 0; i < f.amount; i++) g.floating.push({ src: null, colors: new Set(f.colors), floating: true, restrict: f.R }); ev.push({ type: 'mana', n: f.amount, source }); break; }          // T-139: mana only for some spells (Jaya Ballard, Narset of the Ancient Way)
+        case 'restrictMana': { let cols = f.colors; if (f.anyOne) { const auto = autoColor(g, null); cols = [g.ask && !g.dry ? (decide(g, { kind: 'color', options: ['W', 'U', 'B', 'R', 'G'], def: auto, source }) || auto) : auto]; }          // "two mana of any one color": one color for both
+          for (let i = 0; i < f.amount; i++) g.floating.push({ src: null, colors: new Set(cols), floating: true, restrict: f.R }); ev.push({ type: 'mana', n: f.amount, source }); break; }          // T-139: mana only for some spells (Jaya Ballard, Narset of the Ancient Way)
         case 'narsetLoot': {                                                                               // T-139: Narset of the Ancient Way -2: draw, may discard; a nonland card discarded deals damage equal to its mana value to a creature or planeswalker
           draw(g, 1, ev); if (!g.hand.length) break;
           const tg = g.opp ? g.opp.battlefield.filter(q => (isCreaturePerm(q) || q.card.a.isPlaneswalker) && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0] : null;
@@ -9079,6 +9097,56 @@
             for (const i of g.exile.slice()) if (i !== pick && i.suspendN > 0 && --i.suspendN === 0) { i.freeCast = true; const ce = castCard(g, i, true); i.freeCast = false; const sp = g.battlefield.find(q => q.inst === i); if (sp && isCreaturePerm(sp)) sp.sick = false; ev.push({ type: 'note', text: `${i.card.name}: the last time counter is removed, it is cast for free`, source }); if (ce) ev.push(...ce); }
           }
           break;
+        }
+        case 'giveAway': {          // T-139 part 3: Humble Defector: "target opponent gains control of ~": with an opponent it goes to their side; the goldfish has no one to give it back
+          if (!source || !g.battlefield.includes(source)) break;
+          if (g.opp) { stealPermToOpp(g, source); ev.push({ type: 'note', text: `${source.card.name}: an opponent gains control of it`, source }); }
+          else { removePerm(g, source); flushLeaves(g, ev); ev.push({ type: 'note', text: `${source.card.name}: an opponent gains control of it (the goldfish keeps it)`, source }); }
+          break;
+        }
+        case 'tezEmblem': g.tezEmblem = true; ev.push({ type: 'note', text: 'Emblem: at the beginning of combat on your turn, three +1/+1 counters on an artifact you control', source }); break;          // T-139 part 3: Tezzeret, Cruel Captain -7
+        case 'willBase': {          // T-139 part 3: Will Kenrith +2: up to two target creatures have base power and toughness 0/3 and lose all abilities until your next turn (their strongest, an opponent's)
+          const ts = []; for (const o of otherPlayers(g)) for (const q of o.battlefield) if (isCreaturePerm(q) && !q.phased && !q.baseTimed && targetable(o, q)) ts.push({ o, q });
+          ts.sort((x, y) => powerOf(x.o, y.q) - powerOf(x.o, x.q)); 
+          for (const { o, q } of ts.slice(0, 2)) { q.baseTimed = { by: g, p: 0, t: 3 }; touch(o); ev.push({ type: 'note', text: `${q.card.name} has base power and toughness 0/3 and loses all abilities until your next turn`, source }); }
+          break;
+        }
+        case 'willDisc': g.willDisc = g.turn; ev.push({ type: 'note', text: 'Instant, sorcery and planeswalker spells cost {2} less until your next turn', source }); break;          // Will Kenrith -2
+        case 'willEmblem': g.willEmblem = true; ev.push({ type: 'note', text: 'Emblem: whenever you cast an instant or sorcery spell, copy it', source }); break;          // Will Kenrith -8
+        case 'tamiyoWatch': {          // T-139 part 3: Tamiyo, Field Researcher +1: up to two creatures: a card whenever either deals combat damage, until your next turn
+          const ts = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased).sort((x, y) => (canAttack(g, y) ? 1 : 0) - (canAttack(g, x) ? 1 : 0) || powerOf(g, y) - powerOf(g, x)).slice(0, 2);
+          for (const q of ts) { q.drawWatch = g.turn; ev.push({ type: 'note', text: `${q.card.name}: a card is drawn whenever it deals combat damage until your next turn`, source }); }
+          break;
+        }
+        case 'teveshUlt': {          // T-139 part 3: Tevesh Szat -10: gain control of all commanders; put all commanders from the command zone onto the battlefield under your control
+          for (const o of otherPlayers(g)) for (const q of o.battlefield.slice()) if (q.card.commander && !q.token) stealPerm(g, q, ev, false, o);
+          for (const x of [g].concat(otherPlayers(g))) for (const i of x.command.slice()) { if (!i.card.commander && !i.card.a.isCommander) continue; x.command.splice(x.command.indexOf(i), 1); const np = enterWithTriggers(g, i, {}, ev); if (np && x !== g) { np.owner = x; np.stolen = true; } ev.push({ type: 'note', text: `${i.card.name} enters from the command zone under your control`, source }); }
+          break;
+        }
+        case 'wandererExile': {          // T-139 part 3: The Eternal Wanderer +1: exile up to one artifact or creature; it returns under its owner's control at the beginning of that player's next end step
+          const opts = []; for (const o of otherPlayers(g)) for (const q of o.battlefield) if ((isCreaturePerm(q) || artOn(o, q)) && !q.token && q.inst && !q.card.commander && !q.phased && targetable(o, q)) opts.push({ o, q });
+          const own = g.battlefield.filter(q => (isCreaturePerm(q) || artOn(g, q)) && !q.token && q.inst && !q.card.commander && !q.phased && q !== source && q.card.a.triggers.some(t => t.kinds.includes('etb')));
+          let pick = opts.sort((x, y) => (isCreaturePerm(y.q) ? creatureValue(y.o, y.q) : 0) - (isCreaturePerm(x.q) ? creatureValue(x.o, x.q) : 0))[0] || null, pickOwn = !pick && own.sort((x, y) => fxValue(g, [].concat(...y.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))) - fxValue(g, [].concat(...x.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))))[0];
+          if (pickOwn && fxValue(g, [].concat(...pickOwn.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))) < 2) pickOwn = null;
+          if (pickOwn) pick = { o: g, q: pickOwn };
+          if (!pick) break; const { o, q } = pick, inst = q.inst;
+          leavePerm(o, q, ev, 'exile'); flushLeaves(o, ev);
+          if (o.exile.includes(inst)) { (o.endOwn = o.endOwn || []).push(inst); ev.push({ type: 'note', text: `${inst.card.name} is exiled: it returns at the beginning of ${o === g ? 'your' : 'their'} next end step`, source }); }
+          break;
+        }
+        case 'estridUlt': {          // T-139 part 3: Estrid, the Masked -7: mill seven; return all non-Aura enchantment cards from your graveyard to the battlefield, then the Auras
+          applyEffects(g, [{ type: 'mill', n: 7 }], source, ev, null);
+          const ench = g.graveyard.filter(i => i.card.a.isEnchantment && !i.card.a.isAura && !i.card.commander); for (const i of ench) { g.graveyard.splice(g.graveyard.indexOf(i), 1); enterWithTriggers(g, i, {}, ev); }
+          const auras = g.graveyard.filter(i => i.card.a.isAura && !i.card.commander); let k = 0;
+          for (const i of auras) { const hosts = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased && targetable(g, q)); if (!hosts.length) continue; g.graveyard.splice(g.graveyard.indexOf(i), 1); const np = enterWithTriggers(g, i, {}, ev); k++; if (np && np.attachedTo == null) np.attachedTo = hosts.sort((x, y) => powerOf(g, y) - powerOf(g, x))[0].iid; }
+          ev.push({ type: 'note', text: `${ench.length} enchantment card${ench.length === 1 ? '' : 's'} and ${k} Aura${k === 1 ? '' : 's'} return`, source }); touch(g);
+          break;
+        }
+        case 'flipExile': {          // T-139 part 3: Tamiyo, Inquisitive Student: exile her, then return her to the battlefield transformed under her owner's control
+          if (!source || !g.battlefield.includes(source) || !source.card.a.backCard || !source.inst) break; const inst = source.inst, back = source.card.a.backCard;
+          leavePerm(g, source, ev, 'exile'); flushLeaves(g, ev); const at = g.exile.indexOf(inst); if (at >= 0) g.exile.splice(at, 1);
+          const np = enterWithTriggers(g, { iid: inst.iid, card: back }, {}, ev); if (np) { np.inst = inst; np.transformed = true; np.frontCard = inst.card; }
+          ev.push({ type: 'note', text: `${inst.card.name} returns transformed as ${back.name}`, source: np }); break;
         }
         case 'noCounterCreat': g.noCounterCreat = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}creature spells you cast this turn can't be countered`, source }); break;
         case 'jaceMM': {                                                                                   // T-139: Jace, Mirror Mage 0: draw and reveal a card, remove that many loyalty counters from him
@@ -9727,7 +9795,7 @@
     const ba = back.a, from = p.card;
     ev.push({ type: 'transform', perm: p, from, to: back });
     if (ba.superNova && !g.dry) { g.novaEmblem = (g.novaEmblem || 0) + 1; ev.push({ type: 'note', text: 'Super Nova: an emblem, whenever a creature dies an opponent loses 1 life and you gain 1' }); }
-    if (same) { p.frontCard = p.frontCard === back ? null : from; p.card = back; know(g, p.card); p.transformed = true; if (ba.livingMetal && g.activeTurn !== false && !p.animated) { p.animated = { p: ba.power, t: ba.toughness, perm: false, untilTurn: null, kw: [] }; } else if (!ba.livingMetal && p.animated && from.a.livingMetal && !p.animated.perm) p.animated = null; touch(g); return; }          // (Living metal: a creature during your turn)          // "Transform ~" (Jennifer Walters): the same permanent, nothing resets
+    if (same) { p.frontCard = p.frontCard === back ? null : from; p.card = back; know(g, p.card); p.transformed = true; if (ba.livingMetal && g.activeTurn !== false && !p.animated) { p.animated = { p: ba.power, t: ba.toughness, perm: false, untilTurn: null, kw: [] }; } else if (!ba.livingMetal && p.animated && from.a.livingMetal && !p.animated.perm) p.animated = null; touch(g); for (const t of ba.triggers) if (t.kinds.includes('transformIn') && !g.dry) fire(g, t, p, ev, p); return; }          // T-139 part 3: "whenever ~ transforms into ~" (Ashling)          // (Living metal: a creature during your turn)          // "Transform ~" (Jennifer Walters): the same permanent, nothing resets
     p.frontCard = p.frontCard === back ? null : from;
     p.card = back; know(g, p.card); p.transformed = true; p.enteredTurn = g.turn; p.enteredSeq = turnSeq(g); p.tapped = false; p.counters = 0; p.other = null; p.attachedTo = null; p.lore = 0;
     p.sick = ba.isCreature; p.pwTurn = undefined; p.pwN = 0; p.actUsed = undefined;
@@ -9735,6 +9803,7 @@
     p.loyalty = ba.loyalty * (ba.isPlaneswalker ? counterMult(g) : 1);
     if (ba.livingMetal && g.activeTurn !== false && !p.animated) { p.animated = { p: ba.power, t: ba.toughness, perm: false, untilTurn: null, kw: [] }; p.sick = false; }          // converted during your turn: a creature now
     touch(g);
+    for (const t of ba.triggers) if (t.kinds.includes('transformIn') && !g.dry) fire(g, t, p, ev, p);
     fireEnterWatchers(g, p, ev);                                        // it returned to the battlefield: "whenever a planeswalker enters" triggers (Liliana)
     if (ba.saga && !g.dry) sagaAdvance(g, p, ev);                        // it came back as a Saga: chapter I
   }
@@ -10039,6 +10108,7 @@
     const storms = (tableHas(g, 'statics.stormCopy') ? g.battlefield.filter(p => p.card.a.statics.stormCopy) : []).length;
     if (storms && (g.isCast || 0) > 0) copySpell(g, inst, ev, (g.isCast || 0) * storms);
     g.affNext = null;          // T-139: Saheeli's affinity was for this one spell
+    if (g.willEmblem && a.isInstantSorcery && !g.dry) { ev.push({ type: 'note', text: `Emblem: ${inst.card.name} is copied` }); copySpell(g, inst, ev, 1); }          // T-139 part 3: Will Kenrith -8
     if ((a.storm || (a.isInstantSorcery && (bfInfo(g).stormAll || g.stormEmblem))) && (g.spellsCast || 0) > 1) { ev.push({ type: 'note', text: `Storm: ${g.spellsCast - 1} cop${g.spellsCast === 2 ? 'y' : 'ies'} of ${inst.card.name}` }); copySpell(g, inst, ev, g.spellsCast - 1); }
     g.isCast = (g.isCast || 0) + 1;
     if (a.spellFx.length && a.castMv <= 4 && fxValue(g, a.spellFx) >= 2) {
@@ -11340,6 +11410,14 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (f.type === 'etali') v += 8;
       if (f.type === 'kayaEmblem') v += 20;
       if (f.type === 'wrennEmblem') v += 12;
+      if (f.type === 'tezEmblem') v += 12;
+      if (f.type === 'willEmblem') v += 10;
+      if (f.type === 'teveshUlt') v += 12;
+      if (f.type === 'estridUlt') v += g.graveyard.filter(i => i.card.a.isEnchantment).length >= 3 ? 10 : 2;
+      if (f.type === 'willBase') v += g.opp && g.opp.battlefield.some(q => isCreaturePerm(q)) ? 3 : 0;
+      if (f.type === 'tamiyoWatch') v += g.battlefield.some(q => isCreaturePerm(q) && canAttack(g, q)) ? 3 : 0;
+      if (f.type === 'wandererExile') v += 3;
+      if (f.type === 'willDisc') v += 2;
       if (f.type === 'poisonWin') v += Math.max(0, 9 - (g.poisonDealt || 0)) * poisonWorth(g) + 4;          // nine counters: the next proliferate or toxic hit wins
       if (f.type === 'poison') { const k = typeof n === 'number' ? n : 1; v += (g.poisonDealt || 0) + k >= 10 ? 1000 : k * poisonWorth(g); }
       if (f.type === 'ajaniEmblem') v += 6;
@@ -12354,6 +12432,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (ab.gate === 'attackSoon') return !g.dry && !g.combatDone && g.activeTurn !== false && g.battlefield.some(q => canAttack(g, q));          // Dalkovan Encampment: before combat, with something that can attack
     if (ab.gate === 'shadowWorth') return !g.dry && !g.combatDone && g.activeTurn !== false && !!g.opp && g.battlefield.some(q => canAttack(g, q) && !hasKw(g, q, 'shadow') && !hasKw(g, q, 'flying') && powerOf(g, q) >= 2);          // Minas Morgul: an attacker that blockers would stop
     if (ab.gate === 'alaundoWorth') return !g.dry && g.library.length > 3 && g.hand.some(i => !i.card.a.isLand && (i.card.a.mv || 0) >= 1 && (i.card.a.mv || 0) <= 4 && !canPay(effectiveCost(g, i), allUnits(g)));          // Alaundo: a card that is not cast this turn anyway, for later and free
+    if (ab.gate === 'defectorWorth') return !g.dry && g.library.length > 3 && g.activeTurn !== false;          // Humble Defector: two cards for the body, once it has attacked
     if (ab.gate === 'never') return false;          // a person's ability: the autopilot has no use for it
     if (ab.gate === 'oppLib') return !g.dry && !!g.opp && g.opp.library.length > 0;          // Knacksaw Clique: always worth a card
     if (ab.gate === 'oppYardWorth') return !g.dry && !!g.opp && otherPlayers(g).some(o => o.graveyard.some(i => reanimateValue(g, i) >= 4));          // Soul-Guide Lantern: a graveyard with something to reanimate
@@ -13085,6 +13164,7 @@ g.actSeq = (g.actSeq || 0) + 1;
 
   // ---------- Turn structure ----------
   function eachTrigger(g, kind, ev) {
+    if (kind === 'combat' && g.tezEmblem && g.activeTurn !== false && !g.dry) tezCombat(g, ev);          // T-139 part 3: Tezzeret, Cruel Captain's emblem (the beginning of combat on your turn)
     for (const q of g.battlefield.slice()) for (const t of q.card.a.triggers) if (t.kinds.includes(kind) && g.battlefield.includes(q)) fire(g, t, q, ev, null);
   }
 
@@ -13391,6 +13471,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   function beginTurn(g) { return acting(g, () => { const ev = beginTurn0(g); emptyPool(g); return ev; }); }          // T-101: the draw step ends
   function beginTurn0(g) {
     trackLife(g); trackYard(g);          // rules batch 77/82: a restored game gets the life and graveyard tracking now
+    for (const o of otherPlayers(g)) for (const q of o.battlefield) if (q.baseTimed && q.baseTimed.by === g) { q.baseTimed = null; touch(o); }          // T-139 part 3: Will Kenrith's +2 lasts until your next turn
     g.turn++; g.turnStartLife = g.life;          // Children of Korlis: the life lost this turn is what was there at the start, plus what was gained, minus what is left
     g.activeTurn = true; for (const o of otherPlayers(g)) o.activeTurn = false;          // whose turn it is ("during your turn")
     for (const q of g.battlefield) if (q.card.a.livingMetal && !q.animated) { q.animated = { p: q.card.a.power, t: q.card.a.toughness, perm: false, untilTurn: null, kw: [] }; q.sick = false; }          // Living metal: a creature during your turn
@@ -13519,6 +13600,13 @@ g.actSeq = (g.actSeq || 0) + 1;
 
   // The start of combat (haste enablers, "at the beginning of combat" triggers) and crewing Vehicles. previewAttack runs them early so a
   // player who is about to be attacked can see the attackers and choose blocks; combat() then skips what was already done.
+  // T-139 part 3: Tezzeret, Cruel Captain's emblem: at the beginning of combat on your turn, three +1/+1 counters on an artifact you control; a non-creature becomes a 0/0 Robot artifact creature
+  function tezCombat(g, ev) {
+    const arts = g.battlefield.filter(q => artOn(g, q) && !q.phased && !q.asLand && targetable(g, q));
+    const t = arts.filter(q => isCreaturePerm(q)).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || arts.sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0]; if (!t) return;
+    if (!isCreaturePerm(t)) { t.animated = { p: 0, t: 0, perm: true, untilTurn: null, kw: [] }; t.addTypes = [...new Set([...(t.addTypes || []), 'Robot'])]; t.sick = t.enteredTurn >= g.turn; }
+    addCounters(g, t, '+1/+1', 3, ev, null); ev.push({ type: 'note', text: `Tezzeret's emblem: three +1/+1 counters on ${t.card.name}` }); touch(g);
+  }
   function combatStart(g, ev) {
     g.combatDone = true;
     if (!g.dry && bfInfo(g).defenderAttack) for (const q of (tableHas(g, 'defender') ? g.battlefield.filter(x => x.card.a.defender && isCreaturePerm(x) && !x.tapped && !x.sick && x.defOk !== g.turn && dmgPow(g, x) >= 3) : [])) { if (!canPay(bfInfo(g).defenderAttack, allUnits(g)) || pay(g, bfInfo(g).defenderAttack) == null) break; q.defOk = g.turn; }          // Assault Formation: {G}, a defender attacks
@@ -13941,6 +14029,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     emptyPool(g);          // T-101: the second main phase ends
     // CR 603.7, 603.7b: "at the beginning of the next end step" returns that were set up before this end step happen in it; one set up during it (a creature that dies in the end-step window, a sacrifice at the end step) waits for the next turn's
     const endDue = new Map(); if (!g.dry) for (const x of [g].concat(otherPlayers(g))) endDue.set(x, { flick: (x.endFlicker || []).splice(0), ret: (x.endReturn || []).splice(0) });
+    const ownDue = g.dry ? [] : (g.endOwn || []).splice(0);          // T-139 part 3: The Eternal Wanderer: back at the beginning of its owner's own next end step
     const iw = [];
     if (g.opp && !g.dry && !matchOver(g)) instantWindow(g.opp, iw, 'end');                                  // the other player's end-step window
     if (!g.dry && !matchOver(g)) dwarfEnd(g, iw);          // Vault Robber, Óin the Brave
@@ -13990,6 +14079,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (left.length) { for (const i of left) { g.hand.splice(g.hand.indexOf(i), 1); i.valakutEx = false; i.temp = null; g.graveyard.push(i); if (i.card.a.isLand) landToYard(g, ev, false); } ev.push({ type: 'note', text: `${vx.card.name}: ${left.length} exiled card${left.length === 1 ? '' : 's'} to the graveyard`, source: vx }); damageOpp(g, left.length, ev, vx); } }
     if (!g.dry && !bothSides(g).some(isCreaturePerm)) for (const x of [g].concat(otherPlayers(g))) for (const ps of (tableHas(x, 'pestEnd') ? x.battlefield.slice() : NONE)) if (ps.card.a.pestEnd) { leavePerm(x, ps, ev); ev.push({ type: 'note', text: `${ps.card.name} is sacrificed (no creatures on the battlefield)`, source: ps }); }          // Pestilence
     eachTrigger(g, 'end', ev); settle(g, ev);          // the end step's triggers resolve before the cleanup step (discard to hand size)
+    for (const i of ownDue) { const at = g.exile.indexOf(i); if (at < 0) continue; g.exile.splice(at, 1); enterWithTriggers(g, i, {}, ev); ev.push({ type: 'note', text: `${i.card.name} returns to the battlefield (The Eternal Wanderer)`, source: null }); }
     if (!g.dry) for (const x of [g].concat(otherPlayers(g))) if (endDue.get(x).flick.length) for (const i of endDue.get(x).flick) { const at = x.exile.indexOf(i); if (at < 0) continue; x.exile.splice(at, 1); enterWithTriggers(x, i, {}, ev); ev.push({ type: 'note', text: `${i.card.name} returns to the battlefield (Flickerwisp)`, source: null }); }          // Flickerwisp
     if (!g.dry) for (const x of [g].concat(otherPlayers(g))) if (endDue.get(x).ret.length) for (const i of endDue.get(x).ret) { const at = x.graveyard.indexOf(i); if (at < 0) continue; x.graveyard.splice(at, 1); enterWithTriggers(x, i, {}, ev); ev.push({ type: 'note', text: `Daretti's emblem: ${i.card.name} returns to the battlefield`, source: null }); }
     if (!g.dry && g.opp && (g.poisonDealt || 0) >= 3) for (const q of (tableHas(g, 'ixhel') ? g.battlefield.filter(x => x.card.a.ixhel) : [])) thiefLook(g, g.opp, 1, ev, q, false);          // Ixhel, Scion of Atraxa (corrupted)
@@ -15145,6 +15235,7 @@ g.actSeq = (g.actSeq || 0) + 1;
         else { if (!g.dry && m.n > 0) m.n *= twinMult(g) * ownMult(m.game || g); m.to.dmg = (m.to.dmg || 0) + m.n; if (m.n > 0 && !g.dry) { const tg = m.game === g ? g.opp : g; if (tg && m.to.card.a.bodyKnow) draw(tg, m.n, ev); if (tg) dealtDamageHooks(tg, m.to, m.n, ev); } /* Body of Knowledge, Stuffy Doll, Wrathful Red Dragon */ if (deathtouch(m.game, m.from)) m.to.dt = true; if (m.to.card.a.taunter && !g.dry && m.n > 0) { const own = m.game === g ? d : g; ev.push({ type: 'note', text: `${m.to.card.name} is dealt ${m.n} damage and deals that much to its opponent`, source: m.to }); damageOpp(own, m.n, ev, m.to, true); } }          // Brash Taunter
         if (hasKw(m.game, m.from, 'lifelink')) { if (m.game === g) ll += m.n; else llD += m.n; }
       }
+      if (!g.dry) { const dd = new Set(); for (const m of marks) if (m.n > 0 && m.from && m.game && m.from.drawWatch === m.game.turn) dd.add(m); for (const m of dd) if (m.game.library.length) { draw(m.game, 1, ev); ev.push({ type: 'note', text: `Tamiyo: ${m.from.card.name} dealt combat damage: a card is drawn`, source: m.from }); } }          // T-139 part 3: Tamiyo, Field Researcher +1
       // state-based actions: creatures with lethal damage die
       for (const [game, list] of [[g, attackers], [d, [...blocks.values()].flat()]]) {
         for (const p of list) if (alive(game, p) && !indestructible(game, p) && (p.dt || (p.dmg || 0) >= toughnessOf(game, p)) && (p.dmg || 0) > 0) {          // indestructible creatures survive lethal damage
@@ -15469,6 +15560,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   // can g activate an ability of p? mana: a mana ability (Pithing Needle allows those; Karn and Linvala do not)
   function abilBlocked(g, p, mana) {
     if (!p || !p.card) return false;
+    if (p.baseTimed) return true;          // Will Kenrith's +2: no abilities
     if (g.senSeq === turnSeq(g)) return true;          // Sen Triplets
     if (p.asLand && !isBasicLand(p) && !mana && moonOf(g)) return true;          // Blood Moon: a nonbasic land is only a Mountain
     if (!bfInfo(g).abilStax && !otherPlayers(g).some(o => bfInfo(o).abilStax)) return false;          // nothing at the table stops abilities
