@@ -48,7 +48,7 @@ const DECK = ['2 Chrome Mox', '1 Sol Ring', '4 Lightning Bolt', '4 Opt', '4 Gobl
   await p.waitForTimeout(500);
   const castMox = async () => {
     const iid = await p.evaluate(() => window.__isfVersus.duel.game.games[0].hand.find(i => i.card.name === 'Chrome Mox').iid);
-    await p.click(`#tab-duel .vs-hand .vs-card[data-iid="${iid}"]`);
+    await p.click(`#tab-duel .vs-hand .vs-card[data-iid="${iid}"]`); await viewerPick(p);          // T-134: the card opens in the viewer; Cast is its button
     await p.waitForSelector('.ch-sheet', { timeout: 15000 });
     if (await p.evaluate(() => !!document.querySelector('.ch-sheet.resolve'))) { await p.click('.ch-sheet .ch-none'); await p.waitForTimeout(300); }          // "does it resolve?": pass
     await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });

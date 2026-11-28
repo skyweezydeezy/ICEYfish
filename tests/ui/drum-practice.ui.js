@@ -36,8 +36,8 @@ const DECK = ['1 Springleaf Drum', '4 Lightning Bolt', '4 Goblin Guide', '4 Llan
   check('setup: the Drum, a Goblin Guide and a Llanowar Elves are on the table, no land', /Springleaf Drum/.test(s0.bf) && /Goblin Guide/.test(s0.bf) && /Llanowar Elves/.test(s0.bf) && s0.lands === 0, s0.bf);
   check('Lightning Bolt glows (castable) with only the Drum and the creatures to pay', s0.bolt === true, String(s0.bolt));
   const iid = await p.evaluate(() => window.__isf.game.hand.find(x => x.card.name === 'Lightning Bolt').iid);
-  await p.click('#zHand .mtg[data-iid="' + iid + '"]'); await p.waitForTimeout(300);
-  await p.click('#ctxMenu button:has-text("▶ Cast")');          // the card's menu: Cast pays with the mana on the table
+  await p.click('#zHand .mtg[data-iid="' + iid + '"]'); await p.waitForTimeout(450);
+  await p.click('#lightbox .lb-act:has-text("▶ Cast")');          // the card's menu: Cast pays with the mana on the table
   await p.waitForSelector('.ch-sheet', { timeout: 15000 }).catch(async () => { console.log('NO SHEET', JSON.stringify(await state())); });
   const sheet = await p.evaluate(() => { const s = document.querySelector('.ch-sheet'); return s ? { title: (s.querySelector('h3, .ch-title') || s).textContent.slice(0, 80), opts: [...s.querySelectorAll('.ch-opt')].map(o => o.title) } : null; });
   check('casting asks which permanent to tap: the Goblin Guide and the Elves are offered', !!sheet && /tap which/i.test(sheet.title) && sheet.opts.length === 2 && sheet.opts.some(t => /^Goblin Guide/.test(t)) && sheet.opts.some(t => /^Llanowar Elves/.test(t)), JSON.stringify(sheet));
