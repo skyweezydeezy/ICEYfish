@@ -36,6 +36,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | food | Food economy, Food payoffs |
 | life | Lifegain, lifelink, Exquisite Blood / Sanguine Bond loop |
 | tokens | Token replacement effects and triggers |
+| ajani-sleeper-agent | Ajani, Sleeper Agent: +1 reveals the top card (creature or planeswalker to hand, else may bottom it, a person is asked), -3 distributes three counters among up to three chosen creatures with vigilance, -6 emblem poison, Compleated (life paid: two fewer loyalty) |
 | master-of-dark-rites | Master of Dark Rites: {T}, sacrifice another creature for {B}{B}{B} that only Vampire, Cleric and Demon spells can use (menu, restriction, leftovers, person's choice, autopilot only for a spell it cannot pay for and a creature worth losing) |
 | sorin-vengeful | Sorin, Vengeful Bloodlord: lifelink for your creatures and planeswalkers on your turn only (his +2 gains life), −X returns the creature card with mana value X (target chosen, X loyalty removed, Vampire added), a person's choice |
 | sorin | Extort, postcombat transform, planeswalker back face |
