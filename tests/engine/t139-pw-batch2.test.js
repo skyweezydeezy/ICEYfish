@@ -43,6 +43,12 @@ T('-X really costs X loyalty: Chandra, Awakened Inferno kills and exiles a 5/5 f
   check('a person chooses X (2): loyalty 4 (2 paid), the Dragon survives', b3.battlefield.includes(d3) && c3.loyalty === 4, c3.loyalty);
 });
 
+T('Chandra, Awakened Inferno -X: a planeswalker can be the target', () => {
+  const [a, b] = duel(); const c = putOn(a, 'Chandra, Awakened Inferno'); c.loyalty = 6; const w = putOn(b, 'Jace, Mirror Mage'); w.loyalty = 4;
+  act(a, c, pwa(a, 'Chandra, Awakened Inferno', -1, true)); G.flushLeaves(b, []);
+  check('Jace (loyalty 4) is dealt 4 and exiled; Chandra paid 4', !b.battlefield.includes(w) && b.exile.some(i => i.card.name === 'Jace, Mirror Mage') && c.loyalty === 2, c.loyalty);
+});
+
 T('Chandra, Flamecaller: +1 two 3/1 haste Elementals exiled at the end step; -X deals X to each creature', () => {
   const g = duel()[0]; const c = putOn(g, 'Chandra, Flamecaller'); act(g, c, pwa(g, 'Chandra, Flamecaller', 1));
   const el = g.battlefield.filter(q => q.token && /Elemental/.test(q.card.name));
