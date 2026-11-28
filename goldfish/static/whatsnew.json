@@ -2,6 +2,12 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 231,
+      "lines": [
+        "On a phone, Practice, Duel and Pod now show the tabs in two rows of four, like every other screen."
+      ]
+    },
+    {
       "v": 230,
       "lines": [
         "New built-in deck: Blood Bank (Edgar Markov). Its Drive name says Bracket 4; ICEYfish's check puts it at Bracket 3 (3 Game Changers, no cheap combo, turn-7 median kill).",
