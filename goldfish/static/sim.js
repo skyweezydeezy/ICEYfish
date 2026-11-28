@@ -3165,7 +3165,7 @@
           : /^tap target creature\. put two stun counters on it\.?$/i.test(pwt) ? { fx: [{ type: 'tapStun', n: 2 }] }          // T-139: Kaito, Bane of Nightmares
           : /^create two 3\/1 red elemental creature tokens with haste\. exile them at the beginning of the next end step\.?$/i.test(pwt) ? { fx: [{ type: 'tokenExile', spec: { type: 'token', n: 2, tapped: false, creature: true, p: 3, t: 1, colors: ['R'], subtypes: ['Elemental'], keywords: ['haste'], artifact: false, name: 'Elemental' } }] }          // T-139: Chandra, Flamecaller
           : /^~ deals x damage to each creature\.?$/i.test(pwt) ? { fx: [{ type: 'sweepDamage', n: 'X', noExile: true }] }          // T-139: Chandra, Flamecaller -X
-          : /^~ deals x damage to target creature or planeswalker\. if a permanent dealt damage this way would die this turn, exile it instead\.?$/i.test(pwt) ? { fx: [{ type: 'burnCreature', n: 'X', exileDies: true }] }          // T-139: Chandra, Awakened Inferno -X
+          : /^~ deals x damage to target creature or planeswalker\. if a permanent dealt damage this way would die this turn, exile it instead\.?$/i.test(pwt) ? { fx: [{ type: 'burnCreature', n: 'X', exileDies: true, orPw: true }] }          // T-139: Chandra, Awakened Inferno -X
           : /^reveal the top four cards of your library\. put any number of legendary cards from among them into your hand and the rest into your graveyard\. create a treasure token for each card put into your graveyard this way\.?$/i.test(pwt) ? { fx: [{ type: 'dihadaReveal' }] }          // T-139: Dihada, Binder of Wills
           : /^draw two cards\. then discard two cards unless you discard an artifact card\.?$/i.test(pwt) ? { fx: [{ type: 'draw', n: 2 }, { type: 'discardUnlessArt', n: 2 }] }          // T-139: Tezzeret, Betrayer of Flesh
           : /^you draw a card\. each opponent exiles a card from their hand or a permanent they control\.?$/i.test(pwt) ? { fx: [{ type: 'draw', n: 1 }, { type: 'oppExileHP' }] }          // T-139: Nicol Bolas, Dragon-God
@@ -7021,7 +7021,8 @@
         case 'burnCreature': {
           const L = lockRec ? null : tgtLock(g, f);
           if (L && !(L.t && lockLegal(g, L.t, f))) { ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the spell does nothing`, source }); break; }          // CR 608.2b
-          const t = L ? L.t : g.opp && burnPick(g, n + plusBonus(g, source && source.card ? source : g.lastCast), true, source);
+          let t = L ? L.t : g.opp && burnPick(g, n + plusBonus(g, source && source.card ? source : g.lastCast), true, source);
+          if (f.orPw && !L && !lockRec && g.opp) { const pw = g.opp.battlefield.filter(q => q.card.a.isPlaneswalker && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0]; if (pw && (!t || threat(g.opp, g, pw) > threat(g.opp, g, t))) { pw.loyalty = Math.max(0, (pw.loyalty || 0) - n); touch(g.opp); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}${n} damage to ${pw.card.name} (loyalty ${pw.loyalty})`, source }); if (pw.loyalty <= 0) { leavePerm(g.opp, pw, ev, f.exileDies ? 'exile' : undefined); flushLeaves(g.opp, ev); } break; } }          // T-139: a planeswalker as the target (Chandra, Awakened Inferno -X)
           if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (t) against(g, t, () => { if (f.exileDies) t.exileDies = turnSeq(g); burnHit(g, t, n, source, ev); }); break; }
         case 'removal': if (g.opp && f.sacCreature) {          // T-139: Grist -2: "You may sacrifice a creature. When you do, destroy target creature or planeswalker."
@@ -12233,7 +12234,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   function pwXAuto(g, p, ab, max) {
     const f = ab.fx.find(x => x.type === 'burnCreature' || x.type === 'sweepDamage'); if (!f) return Math.max(0, max - 1);
     if (!g.opp) return 0;
-    if (f.type === 'burnCreature') { const t = g.opp.battlefield.filter(q => isCreaturePerm(q) && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0]; if (!t) return 0; const need = Math.max(1, toughnessOf(g.opp, t) - (t.dmg || 0)); return need <= max ? need : 0; }
+    if (f.type === 'burnCreature') { const t = g.opp.battlefield.filter(q => (isCreaturePerm(q) || (f.orPw && q.card.a.isPlaneswalker)) && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0]; if (!t) return 0; const need = Math.max(1, t.card.a.isPlaneswalker && !isCreaturePerm(t) ? (t.loyalty || 1) : toughnessOf(g.opp, t) - (t.dmg || 0)); return need <= max ? need : 0; }
     let best = 0, bs = 0;
     for (let X = 1; X <= max; X++) { const sc = g.opp.battlefield.filter(q => isCreaturePerm(q) && toughnessOf(g.opp, q) - (q.dmg || 0) <= X).reduce((t, q) => t + creatureValue(g.opp, q), 0) - g.battlefield.filter(q => isCreaturePerm(q) && toughnessOf(g, q) - (q.dmg || 0) <= X).reduce((t, q) => t + creatureValue(g, q), 0) - X * 0.5; if (sc > bs) { bs = sc; best = X; } }
     return best;
