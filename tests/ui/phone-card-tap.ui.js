@@ -1,5 +1,5 @@
-// T-102: on a phone a tap on a card only SELECTS it (lifted, glowing, enlarged above an options sheet); nothing is played until an option is tapped.
-// iPad and PC keep their own flow. Checked in Practice and in Duel, at phone sizes (390x844, 375x667, 430x932, sideways 844x390) and on iPads
+// T-102 + T-134: on every device a tap or click on a card opens it enlarged in the viewer with its actions as buttons; nothing is played until a button is pressed.
+// (T-134 replaced the select-before-play sheet and the iPad / PC differences with this one flow.) Checked in Practice and in Duel, at phone sizes (390x844, 375x667, 430x932, sideways 844x390) and on iPads
 // (upright and sideways), where the flow must be what it was: no enlarged preview, and a glowing card in Duel plays at once.
 // Needs playwright, a static server on :8800 (node tests/run.js --ui phone-card-tap) and internet access to Scryfall.
 // (T-102, extended: every touch device selects first, iPad too; a desktop mouse keeps its own flow.)
@@ -19,8 +19,11 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
 
 (async () => {
   const b = await chromium.launch();
-  for (const [name, dev, isPhone] of RUNS) {          // isPhone: a touch device (the name is kept from the first version)
-    const tapIt = (loc, o) => isPhone ? loc.tap(o) : loc.click(o);
+  for (const [name, dev, touch] of RUNS) {          // touch: a touch device (a tap), otherwise a mouse click; the flow is the same
+    const isPhone = true;
+    const tapIt = (loc, o) => touch ? loc.tap(o) : loc.click(o);
+    const tapAt = (x, y) => touch ? p.touchscreen.tap(x, y) : p.mouse.click(x, y);
+    const act = async () => { await p.waitForTimeout(450); await tapIt(p.locator('#lightbox .lb-act.primary').first()); };          // the viewer's ghost-tap guard is 350 ms
     if (ONLY && !ONLY.test(name)) continue;
     const ctx = await b.newContext({ ...dev, serviceWorkers: 'block' });
     await ctx.addInitScript(() => { try { const s = JSON.parse(localStorage.getItem('isf_sound') || '{}'); if (s.bg == null) { s.bg = false; localStorage.setItem('isf_sound', JSON.stringify(s)); } } catch (e) {} });
@@ -39,17 +42,16 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
     await p.click('#loadDeck');
     await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
-    const sheet = () => p.evaluate(() => {
-      const c = document.querySelector('#ctxMenu'), pv = document.querySelector('.sel-preview'), shown = !!c && c.style.display === 'block';
+    const sheet = () => p.evaluate(() => {          // the viewer: what is shown, the enlarged card, and the action buttons
+      const lbx = document.querySelector('#lightbox'), shown = !!lbx && lbx.classList.contains('show');
       const r = e => { const x = e.getBoundingClientRect(); return { t: x.top, b: x.bottom, l: x.left, r: x.right }; };
-      const card = pv && pv.querySelector('.mtg');
-      return { shown, preview: !!pv, glow: !!document.querySelector('.mtg.sel-card'), primary: shown ? (c.querySelector('button.primary') || {}).textContent || '' : '',
-        sheet: shown ? r(c) : null, card: card ? r(card) : null, cardW: card ? card.getBoundingClientRect().width : 0, vw: innerWidth, vh: innerHeight };
+      const card = shown && lbx.querySelector('.lb-faces .mtg'), a1 = shown && lbx.querySelector('.lb-act');
+      return { shown, preview: !!card, glow: shown, primary: shown ? ((lbx.querySelector('.lb-act.primary') || {}).textContent || '') : '',
+        sheet: a1 ? r(a1) : null, card: card ? r(card) : null, cardW: card ? card.getBoundingClientRect().width : 0, vw: innerWidth, vh: innerHeight };
     });
     const geometry = (tag, s) => {
-      check(`${name}: ${tag}: the enlarged card is inside the screen`, !!s.card && s.card.t >= 0 && s.card.b <= s.vh + 1 && s.card.l >= 0 && s.card.r <= s.vw + 1, s.card ? `${Math.round(s.card.t)}-${Math.round(s.card.b)} of ${s.vh}` : 'none');
-      check(`${name}: ${tag}: the options are inside the screen`, !!s.sheet && s.sheet.t >= 0 && s.sheet.b <= s.vh + 1, s.sheet ? `${Math.round(s.sheet.t)}-${Math.round(s.sheet.b)} of ${s.vh}` : 'none');
-      check(`${name}: ${tag}: the enlarged card does not cover the options`, !!s.card && !!s.sheet && s.card.b <= s.sheet.t + 1, s.card && s.sheet ? `card ends ${Math.round(s.card.b)}, options start ${Math.round(s.sheet.t)}` : '');
+      check(`${name}: ${tag}: the enlarged card is inside the screen sideways`, !!s.card && s.card.l >= 0 && s.card.r <= s.vw + 1, s.card ? `${Math.round(s.card.l)}-${Math.round(s.card.r)} of ${s.vw}` : 'none');
+      check(`${name}: ${tag}: the action button starts on the screen`, !!s.sheet && s.sheet.t >= 0 && s.sheet.t < s.vh, s.sheet ? `${Math.round(s.sheet.t)} of ${s.vh}` : 'none');
       check(`${name}: ${tag}: the card is enlarged (wider than 90 px)`, s.cardW > 90, Math.round(s.cardW) + ' px');
     };
 
@@ -75,12 +77,12 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
         check(`${name}: Practice: the first option casts or plays it`, /Play land|Cast/.test(s.primary), s.primary);
         if (SHOTS) await p.screenshot({ path: path.join(SHOTS, `practice-${name.replace(/ /g, '-')}.png`) });
         // a second quick tap on the same spot closes the sheet, it does not play the card
-        await p.touchscreen.tap(s.vw / 2, 8); await p.waitForTimeout(300);
+        await tapIt(p.locator('#lightbox .lb-x')); await p.waitForTimeout(300);
         const s2 = await sheet(), n2 = await p.evaluate(() => window.__isf.game.hand.length);
         check(`${name}: Practice: tapping off the card deselects it and plays nothing`, !s2.shown && !s2.preview && !s2.glow && n2 === land.n);
         await tapIt(card); await p.waitForTimeout(500);
       }
-      await tapIt(p.locator('#ctxMenu button.primary').first()); await p.waitForTimeout(700);
+      await act(); await p.waitForTimeout(700);
       const n3 = await p.evaluate(() => window.__isf.game.hand.length), s3 = await sheet();
       check(`${name}: Practice: the option plays the land`, n3 === land.n - 1 && !s3.shown && !s3.preview, `hand ${land.n} -> ${n3}`);
     }
@@ -111,11 +113,11 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
         check(`${name}: Duel: the card is enlarged, glows, and its options are shown`, s.shown && s.preview && s.glow && /Play land/.test(s.primary), s.primary);
         geometry('Duel', s);
         if (SHOTS) await p.screenshot({ path: path.join(SHOTS, `duel-${name.replace(/ /g, '-')}.png`) });
-        await p.touchscreen.tap(s.vw / 2, 8); await p.waitForTimeout(300);
+        await tapIt(p.locator('#lightbox .lb-x')); await p.waitForTimeout(300);
         const s2 = await sheet(), n2 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].hand.length);
-        check(`${name}: Duel: tapping off the card deselects it and plays nothing`, !s2.shown && !s2.preview && n2 === duelLand.n);
+        check(`${name}: Duel: tapping off the card deselects it and plays nothing`, !s2.shown && n2 === duelLand.n);
         await tapIt(el, { position: { x: 20, y: 40 } }); await p.waitForTimeout(500);
-        await p.locator('#ctxMenu button.primary').first().tap(); await p.waitForTimeout(1200);
+        await act(); await p.waitForTimeout(1200);
         const n3 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].hand.length);
         check(`${name}: Duel: the option plays the land`, n3 === duelLand.n - 1, `hand ${duelLand.n} -> ${n3}`);
       } else {
@@ -142,10 +144,10 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
         const st = p.locator('#tab-duel .vs-seat.me .vs-stack.pickable').first();
         if (await st.count()) {
           const before = await p.evaluate(() => window.__isfVersus.duel.game.pick.size);
-          await st.locator('.mtg').first().tap(); await p.waitForTimeout(600);
+          await tapIt(st.locator('.mtg').first()); await p.waitForTimeout(600);
           const s = await sheet(), mid = await p.evaluate(() => window.__isfVersus.duel.game.pick.size);
           check(`${name}: Duel: a tap on an attacker only selects it`, s.shown && s.preview && /Attack with it|Hold it back/.test(s.primary) && mid === before, `${before} -> ${mid}, ${s.primary}`);
-          await p.locator('#ctxMenu button.primary').first().tap(); await p.waitForTimeout(500);
+          await act(); await p.waitForTimeout(500);
           const after = await p.evaluate(() => window.__isfVersus.duel.game.pick.size);
           check(`${name}: Duel: the option toggles the attacker`, after !== before, `${before} -> ${after}`);
         } else check(`${name}: Duel: an attacker can be tapped`, false, 'no creature stack');
@@ -175,14 +177,14 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
           const iid = await p.evaluate(() => { const s = document.querySelector('#tab-duel .vs-blk'); return s ? s.dataset.iid : null; });
           if (iid) {
             const val0 = await p.evaluate(() => document.querySelector('#tab-duel .vs-blk').value);
-            await p.locator(`#tab-duel .vs-seat.me .mtg[data-iid="${iid}"]`).first().tap(); await p.waitForTimeout(600);
+            await tapIt(p.locator(`#tab-duel .vs-seat.me .mtg[data-iid="${iid}"]`).first()); await p.waitForTimeout(600);
             const s = await sheet(), val1 = await p.evaluate(() => document.querySelector('#tab-duel .vs-blk').value);
             check(`${name}: Duel: a tap on a blocker only selects it and offers the blocks`, s.shown && s.preview && /Block|Does not block/.test(s.primary) && val1 === val0 && await p.evaluate(() => document.querySelector('#tab-duel .vs-block-go') !== null), `${s.primary}`);
             geometry('Duel blocker', s);
             const want = await p.evaluate(() => { const o = [...document.querySelector('#tab-duel .vs-blk').options].find(x => x.value && !x.selected); return o ? o.value : null; });
-            const label = await p.evaluate(() => [...document.querySelectorAll('#ctxMenu button')].map(b => b.textContent).join(' | '));
+            const label = await p.evaluate(() => [...document.querySelectorAll('#lightbox .lb-act')].map(b => b.textContent).join(' | '));
             if (want) {
-              await p.evaluate(v => { const bs = [...document.querySelectorAll('#ctxMenu button.primary')]; bs.find(b => !b.textContent.startsWith('✓')).click(); }, want);
+              await p.evaluate(v => { const bs = [...document.querySelectorAll('#lightbox .lb-act.primary')]; bs.find(b => !b.textContent.startsWith('✓')).click(); }, want);
               await p.waitForTimeout(500);
               const val2 = await p.evaluate(() => document.querySelector('#tab-duel .vs-blk').value);
               check(`${name}: Duel: the option sets the block`, val2 === want, `${val1} -> ${val2} (${label})`);

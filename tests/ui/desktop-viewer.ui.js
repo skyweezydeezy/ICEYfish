@@ -59,12 +59,11 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.waitForTimeout(1200);
   const nHand = await p.$$eval('#zHand .mtg', x => x.length);
   await p.click('#zHand .mtg', { position: { x: 12, y: 60 } }); await p.waitForTimeout(400);
-  check('a click on a table card opens its menu and plays nothing', await p.isVisible('#ctxMenu') && nHand === await p.$$eval('#zHand .mtg', x => x.length));
-  await p.click('#ctxMenu button:has-text("View card")'); await p.waitForTimeout(600);
-  check('View card from the table opens the viewer with the shop links', await p.isVisible('#lightbox.show') && (await p.$$eval('.lb-buy', x => x.length)) === 3);
+  check('a click on a table card opens it in the viewer and plays nothing', await p.isVisible('#lightbox.show') && nHand === await p.$$eval('#zHand .mtg', x => x.length));
+  check('the viewer opened from the table has the shop links, the printings and the action button', (await p.$$eval('.lb-buy', x => x.length)) === 3 && await p.$('#lightbox .lb-prints') !== null && (await p.$$eval('#lightbox .lb-act', x => x.length)) >= 1);
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   await p.click('#zHand .mtg', { position: { x: 12, y: 60 }, modifiers: ['Control'] }); await p.waitForTimeout(1500);
-  check('Ctrl-click acts at once (play or tap) instead of opening the menu', !(await p.isVisible('#ctxMenu')));
+  check('Ctrl-click acts at once (play or tap) instead of opening the viewer', !(await p.isVisible('#ctxMenu')) && !(await p.isVisible('#lightbox.show')));
   await p.keyboard.press('Escape');
 
   // autopilot speed: time one autopilot turn at full speed, then at turtle speed (same seeded game)

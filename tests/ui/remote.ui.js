@@ -5,6 +5,7 @@
 // own comparison before every move), a land and a spell each, a spell of one player countered by the other, an attack blocked by
 // the other player, a reload and rejoin with the game going on where it was, and a winner on both devices.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const UA = 'goldfish-calc-test/0.1';
 let pass = 0, fail = 0;
@@ -57,6 +58,7 @@ let pages = [];          // the two devices, for the message when a step times o
       throw new Error(err.message.split('\n')[0] + ' waiting for ' + sel + ' | A: ' + await dump(A) + ' | B: ' + await dump(B));
     }
     await p.evaluate(s => document.querySelector(s).click(), sel);
+    if (/vs-card/.test(sel)) await viewerPick(p);          // T-134: a card opens in the viewer; its action is the button there
   };
   await A.goto(BASE); await loadDeck(A, deckA); await noStun(A);
 
@@ -171,6 +173,7 @@ let pages = [];          // the two devices, for the message when a step times o
     const played = await p.evaluate(s => { const gm = window.__isfVersus.duel.game, g = gm.games[s], l = g.hand.find(i => i.card.a.isLand && !/return a land you control/i.test(i.card.oracle_text || '')); if (!l) return null; /* not a bounce land: Izzet Boilerworks as the only land returns itself and the wait below never ends */ const e = document.querySelector(`#tab-duel .vs-hand .vs-card[data-iid="${l.iid}"]`);
       if (!e.classList.contains('can')) console.log('LAND NOT PLAYABLE', l.card.name, JSON.stringify({ can: window.Goldfish.canPlayLand(g), landPlayed: g.landPlayed, turn: g.turn, phase: gm.phase, picking: gm.picking, choice: !!gm.choice, cls: e.className }));
       e.click(); return l.iid; }, seat);
+    if (played != null) await viewerPick(p);          // T-134: the land opens in the viewer; Play land is its button
     if (played != null) {          // on both devices the land has left that hand (a fetch land or a bounce land changes the land count otherwise)
       await until((a, c) => quiet(a) && quiet(c) && !a.hands[seat].includes(played) && !c.hands[seat].includes(played), 30000);          // answering what the land asks on the way
     }
@@ -253,7 +256,7 @@ let pages = [];          // the two devices, for the message when a step times o
   const sb = await st(B);
   check('Alex casts Swords to Plowshares: Sam is asked on Sam\'s device whether to counter it', sb.choice === 'counter' && /Alex casts Swords to Plowshares/.test(await B.$eval('.ch-sheet', e => e.textContent)));
   check('...while Alex\'s device says Sam is deciding', /Sam is deciding/.test(await A.$eval('#tab-duel .vs-bar', e => e.textContent)));
-  await B.evaluate(() => { const o = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => /Counterspell/.test(x.textContent)); o.click(); document.querySelector('.ch-sheet .ch-ok').click(); });
+  await B.evaluate(() => { const o = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => /Counterspell/.test(x.textContent)); o.click(); }); await viewerPick(B); await B.evaluate(() => { document.querySelector('.ch-sheet .ch-ok').click(); });
   await until((a, c) => quiet(a) && quiet(c) && a.phase === 'main' && c.phase === 'main', 30000, { keepChoice: false });
   const cnt = await A.evaluate(([blk]) => { const [a, b] = window.__isfVersus.duel.game.games; return { swordsGone: a.graveyard.some(i => i.card.name === 'Swords to Plowshares'), counterUsed: b.graveyard.some(i => i.card.name === 'Counterspell'), blkThere: b.battlefield.some(p => p.iid === blk) }; }, [T.blk]);
   check('...Sam counters it: on Alex\'s device Swords and Counterspell are in the graveyards and Sam\'s creature is still there', cnt.swordsGone && cnt.counterUsed && cnt.blkThere, JSON.stringify(cnt));

@@ -30,14 +30,13 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   const nHand = () => p.$$eval('#zHand .mtg', x => x.length), n0 = await nHand();
   const edge = { position: { x: 10, y: 60 } };   // hand cards overlap; tap the visible left edge
   await hand.tap(edge); await p.waitForTimeout(400);
-  check('one tap on a card opens its menu, and plays nothing', await p.isVisible('#ctxMenu') && n0 === await nHand());
-  check('the menu leads with the main action and ends with Back', /Cast|Play land/.test(await p.$eval('#ctxMenu button', e => e.textContent)) && await p.$eval('#ctxMenu button:last-child', e => e.textContent) === 'Back');
-  check('the menu is a full-width sheet at the bottom of the screen', await p.$eval('#ctxMenu', e => { const r = e.getBoundingClientRect(); return Math.abs(r.width - innerWidth) < 2 && Math.abs(r.bottom - innerHeight) < 2; }));
-  await p.tap('.ctx-backdrop', { position: { x: 100, y: 100 } }); await p.waitForTimeout(300);
-  check('tapping outside closes it and does nothing else', !(await p.isVisible('#ctxMenu')) && n0 === await nHand());
-  await hand.tap(edge); await p.waitForTimeout(450); await p.tap('#ctxMenu .ctx-cancel'); await p.waitForTimeout(200);
-  check('Back closes it', !(await p.isVisible('#ctxMenu')));
-  await hand.tap(edge); await p.waitForTimeout(450); await p.tap('#ctxMenu button:has-text("View card")'); await p.waitForTimeout(3000);
+  check('one tap on a card opens it in the viewer, and plays nothing', await p.isVisible('#lightbox.show') && !(await p.isVisible('#ctxMenu')) && n0 === await nHand());
+  check('the viewer leads with the main action as a button', /Cast|Play land/.test(await p.$eval('#lightbox .lb-act', e => e.textContent)));
+  await p.tap('#lightbox .lb-x'); await p.waitForTimeout(300);
+  check('✕ closes it and does nothing else', !(await p.isVisible('#lightbox.show')) && n0 === await nHand());
+  await hand.tap(edge); await p.waitForTimeout(600); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  check('Esc closes it too', !(await p.isVisible('#lightbox.show')));
+  await hand.tap(edge); await p.waitForTimeout(3000);
   const name0 = await p.textContent('.lb-name'), count0 = await p.textContent('.lb-count');
   check('View card opens the viewer with a position count', /^\d+ of \d+$/.test(count0), name0 + ' ' + count0);
   await p.tap('.lb-nav.next'); await p.waitForTimeout(300);

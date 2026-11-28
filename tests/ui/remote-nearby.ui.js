@@ -6,6 +6,7 @@
 // dropped them in between); a short silence is not a lost connection; the wake lock is taken, let go in the background and taken again.
 // Pair 2 (different addresses, the first broker down): the same room word typed differently finds the friend through the second broker.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const mockBroker = require('../fixtures/mock-broker');
 const UA = 'goldfish-calc-test/0.1';
@@ -19,6 +20,7 @@ const wait = (p, fn, arg, ms) => p.waitForFunction(fn, arg, { timeout: ms || 300
 const tap = async (p, sel, ms) => {
   await wait(p, s => { const e = document.querySelector(s); return !!e && !e.disabled && e.getClientRects().length > 0; }, sel, ms || 30000);
   await p.evaluate(s => document.querySelector(s).click(), sel);
+    if (/vs-card/.test(sel)) await viewerPick(p);          // T-134: a card opens in the viewer; its action is the button there
 };
 
 (async () => {

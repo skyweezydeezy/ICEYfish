@@ -2,6 +2,7 @@
 // to Scryfall): the library search (Vampiric Tutor), two questions in a row (Diabolic Intent), a removal target, the end of the
 // opponent's turn, a counterspell when the opponent casts a spell, targets across a pod, the steps of the turn and "Autopilot decides".
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const UA = 'goldfish-calc-test/0.1';
 let pass = 0, fail = 0;
@@ -74,9 +75,9 @@ const shot = process.env.VERSUS_SHOTS;
     }, { m: mode, spec });
     await p.evaluate(m => window.__isfVersus.redraw(m), mode);
   };
-  const clickHand = (mode, name) => p.evaluate(({ m, name }) => { const me = window.__isfVersus[m].game.games[0], c = me.hand.find(i => i.card.name === name), el = c && document.querySelector('#tab-' + m + ' .vs-hand .vs-card.can[data-iid="' + c.iid + '"]'); if (el) el.click(); return !!el; }, { m: mode, name });
+  const clickHand = async (mode, name) => { const ok = await p.evaluate(({ m, name }) => { const me = window.__isfVersus[m].game.games[0], c = me.hand.find(i => i.card.name === name), el = c && document.querySelector('#tab-' + m + ' .vs-hand .vs-card.can[data-iid="' + c.iid + '"]'); if (el) el.click(); return !!el; }, { m: mode, name }); if (ok) await viewerPick(p); return ok; };          // T-134: the card opens in the viewer; Cast is its button
   const sheet = () => p.evaluate(() => { const s = document.querySelector('.ch-sheet'); if (!s) return null; return { title: s.querySelector('.ch-title').textContent, text: s.querySelector('.ch-text').textContent, tiles: s.querySelectorAll('.ch-opt').length, shown: [...s.querySelectorAll('.ch-opt')].filter(x => !x.hidden).length, def: [...s.querySelectorAll('.ch-opt.def .ch-name')].map(x => x.textContent.replace(/ ×\d+$/, '')), stars: s.querySelectorAll('.ch-star').length, ok: s.querySelector('.ch-ok').textContent, okOff: s.querySelector('.ch-ok').disabled, none: s.querySelector('.ch-none') ? s.querySelector('.ch-none').textContent : null, names: [...s.querySelectorAll('.ch-opt .ch-name')].map(x => x.textContent.replace(/ ×\d+$/, '')), dest: s.querySelector('.ch-dest b') ? s.querySelector('.ch-dest b').textContent : null, fanned: s.classList.contains('fanned'), picked: s.querySelector('.ch-picked') ? s.querySelector('.ch-picked').textContent : null, notes: [...s.querySelectorAll('.ch-opt .ch-note')].map(x => x.textContent) }; });
-  const pickTile = name => p.evaluate(n => { const b = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => x.querySelector('.ch-name').textContent.replace(/ ×\d+$/, '') === n); if (b) b.click(); return !!b; }, name);
+  const pickTile = async name => { const ok = await p.evaluate(n => { const b = [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => x.querySelector('.ch-name').textContent.replace(/ ×\d+$/, '') === n); if (b) b.click(); return !!b; }, name); await viewerPick(p); return ok; };
   // "does it resolve?": every spell waits on the stack. Pass on your own spell (or let another player's resolve when you have nothing)
   const stackQ = () => p.evaluate(() => { const q = window.__isfChoices.current(); return q && (q.kind === 'resolve' || (q.kind === 'counter' && !q.options.length)) ? q.kind : null; });
   const passStack = async mode => {
@@ -258,7 +259,7 @@ const shot = process.env.VERSUS_SHOTS;
   check('your planeswalker sits in the creature row, at the opposite end from your creatures', lay.walkers.join() === "Elspeth, Sun's Champion" && lay.creatures.includes('Samwise Gamgee') && lay.walkersRight && !lay.backHasPw, JSON.stringify(lay));
   const glow = await p.evaluate(() => { const me = window.__isfVersus.duel.game.games[0], e = me.battlefield.find(x => /^Elspeth, Sun/.test(x.card.name)); const el = document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + e.iid + '"]'); return { glow: el.classList.contains('vs-loyal'), iid: e.iid }; });
   check('in your main phase it glows: a loyalty ability can be used', glow.glow);
-  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), glow.iid);
+  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), glow.iid); await viewerPick(p);          // T-134: the planeswalker opens in the viewer; its loyalty button asks which ability
   await p.waitForSelector('.ch-sheet.loyalty', { timeout: 10000 });
   const lm = await p.evaluate(() => { const s = document.querySelector('.ch-sheet.loyalty'); return { title: s.querySelector('.ch-title').textContent, tiles: [...s.querySelectorAll('.ch-opt')].map(b => (b.disabled ? '(off) ' : '') + b.querySelector('.ch-name').textContent.slice(0, 26)), notes: [...s.querySelectorAll('.ch-opt.off .ch-note')].map(n => n.textContent), card: !!s.querySelector('.ch-spell .mtg'), ok: s.querySelector('.ch-ok').textContent, none: (s.querySelector('.ch-none') || {}).textContent }; });
   check('clicking it opens the loyalty menu: +1, −3, −7 (dimmed: not enough loyalty), the card shown, "Not now"', /Elspeth, Sun's Champion: loyalty abilities/.test(lm.title) && lm.tiles.length === 3 && lm.tiles.some(t => /^\+1: Create three/.test(t)) && lm.tiles.some(t => /^\(off\) −7/.test(t)) && /needs 7 loyalty/.test(lm.notes.join()) && lm.card && lm.none === 'Not now', JSON.stringify(lm));
@@ -280,7 +281,7 @@ const shot = process.env.VERSUS_SHOTS;
   const owners = await p.evaluate(() => { const gm = window.__isfVersus.pod.game; return { owners: [...new Set(gm.choice.options.map(o => o.owner))].sort().join(','), focus: gm.games[0].opp.pid, third: gm.choice.options.find(o => o.owner === 3).k }; });
   check('in a pod the target sheet offers the permanents of all three opponents, each under its player\'s name', owners.owners === '1,2,3' && sh.tiles === 3 && new Set(sh.notes.map(n => n.split(' · ')[0])).size === 3, sh.notes.join(' | '));
   if (shot) await p.screenshot({ path: path.join(shot, 'choice-pod-target.png') });
-  await p.evaluate(k => document.querySelector('.ch-sheet .ch-opt[data-k="' + k + '"]').click(), owners.third);
+  await p.evaluate(k => document.querySelector('.ch-sheet .ch-opt[data-k="' + k + '"]').click(), owners.third); await viewerPick(p);
   await p.click('.ch-sheet .ch-ok');
   await passStack('pod');
   await p.waitForFunction(() => !document.querySelector('.ch-sheet') && !window.__isfVersus.pod.game.acting, null, { timeout: 10000 });
@@ -295,13 +296,13 @@ const shot = process.env.VERSUS_SHOTS;
   const glows = iid => p.evaluate(iid => { const el = document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]'); return !!el && el.classList.contains('vs-loyal'); }, iid);
   const els = await iidOf("Elspeth, Sun's Champion"), veil = await iidOf('The Chain Veil');
   check('The Chain Veil glows in your main phase when {4} is free', await glows(veil));
-  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), els);
+  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), els); await viewerPick(p);
   await p.waitForSelector('.ch-sheet.loyalty', { timeout: 10000 });
   await p.evaluate(() => [...document.querySelectorAll('.ch-sheet .ch-opt')].find(x => /^\+1:/.test(x.querySelector('.ch-name').textContent)).click());
   await p.click('.ch-sheet .ch-ok');
   await p.waitForFunction(() => !document.querySelector('.ch-sheet') && !window.__isfVersus.duel.game.acting, null, { timeout: 15000 });
   check('...Elspeth used her +1: she stops glowing', !(await glows(els)));
-  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), veil);
+  await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), veil); await viewerPick(p);
   await p.waitForFunction(() => !window.__isfVersus.duel.game.acting, null, { timeout: 15000 });
   const cv = await p.evaluate(() => { const me = window.__isfVersus.duel.game.games[0]; return { veil: me.battlefield.find(q => q.card.name === 'The Chain Veil').tapped, plains: me.battlefield.filter(q => q.card.name === 'Plains' && q.tapped).length }; });
   check('clicking The Chain Veil pays {4} and taps it; Elspeth glows again, the Veil does not', cv.veil && cv.plains === 4 && (await glows(els)) && !(await glows(veil)), JSON.stringify(cv));
@@ -321,7 +322,7 @@ const shot = process.env.VERSUS_SHOTS;
       return { teferi: document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').classList.contains('vs-loyal'), text: document.querySelector('#tab-duel .vs-me').textContent, sam: !!(w && document.querySelector('#tab-duel .vs-hand .vs-card.can[data-iid="' + w.iid + '"]')), loyalty: me.battlefield.find(q => q.iid === iid).loyalty }; }, tef);
     check("at the end of the other player's turn Teferi, Master of Time glows, and the box says why", rs.teferi && /Teferi, Master of Time glows: click it for a loyalty ability/.test(rs.text), rs.text.slice(0, 200));
     check('...Leyline of Anticipation: the creature in your hand (Samwise Gamgee) glows too: it can be cast now', rs.sam);
-    await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), tef);
+    await p.evaluate(iid => document.querySelector('#tab-duel .vs-seat.me .mtg[data-iid="' + iid + '"]').click(), tef); await viewerPick(p);
     await p.waitForSelector('.ch-sheet.loyalty', { timeout: 10000 });
     sh = await sheet();
     check("...clicking Teferi opens his menu for the other player's turn", /Teferi, Master of Time: loyalty abilities/.test(sh.title) && /on another player's turn, once each turn/.test(sh.text), sh.text);

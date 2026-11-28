@@ -827,7 +827,7 @@ select { max-width: 100%; text-overflow: ellipsis; }
 @media (max-width: 600px) { .speed input[type=range] { width: 70px; } }
 
 /* ---------- card viewer on wide screens: the card on the left, price / shops / printings beside it, no scrolling ---------- */
-@media (min-width: 960px) {
+@media (min-width: 960px), (orientation: landscape) and (min-width: 600px) and (max-height: 520px) {          /* a phone on its side too: the buttons beside the card, not below it */
   .lightbox { background: rgba(4,10,16,.94); backdrop-filter: blur(4px); }
   .lb-inner { display: grid; grid-template-columns: auto minmax(340px, 480px); column-gap: 32px; row-gap: 12px; justify-content: center; align-content: start; align-items: start; padding: 24px 24px 40px; }
   .lb-bar { grid-column: 1 / -1; width: 100%; }
