@@ -1,6 +1,6 @@
 {
  "about": "Fastest real win of each built-in deck in a 1v1 Duel against one standard opponent (T-137). Rebuild with: node tools/fastest-kill.js. Seat 0 is this deck; first = the seat that goes first; rarity.oneIn = about 1 goldfish game in N kills by that turn; interaction = what the opponent did (blocks, counterspells, removal). v = engine version it was found on.",
- "v": 231,
+ "v": 238,
  "standard": "second-draw.txt",
  "fallback": "dead-ringers.txt",
  "stage1": 20000,
@@ -8,22 +8,22 @@
  "decks": {
   "black-mage-blackout.txt": {
    "opp": "second-draw.txt",
-   "seed": 10551,
-   "first": 1,
-   "turn": 1,
-   "round": 1,
+   "seed": 13588,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
    "interaction": {
     "blocks": 0,
     "counters": 0,
-    "removal": 0,
-    "total": 0
+    "removal": 1,
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 0,
-    "oneIn": null
+    "atOrBelow": 30,
+    "oneIn": 667
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -44,7 +44,7 @@
     "atOrBelow": 24,
     "oneIn": 833
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -62,31 +62,31 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 50,
-    "oneIn": 400
+    "atOrBelow": 48,
+    "oneIn": 417
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "captains-lockdown.txt": {
    "opp": "second-draw.txt",
-   "seed": 2482,
+   "seed": 2827,
    "first": 1,
    "turn": 2,
    "round": 2,
    "interaction": {
     "blocks": 0,
     "counters": 0,
-    "removal": 1,
-    "total": 1
+    "removal": 0,
+    "total": 0
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 19,
-    "oneIn": 1053
+    "atOrBelow": 6,
+    "oneIn": 3333
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -107,28 +107,28 @@
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "compound-interest.txt": {
    "opp": "second-draw.txt",
-   "seed": 3315,
-   "first": 0,
+   "seed": 3670,
+   "first": 1,
    "turn": 4,
    "round": 4,
    "interaction": {
     "blocks": 0,
     "counters": 1,
-    "removal": 1,
-    "total": 2
+    "removal": 0,
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 15,
-    "oneIn": 1333
+    "atOrBelow": 7,
+    "oneIn": 2857
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -149,7 +149,7 @@
     "atOrBelow": 5,
     "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -167,10 +167,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 29,
-    "oneIn": 690
+    "atOrBelow": 26,
+    "oneIn": 769
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -191,7 +191,7 @@
     "atOrBelow": 5,
     "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -212,28 +212,28 @@
     "atOrBelow": 11,
     "oneIn": 1818
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "dead-sea.txt": {
    "opp": "second-draw.txt",
-   "seed": 8072,
+   "seed": 3988,
    "first": 1,
-   "turn": 1,
-   "round": 1,
+   "turn": 3,
+   "round": 3,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 3,
-    "oneIn": 6667
+    "atOrBelow": 46,
+    "oneIn": 435
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -254,28 +254,28 @@
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "double-down.txt": {
    "opp": "second-draw.txt",
-   "seed": 1562,
+   "seed": 12438,
    "first": 1,
    "turn": 3,
    "round": 3,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 6,
-    "oneIn": 3333
+    "atOrBelow": 5,
+    "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -296,7 +296,7 @@
     "atOrBelow": 81,
     "oneIn": 247
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -317,7 +317,7 @@
     "atOrBelow": 2,
     "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -338,49 +338,49 @@
     "atOrBelow": 43,
     "oneIn": 465
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "friendship-is-magic.txt": {
    "opp": "second-draw.txt",
-   "seed": 5093,
+   "seed": 12729,
    "first": 1,
    "turn": 6,
    "round": 6,
    "interaction": {
     "blocks": 3,
     "counters": 0,
-    "removal": 1,
-    "total": 4
+    "removal": 0,
+    "total": 3
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 68,
-    "oneIn": 294
+    "atOrBelow": 45,
+    "oneIn": 444
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "gnome-alone.txt": {
    "opp": "second-draw.txt",
-   "seed": 1201,
+   "seed": 11065,
    "first": 1,
    "turn": 3,
    "round": 3,
    "interaction": {
-    "blocks": 0,
-    "counters": 2,
+    "blocks": 2,
+    "counters": 0,
     "removal": 0,
     "total": 2
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 17,
-    "oneIn": 1176
+    "atOrBelow": 14,
+    "oneIn": 1429
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -398,10 +398,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 21,
-    "oneIn": 952
+    "atOrBelow": 20,
+    "oneIn": 1000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -422,7 +422,7 @@
     "atOrBelow": 6,
     "oneIn": 3333
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -434,16 +434,16 @@
    "round": 3,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -464,49 +464,49 @@
     "atOrBelow": 0,
     "oneIn": null
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "loyalty-program.txt": {
    "opp": "second-draw.txt",
-   "seed": 6628,
+   "seed": 16106,
    "first": 1,
    "turn": 4,
    "round": 4,
    "interaction": {
     "blocks": 0,
-    "counters": 2,
-    "removal": 0,
-    "total": 2
-   },
-   "rarity": {
-    "goldfish": 20000,
-    "atOrBelow": 16,
-    "oneIn": 1250
-   },
-   "v": 231,
-   "stage1": 20000,
-   "stage2": 400
-  },
-  "mermaids.txt": {
-   "opp": "second-draw.txt",
-   "seed": 2750,
-   "first": 1,
-   "turn": 4,
-   "round": 4,
-   "interaction": {
-    "blocks": 1,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
     "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 49,
-    "oneIn": 408
+    "atOrBelow": 2,
+    "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
+   "stage1": 20000,
+   "stage2": 400
+  },
+  "mermaids.txt": {
+   "opp": "second-draw.txt",
+   "seed": 933,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "interaction": {
+    "blocks": 0,
+    "counters": 0,
+    "removal": 0,
+    "total": 0
+   },
+   "rarity": {
+    "goldfish": 20000,
+    "atOrBelow": 24,
+    "oneIn": 833
+   },
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -527,28 +527,28 @@
     "atOrBelow": 40,
     "oneIn": 500
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "moving-parts.txt": {
    "opp": "second-draw.txt",
-   "seed": 8067,
+   "seed": 3012,
    "first": 1,
-   "turn": 1,
-   "round": 1,
+   "turn": 2,
+   "round": 2,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -569,13 +569,13 @@
     "atOrBelow": 12,
     "oneIn": 1667
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "nothing-personal.txt": {
    "opp": "second-draw.txt",
-   "seed": 1409,
+   "seed": 2071,
    "first": 1,
    "turn": 3,
    "round": 3,
@@ -587,10 +587,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 3,
-    "oneIn": 6667
+    "atOrBelow": 1,
+    "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -611,7 +611,7 @@
     "atOrBelow": 7,
     "oneIn": 2857
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -632,37 +632,16 @@
     "atOrBelow": 42,
     "oneIn": 476
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "overtime-at-the-treasure-mine.txt": {
    "opp": "second-draw.txt",
-   "seed": 10158,
+   "seed": 1709,
    "first": 0,
    "turn": 3,
    "round": 3,
-   "interaction": {
-    "blocks": 0,
-    "counters": 0,
-    "removal": 1,
-    "total": 1
-   },
-   "rarity": {
-    "goldfish": 20000,
-    "atOrBelow": 14,
-    "oneIn": 1429
-   },
-   "v": 231,
-   "stage1": 20000,
-   "stage2": 400
-  },
-  "permafrost-prodigy.txt": {
-   "opp": "second-draw.txt",
-   "seed": 255,
-   "first": 1,
-   "turn": 2,
-   "round": 2,
    "interaction": {
     "blocks": 0,
     "counters": 0,
@@ -671,10 +650,31 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 36,
-    "oneIn": 556
+    "atOrBelow": 13,
+    "oneIn": 1538
    },
-   "v": 231,
+   "v": 238,
+   "stage1": 20000,
+   "stage2": 400
+  },
+  "permafrost-prodigy.txt": {
+   "opp": "second-draw.txt",
+   "seed": 1570,
+   "first": 1,
+   "turn": 2,
+   "round": 2,
+   "interaction": {
+    "blocks": 0,
+    "counters": 1,
+    "removal": 0,
+    "total": 1
+   },
+   "rarity": {
+    "goldfish": 20000,
+    "atOrBelow": 1,
+    "oneIn": 20000
+   },
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -692,10 +692,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 377,
+    "atOrBelow": 375,
     "oneIn": 53
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -716,7 +716,7 @@
     "atOrBelow": 33,
     "oneIn": 606
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -737,7 +737,7 @@
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -758,7 +758,7 @@
     "atOrBelow": 2,
     "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -779,7 +779,7 @@
     "atOrBelow": 12,
     "oneIn": 1667
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -800,28 +800,28 @@
     "atOrBelow": 11,
     "oneIn": 1818
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "short-circuit.txt": {
    "opp": "second-draw.txt",
-   "seed": 343,
+   "seed": 1974,
    "first": 1,
    "turn": 2,
    "round": 2,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
     "atOrBelow": 5,
     "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -842,7 +842,7 @@
     "atOrBelow": 0,
     "oneIn": null
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -863,28 +863,28 @@
     "atOrBelow": 10,
     "oneIn": 2000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "spectrum-of-extinction.txt": {
    "opp": "second-draw.txt",
-   "seed": 6161,
-   "first": 0,
+   "seed": 17358,
+   "first": 1,
    "turn": 5,
    "round": 5,
    "interaction": {
     "blocks": 0,
     "counters": 0,
-    "removal": 1,
-    "total": 1
+    "removal": 0,
+    "total": 0
    },
    "rarity": {
     "goldfish": 20000,
     "atOrBelow": 5,
     "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -902,31 +902,31 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 2,
-    "oneIn": 10000
+    "atOrBelow": 1,
+    "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "the-shoal-must-go-on.txt": {
    "opp": "second-draw.txt",
-   "seed": 2365,
-   "first": 0,
-   "turn": 3,
-   "round": 3,
+   "seed": 9044,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
    "interaction": {
-    "blocks": 0,
+    "blocks": 2,
     "counters": 0,
-    "removal": 0,
-    "total": 0
+    "removal": 1,
+    "total": 3
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 0,
-    "oneIn": null
+    "atOrBelow": 33,
+    "oneIn": 606
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -938,25 +938,25 @@
    "round": 3,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 4,
-    "oneIn": 5000
+    "atOrBelow": 3,
+    "oneIn": 6667
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "tidecaller.txt": {
    "opp": "second-draw.txt",
-   "seed": 19025,
+   "seed": 1526,
    "first": 1,
-   "turn": 1,
-   "round": 1,
+   "turn": 2,
+   "round": 2,
    "interaction": {
     "blocks": 0,
     "counters": 0,
@@ -965,10 +965,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 1,
-    "oneIn": 20000
+    "atOrBelow": 5,
+    "oneIn": 4000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -989,7 +989,7 @@
     "atOrBelow": 6,
     "oneIn": 3333
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1007,10 +1007,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 239,
+    "atOrBelow": 238,
     "oneIn": 84
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1031,7 +1031,7 @@
     "atOrBelow": 2,
     "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1052,7 +1052,7 @@
     "atOrBelow": 0,
     "oneIn": null
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1070,10 +1070,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 37,
-    "oneIn": 541
+    "atOrBelow": 21,
+    "oneIn": 952
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1094,28 +1094,28 @@
     "atOrBelow": 0,
     "oneIn": null
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
   "void-tax.txt": {
    "opp": "second-draw.txt",
-   "seed": 1244,
-   "first": 0,
-   "turn": 2,
-   "round": 2,
+   "seed": 3518,
+   "first": 1,
+   "turn": 3,
+   "round": 3,
    "interaction": {
     "blocks": 0,
-    "counters": 0,
+    "counters": 1,
     "removal": 0,
-    "total": 0
+    "total": 1
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 4,
-    "oneIn": 5000
+    "atOrBelow": 2,
+    "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1133,10 +1133,10 @@
    },
    "rarity": {
     "goldfish": 20000,
-    "atOrBelow": 3,
-    "oneIn": 6667
+    "atOrBelow": 2,
+    "oneIn": 10000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   },
@@ -1157,7 +1157,7 @@
     "atOrBelow": 1,
     "oneIn": 20000
    },
-   "v": 231,
+   "v": 238,
    "stage1": 20000,
    "stage2": 400
   }

@@ -77,7 +77,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('.vs-seat.me .vs-hand .mtg', { force: true });
   if (!(await p.isVisible('#lightbox.show'))) { await p.waitForTimeout(400); const v = p.locator('#ctxMenu button:has-text("View card")'); if (await v.count()) await v.first().click(); }
   await p.waitForSelector('#lightbox.show', { timeout: 10000 });
-  check('a card opens in the shared viewer', /\d+ \/ \d+/.test(await p.textContent('.lb-count')) && (await p.textContent('.lb-name')).length > 0, await p.textContent('.lb-name'));
+  check('a card opens in the shared viewer', /\d+ (\/|of) \d+/.test(await p.textContent('.lb-count')) && (await p.textContent('.lb-name')).length > 0, await p.textContent('.lb-name'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   // view-only, and Leave goes back to Build
   check('view-only: no hand card offers a play', (await p.$$('#tab-duel .vs-hand .vs-card.can')).length === 0 && (await p.$$('#tab-duel .vs-asland')).length === 0);
