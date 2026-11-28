@@ -3481,6 +3481,105 @@
     a.coverageLevel = !total || bad === 0 ? 'ok' : bad === total ? 'none' : 'partial';
   }
 
+  // ---------- T-131: guess unknown rules lines by fuzzy matching (optional, off by default) ----------
+  // With G.setFuzzy(index) on, a rules line no rule reads (status 'ignored') is compared with the lines the engine already builds (the templates in
+  // data/fuzzy-index.json, made by tools/build-fuzzy-index.js). If one is close enough (score 0.80 or more), the card is read again with that template
+  // line, this card's numbers, mana symbols, colours, creature types and counter names put in. If the engine builds something from it, the line becomes
+  // status 'guessed' with rec.fuzzy = { score, from, as }: it plays as the template, it is never called understood, and it stays on the Teach list.
+  // G.setFuzzy(null) (the default) leaves every reading exactly as it was.
+  let FUZZY = null;
+  const FZ_MIN = 0.80, FZ_STOP = new Set(['a', 'an', 'the', 'of', 'to', 'it', 'its', 'that', 'this', 'and', 'or', 'you', 'your', 'in', 'on', 'from', 'with', 'for', 'is', 'are', 'if', 'then', 'as', 'be', 'by']);
+  const FZ_NUMW = /^(?:two|three|four|five|six|seven|eight|nine|ten)$/i, FZ_COLOR = /^(?:white|blue|black|red|green)$/i;
+  const FZ_NOCOUNT = new Set(['may', 'to', 'you', "can't", 'not', 'and', 'or', 'then', 'would', 'that', 'it', 'spell', 'abilities', 'ability', 'cannot', 'be', 'is', 'target', 'a', 'an', 'the', 'each', 'those', 'all', 'of', 'more', 'if', 'unless', 'instead', 'N', 'its', 'their', 'your']);
+  const fzPlural = t => { const s = new Set([t, t + 's', t + 'es']); if (/(?:f|fe)$/.test(t)) s.add(t.replace(/fe?$/, 'ves')); if (/y$/.test(t)) s.add(t.slice(0, -1) + 'ies'); if (/man$/.test(t)) s.add(t.slice(0, -3) + 'men'); if (t === 'mouse') s.add('mice'); if (t === 'ox') s.add('oxen'); return s; };
+  // A rules line as tokens. Slots (what a card changes without changing what the line does): its own name (~), numbers and number words, mana symbols,
+  // colours, creature types and counter names. Each token: { v: the text, t: the slot kind or null, w: the word it matches on, s, e: where it sits }.
+  function fzTokens(line) {
+    const src = String(line).replace(/\([^)]*\)/g, ' ').replace(/[−–]/g, '-'), out = [], re = /\{[^}]+\}|~|[A-Za-z][A-Za-z'’]*|\d+|[+\-\/:,]/g; let m;
+    while ((m = re.exec(src))) {
+      const v = m[0], lo = v.toLowerCase(); let t = null;
+      if (/^\{[0-9WUBRGCSXPwubrgcsxp\/]+\}$/.test(v)) t = 'M';
+      else if (/^\d+$/.test(v) || FZ_NUMW.test(v)) t = 'N';
+      else if (FZ_COLOR.test(v)) t = 'C';
+      else if (FUZZY && FUZZY.types.has(lo)) t = 'T';
+      out.push({ v, t, w: t ? '§' + t : lo, s: m.index, e: m.index + v.length });
+    }
+    for (let i = 0; i + 1 < out.length; i++) {          // "a charge counter", "two time counters": the word before "counter(s)" names the counters
+      const n = out[i + 1].w;
+      if ((n === 'counter' || n === 'counters') && !out[i].t && /^[a-z]+$/.test(out[i].w) && !FZ_NOCOUNT.has(out[i].w) && !FZ_STOP.has(out[i].w) && !(out[i + 2] && /^(?:target|that|it|unless|spell)$/.test(out[i + 2].w))) { out[i].t = 'K'; out[i].w = '§K'; }
+    }
+    return out;
+  }
+  function fzPrep(line) {
+    const toks = fzTokens(line), uni = new Map(), bi = new Map(), word = x => (x === '§N' || x === '§M' || x === '§C' || x === '§T' || x === '§K' || x === '~') ? 1 : FZ_STOP.has(x) ? 0.35 : 1;
+    let uw = 0, bw = 0;
+    toks.forEach((k, i) => {
+      const w = word(k.w); uni.set(k.w, (uni.get(k.w) || 0) + w); uw += w;
+      if (i) { const g = toks[i - 1].w + ' ' + k.w, gw = (word(toks[i - 1].w) + w) / 2; bi.set(g, (bi.get(g) || 0) + gw); bw += gw; }
+    });
+    const txt = ' ' + toks.map(k => k.w).join(' ') + ' ', f = new Set();
+    for (const [k, re] of [['target', / target /], ['each', / each /], ['may', / may /], ['sac', / sacrifice /], ['counter', / counters? /], ['eot', / until end of turn /], ['opp', / opponents? /], ['ctl', / you control /]]) if (re.test(txt)) f.add(k);
+    // words that change how much, where or who: a template that differs in any of them is out (score 0), never a close guess (MAIN, 2026-11-28)
+    const hard = new Set();
+    for (const [k, re] of [['twice', / twice /], ['double', / (?:double|doubles|doubled) /], ['half', / half /], ['triple', / (?:triple|triples) /], ['x', / x /], ['upto', / up to /], ['another', / another /], ['other', / other /], ['token', / tokens? /], ['nontoken', / nontoken /], ['zone', / from (?:your |a |an |their |that player's )?(?:graveyard|hand|library|exile) /], ['dontctl', / you don't control /], ['instead', / instead /], ['cant', / can't /], ['unless', / unless /]]) if (re.test(txt)) hard.add(k);
+    for (const k of ['target', 'each', 'opp', 'ctl', 'eot']) if (f.has(k)) hard.add(k);
+    for (const m of txt.matchAll(/ to (?:your |the |its owner's |their |that player's |a )?(hand|battlefield|graveyard|library|exile) /g)) hard.add('to:' + m[1]);          // where it goes: hand is not battlefield
+    const first = toks.length ? toks[0].w : ''; f.add('@' + (first === 'whenever' || first === 'when' ? 'when' : first === 'at' ? 'at' : toks.some(k => k.w === ':') ? 'cost' : 'other'));
+    return { toks, uni, bi, uw, bw, f, hard, sig: toks.filter(k => k.t).map(k => k.t).join('') };
+  }
+  // graded membership 0..1: weighted word overlap and two-word overlap, less a penalty for each key word the two lines do not share
+  function fzScore(A, B) {
+    for (const k of A.hard) if (!B.hard.has(k)) return 0;          // a key word one line has and the other lacks: no guess
+    for (const k of B.hard) if (!A.hard.has(k)) return 0;
+    const dice = (x, y, tx, ty) => { let s = 0; for (const [k, v] of x) { const u = y.get(k); if (u) s += Math.min(v, u); } return tx + ty ? 2 * s / (tx + ty) : 0; };
+    const base = 0.4 * dice(A.uni, B.uni, A.uw, B.uw) + 0.6 * dice(A.bi, B.bi, A.bw, B.bw);
+    let diff = 0; for (const k of A.f) if (!B.f.has(k)) diff++; for (const k of B.f) if (!A.f.has(k)) diff++;
+    return Math.max(0, base - 0.07 * diff);
+  }
+  function fzShape(line) { return fzPrep(line).toks.map(k => k.w).join(' '); }          // a line with its slots blanked: lines of one shape are one template
+  function setFuzzy(index) {
+    if (!index || !Array.isArray(index.templates)) { FUZZY = null; return; }
+    FUZZY = { types: new Set(), by: new Map() };
+    for (const t of index.types || []) for (const p of fzPlural(String(t).toLowerCase())) FUZZY.types.add(p);
+    for (const [raw, from] of index.templates) { const p = fzPrep(raw); if (p.toks.length < 4) continue; p.raw = raw; p.from = from; (FUZZY.by.get(p.sig) || FUZZY.by.set(p.sig, []).get(p.sig)).push(p); }
+  }
+  // the best template for one unknown line: { score, from, as } (as: the template with this line's slot values put in), or null under 0.80
+  function fzMatch(text) {
+    if (!FUZZY || /^•|\n/.test(text)) return null;
+    const U = fzPrep(text); if (U.toks.length < 5) return null;
+    let best = null, bs = 0;
+    for (const T of FUZZY.by.get(U.sig) || []) { const s = fzScore(U, T); if (s > bs) { bs = s; best = T; } }
+    if (!best || bs < FZ_MIN) return null;
+    const vals = U.toks.filter(k => k.t).map(k => k.v); let as = best.raw, at = 0;
+    const src = String(best.raw).replace(/\([^)]*\)/g, ' ').replace(/[−–]/g, '-');          // the template's reminder text is not part of its tokens
+    const slots = best.toks.filter(k => k.t); let out = '', pos = 0;
+    slots.forEach((k, i) => { out += src.slice(pos, k.s) + vals[i]; pos = k.e; });
+    as = (out + src.slice(pos)).replace(/\s+/g, ' ').trim();
+    return { score: Math.round(bs * 100) / 100, from: best.from, as };
+  }
+  // The call site (end of analyze): read the card again with each close guess put in; keep a guess only if the engine builds something from it.
+  function fuzzyPass(card, a, deckColors) {
+    if (!FUZZY || card._fz || !a.coverage.some(r => r.status === 'ignored' && !r.back)) return a;
+    const src = normText(card, (card.front_oracle != null ? card.front_oracle : card.oracle_text) || ''), lines = src.split('\n').map(s => s.trim());
+    let cur = a, curLines = lines, changed = false; const made = [];
+    for (const rec of a.coverage) {
+      if (rec.status !== 'ignored' || rec.back) continue;
+      const i = curLines.indexOf(rec.text); if (i < 0) continue;
+      const m = fzMatch(rec.text); if (!m) continue;
+      const next = curLines.slice(); next[i] = m.as; const t = next.join('\n');
+      const c2 = Object.assign({}, card, { oracle_text: t, front_oracle: card.front_oracle != null ? t : card.front_oracle, _fz: true }); delete c2.a;
+      let a2; try { a2 = analyze(c2, deckColors); } catch (e) { continue; }
+      const r2 = a2.coverage.find(r => r.text === m.as && !r.back);
+      if (!r2 || (r2.status !== 'ok' && r2.status !== 'partial') || traceSig(a2) === traceSig(cur)) continue;          // it built nothing: the line stays unknown
+      cur = a2; curLines = next; changed = true; made.push({ as: m.as, orig: rec.text, fuzzy: { score: m.score, from: m.from } });
+    }
+    if (!changed) return a;
+    for (const g of made) { const r = cur.coverage.find(x => x.text === g.as && !x.back && x.status !== 'guessed'); if (r) { r.text = g.orig; r.status = 'guessed'; r.tag = 'guess'; r.fuzzy = g.fuzzy; r.fuzzy.as = g.as; } }
+    const bad = cur.coverage.filter(c => c.status === 'ignored' || c.status === 'partial' || c.status === 'guessed').length;          // a guess is never understood
+    cur.coverageLevel = !cur.coverage.length || bad === 0 ? 'ok' : bad === cur.coverage.length ? 'none' : 'partial';
+    return cur;
+  }
+
   // ---------- Card analysis ----------
   // Cards whose rules lines switch on in stages: station levels ("8+ | Flying"), Class levels and solved Cases. The card is read once
   // for each stage (the lines in force from the start, plus every line unlocked so far); the permanent swaps to the reading for the stage
@@ -3644,7 +3743,7 @@
     { const cm = (card.oracle_text || '').match(/\bas (?:it|~|this [a-z]+|[A-Z][A-Za-z' ,]+) enters, choose a color(?: other than (white|blue|black|red|green))?/i);          // "As ~ enters, choose a color": kept on the permanent (chosenColor)
       if (cm) { const L = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }, mm = (card.oracle_text || '').match(/\{T\}: Add (?:\{([WUBRG])\} or )?(one|two|three|four) mana of the chosen color/i);
         a.choosesColor = { not: cm[1] ? L[cm[1].toLowerCase()] : null, mana: mm ? { base: mm[1] || null, amount: NUM[mm[2].toLowerCase()] || 1 } : null }; } }
-    return a;
+    return FUZZY ? fuzzyPass(card, a, deckColors) : a;          // T-131: off unless G.setFuzzy(index)
   }
 
   // ---------- Tribe: the creature type the deck is built around ----------
@@ -3690,7 +3789,7 @@
   // cards are read each time (their other faces carry the card's place in the deck).
   const ANALYSES = new Map();
   function analyzeOnce(card, deckColors) {
-    const key = deckColors.join('') + '|' + (curTribe || '') + '|' + (curCardType || '') + '|' + (card.a ? JSON.stringify(card, (k, v) => k === 'a' ? undefined : v) : JSON.stringify(card));
+    const key = (FUZZY ? 'fz|' : '') + deckColors.join('') + '|' + (curTribe || '') + '|' + (curCardType || '') + '|' + (card.a ? JSON.stringify(card, (k, v) => k === 'a' ? undefined : v) : JSON.stringify(card));
     let a = ANALYSES.get(key);
     if (a === undefined) { a = analyze(card, deckColors); if (a.backCard || a.stages) return a; if (ANALYSES.size >= 1500) ANALYSES.clear(); ANALYSES.set(key, a); }
     return a;
@@ -15745,6 +15844,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     dealOpening, keepOpening, mullCost, podFocus, podAlive, podMonteCarlo, podMonteCarloPart, podMonteCarloMerge, podLog, turnSummary, eliminate, canAttack,
     parseCost, parseAdd, gyTarget, inLoop, sba, unlegendary, stackView, abilityMenu, useAbility, ABIL_STATS, instantPick, priorityRound, yardCastable, otherAbilities, setChosenColor, autoColor, eachTrigger, bestTribeOnBoard, castAftermath, comboPlan, deckLines, xDiscountNow, flashLandWindow, actCost, deckCombos, boardCombo, moreCombos, bookCombo, bookList, exploreMill, tribeBonus, tutorScore, tutorContext, lifeFloor, pumpLethal, activeLocks, ghostDraws, ghostDiscards, wheel, comboKind, comboNeed, sendHome, crackHeld, heldFetches, resolveCombatVs, creatureValue, sagaAdvance, tokenGroups, counterMult, foodsOf, pickSacrifice, linkPod, pickTarget, playPod,
   };
+  api.setFuzzy = setFuzzy; api.fuzzyMatch = fzMatch; api.fuzzyShape = fzShape;          // T-131 (kept out of the list above)
   root.Goldfish = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof self !== 'undefined' ? self : this);

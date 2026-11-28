@@ -52,7 +52,7 @@
       const dr = recs.filter(x => x.drawn[c.name] != null), cs = dr.filter(x => x.cast[c.name] != null);
       const castRate = dr.length ? cs.length / dr.length : null;
       const delay = cs.length ? cs.reduce((s, x) => s + Math.max(0, x.cast[c.name] - x.drawn[c.name]), 0) / cs.length : null;
-      const notSim = (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial').map(r => r.text);
+      const notSim = (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial' || r.status === 'guessed').map(r => r.text);
       const verdict = c.a.coverageLevel && c.a.coverageLevel !== 'ok' ? 'engine' : (!c.a.isLand && castRate != null && castRate < 0.5) ? 'play' : 'card';
       rows.push({ name: c.name, diff, z, early: early / N, castRate, delay, verdict, notSim, land: !!c.a.isLand, commander: !!c.commander });
     }

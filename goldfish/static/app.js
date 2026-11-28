@@ -180,11 +180,22 @@
     { const o = LEGACY_ORDER[d.deckOrder] || d.deckOrder; if (o && DECK_ORDERS.includes(o)) $('#dispDeckOrder').value = o; }
     $('#dispPayChoose').checked = d.payChoose !== false;          // T-099: on unless the person switched it off
     if (['smart', 'never', 'always'].includes(d.stop)) $('#dispStop').value = d.stop;
+    $('#dispFuzzy').checked = d.fuzzy === true;          // T-131: off unless the person turned it on
     window.__isfPriority = d.priority === true;          // T-130: a hidden test toggle (no control): { priority: true } in isf_display turns opts.priority on. The engine session makes it the default at stage 6.
+    // T-131 "Guess unknown rules": the lines the engine can read are loaded the first time it is switched on; the deck is read again with it on or off.
+    // Only this page's own reading changes. Simulations (worker.js), the rankings and the bracket checks never guess.
+    let fuzzyIdx = null;
+    const applyFuzzy = async () => {
+      let on = $('#dispFuzzy').checked;
+      if (on) { try { if (!fuzzyIdx) { const r = await fetch('data/fuzzy-index.json'); if (!r.ok) throw new Error(r.status); fuzzyIdx = await r.json(); } G.setFuzzy(fuzzyIdx); } catch (e) { on = false; $('#dispFuzzy').checked = false; toast('Could not load the rules to guess from: guessing stays off.'); } }
+      if (!on) G.setFuzzy(null);
+      if (typeof S !== 'undefined' && S.deck) { S.deck = G.buildDeck(S.cards, S.tokens, currentPolicy().tribe); S.byUid = S.deck.unique; if (typeof renderCoverage === 'function') renderCoverage(); }
+    };
+    if (d.fuzzy === true) setTimeout(applyFuzzy, 0);
     apply();
-    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop']) $(id).addEventListener('change', () => {
-      apply();
-      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, priority: d.priority === true })); } catch (e) { /* storage blocked */ }
+    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop', '#dispFuzzy']) $(id).addEventListener('change', () => {
+      apply(); if (id === '#dispFuzzy') applyFuzzy();
+      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, priority: d.priority === true, fuzzy: $('#dispFuzzy').checked })); } catch (e) { /* storage blocked */ }
     });
   })();
 
@@ -269,6 +280,7 @@
   function pillHtml(x) {
     const side = x.back ? '<span class="pill back" title="A rule on the back face of this double-faced card">Back</span> ' : '';
     if (x.mirror) return side + '<span class="pill opp" title="Does nothing against a goldfish. It is used in a Mirror match (Simulation tab).">Mirror matches only</span> ';
+    if (x.status === 'guessed' && x.fuzzy) return side + `<span class="pill guess" title="${esc('Guessed, not understood: this line is played like "' + x.fuzzy.as + '" (from ' + x.fuzzy.from + '). The guess can be wrong. The card stays on the Teach list.')}">guessed ${Math.round(x.fuzzy.score * 100)}%</span><span class="guess-from">like ${esc(x.fuzzy.from)}</span> `;          // T-131
     if (x.status === 'ok' || !x.tag) return side;
     return side + `<span class="pill ${x.tag}" title="${esc(TAG_HELP[x.tag] || '')}">${TAG_LABEL[x.tag] || ''}</span> `;
   }
@@ -547,7 +559,7 @@
   // ---- Teach these cards: cards whose rules text the engine does not fully read become a pre-filled GitHub request (one click in
   // the app, then Create on GitHub). Only the card names, the unread lines and the app version are sent, never the decklist.
   const TEACH_REPO = 'https://github.com/skyweezydeezy/ICEYfish';
-  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial').map(r => r.text);
+  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial' || r.status === 'guessed').map(r => r.text);          // T-131: a guessed line is not a lesson
   function teachUrl(cards) {
     const list = cards.slice(0, 8);
     const block = c => `${c.name}\nhttps://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}\n` + unreadLines(c).slice(0, 4).map(t => '- ' + t.slice(0, 240)).join('\n');

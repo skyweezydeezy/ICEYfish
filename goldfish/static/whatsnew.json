@@ -4,7 +4,8 @@
     {
       "v": 227,
       "lines": [
-        "Duel on an upright phone: the whole top bar fits on the screen again, with no sideways scrolling to reach the playmat, sound and help buttons."
+        "Duel on an upright phone: the whole top bar fits on the screen again, with no sideways scrolling to reach the playmat, sound and help buttons.",
+        "New, off by default: Settings → Display → Guess unknown rules. A rules line ICEYfish can't read yet is played like the closest line it knows, marked \"guessed N%\" with the card it was matched to. Guesses can be wrong, so the card stays on the Teach list."
       ]
     },
     {
