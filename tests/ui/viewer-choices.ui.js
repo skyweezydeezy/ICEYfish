@@ -31,6 +31,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   // battlefield rows can lie over the pile (a layout problem of the Goldfish Table with 12+ cards in hand), and that must not decide this test.
   const redraw = async () => { await p.evaluate(() => document.querySelector('#zLibrary .card-back').click()); await p.waitForTimeout(500); };
   await p.click('[data-tab=table]'); await p.waitForFunction(() => window.__isf.game, null, { timeout: 30000 });
+  await pin(p); await p.click('#tNew'); await p.waitForTimeout(800);          // T-138: a Practice game from a fixed seed: the same library order on every run
   await p.evaluate(() => { const g = window.__isf.game; const ns = ['Sol Ring', 'Forest']; ns.forEach(n => { if (g.hand.some(i => i.card.name === n)) return; const k = g.library.findIndex(i => i.card.name === n); if (k >= 0) g.hand.push(g.library.splice(k, 1)[0]); }); });
   await redraw();
   const menu = (zone, name) => p.evaluate(([z, n]) => { const g = window.__isf.game, inst = (z === 'hand' ? g.hand : g.battlefield.map(x => x.inst || x)).find(i => (i.card || i).name === n); const iid = inst.iid; const el = document.querySelector('.table .mtg[data-iid="' + iid + '"]'); el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 300, clientY: 300 })); return iid; }, [zone, name]).then(async iid => { await p.waitForTimeout(400); return iid; });          // T-102: a touch menu ignores taps in its first 350 ms (ghost-tap guard)
