@@ -272,7 +272,7 @@
   // self: { file ('' for a deck that is not built in), name }. Resolves to { opp, seed, first, turn, round, interaction, rarity, v } or null.
   // It runs on the page a game at a time so the page stays usable; a new search stops the one before.
   let findToken = 0;
-  const tallyNotes = (g, ev, t) => { if (ev.some(e => e.type === 'kill')) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); t.visible = items.some(x => /damage|poison|Combo:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i.test(x)); } for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
+  const tallyNotes = (g, ev, t) => { if (ev.some(e => e.type === 'kill')) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); t.visible = items.some(x => /damage|poison|Combo:|Combo steps:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i.test(x)); } for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
   async function findFastest(self, progress, goldfish, nSeeds) {
     const token = ++findToken, say = t => progress && progress(t), meta = window.__isfFastestMeta || {};
     goldfish = goldfish || window.__isfFindGames || 1500; nSeeds = nSeeds || window.__isfFindSeeds || 30;

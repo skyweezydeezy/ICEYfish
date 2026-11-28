@@ -30,7 +30,7 @@ const version = () => +(fs.readFileSync(path.join(STATIC, 'version.js'), 'utf8')
 
 // A win must teach how it happened: the log of the winning turn has to show what killed the opponent (damage, poison, a combo or alternate win named,
 // the opponent out of the game for a stated reason). A turn that only reads "land; cast X; WINS" is flagged (visible false) and is never kept as a fastest win.
-const KILL_LINE = /damage|poison|Combo:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i;
+const KILL_LINE = /damage|poison|Combo:|Combo steps:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i;
 function killLine(g, ev) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); return { visible: items.some(x => KILL_LINE.test(x)), text: items.join('; ').slice(0, 300) }; }
 // How hard the opponent (seat 1) fought back in a game seat 0 wins: blocks and counterspells show in notes on seat 0's turns ("X blocks Y",
 // "X counters Y"), removal on seat 1's own turn ("Destroyed the opponent's Y", "Exiled ...", "Returned ..."). Read from the engine's events.
