@@ -1680,7 +1680,7 @@
     ['cardkingdom', 'Card Kingdom', (c) => `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${enc(c.name)}`],
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
-  const LB_SCOPE = '.table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
+  const LB_SCOPE = '.pz-tiles, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
   const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
@@ -1759,18 +1759,19 @@
   }
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
-  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
+  function lbGo(d) { const n = lb.i + d; if (lb.list.length < 2 || n < 0 || n >= lb.list.length) return; lb.i = n;          // stops at the ends of the group, no wrap
+    lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
   function paintLb() {
     const card = lb.list[lb.i]; if (!card) return;
     const sel = lb.sel;
     lightbox.innerHTML = '';
     const wrap = h('div', 'lb-inner');
     const bar = h('div', 'lb-bar');
-    bar.appendChild(h('span', 'lb-count', lb.list.length > 1 ? `${lb.i + 1} / ${lb.list.length}` : ''));
+    bar.appendChild(h('span', 'lb-count', lb.list.length > 1 ? `${lb.i + 1} of ${lb.list.length}` : ''));
     const x = h('button', 'lb-x', '✕ Close'); x.addEventListener('click', lbClose); bar.appendChild(x);
     wrap.appendChild(bar);
     const row = h('div', 'lb-row');
-    const nav = (cls, label, d) => { const b = h('button', 'lb-nav ' + cls, label); b.setAttribute('aria-label', d < 0 ? 'Previous card' : 'Next card'); b.disabled = lb.list.length < 2; b.addEventListener('click', () => lbGo(d)); return b; };
+    const nav = (cls, label, d) => { const b = h('button', 'lb-nav ' + cls, label); b.setAttribute('aria-label', d < 0 ? 'Previous card' : 'Next card'); b.disabled = lb.list.length < 2 || lb.i + d < 0 || lb.i + d >= lb.list.length; b.addEventListener('click', () => lbGo(d)); return b; };
     row.appendChild(nav('prev', '‹', -1));
     const faces = h('div', 'lb-faces');
     const shown = sel ? Object.assign({}, card, { images: [], remote_images: sel.imgs }) : card;
@@ -1780,7 +1781,7 @@
     else { lb.flip = null; faces.appendChild(cardEl(shown, { face: 0 })); }
     let sx = null, sy = null;
     faces.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
-    faces.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null; if (Math.abs(dx) > 55 && Math.abs(dy) < 60) lbGo(dx < 0 ? 1 : -1); });
+    faces.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) lbGo(dx < 0 ? 1 : -1); });          // a clear sideways swipe; a scroll (mostly vertical) never moves
     row.appendChild(faces);
     row.appendChild(nav('next', '›', 1));
     wrap.appendChild(row);

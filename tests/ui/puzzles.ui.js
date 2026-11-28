@@ -57,7 +57,7 @@ const KEY = 'isf_puzzle2';
   await p.click('.pz-card[data-name="Mountain"]'); await p.waitForSelector('#lightbox.show .lb-act');
   check('a tap on a card in hand opens it in the viewer with its one action as a button (and nothing was played)', await p.$$eval('#lightbox .lb-act', xs => xs.length === 1 && /^Play Mountain/.test(xs[0].textContent)) && await p.$$eval('.pz-card', xs => xs.length) === 7);
   check('the viewer from a puzzle keeps the buy links, the printings and the rules lines beside the action', await p.$$eval('#lightbox .lb-shop a', xs => xs.length >= 3 && xs.some(a => /tcgplayer/.test(a.href)) && xs.some(a => /cardkingdom/.test(a.href)) && xs.some(a => /manapool/.test(a.href))) && await p.$('#lightbox .lb-prints') !== null);
-  await p.$eval('#lightbox .lb-act', b => b.click()); await p.waitForTimeout(100);
+  await p.evaluate(() => { document.querySelector('#lightbox .lb-x').click(); document.querySelector('.pz-card[data-name="Mountain"]').click(); document.querySelector('#lightbox .lb-act').click(); }); await p.waitForTimeout(100);
   check('the ghost-tap guard: a press within 350 ms of opening does nothing', await p.$eval('#lightbox', e => e.classList.contains('show')) && await p.$$eval('.pz-card', xs => xs.length) === 7);
   await p.keyboard.press('Escape'); await p.waitForTimeout(100);
   check('Esc closes the viewer', await p.$eval('#lightbox', e => !e.classList.contains('show')));
@@ -166,6 +166,26 @@ const KEY = 'isf_puzzle2';
     check(`${name}: the buttons are big enough to tap`, bar.hgt >= 36 && bar.w >= 64, JSON.stringify(bar));
     const tiles = await q.$$eval('.pz-card', xs => xs.map(x => Math.round(x.getBoundingClientRect().width)));
     check(`${name}: the hand's cards are tappable (wide enough)`, tiles.length === 7 && tiles.every(w2 => w2 >= 36), tiles.join(','));
+    if (w === 390 && h === 844) {          // T-134: swipe through the hand in the viewer (touch pointer events), in screen order, stopping at the ends
+      const swipe = (dx, dy) => q.evaluate(([dx, dy]) => { const f = document.querySelector('#lightbox .lb-faces'), r = f.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const ev = (t, X, Y) => f.dispatchEvent(new PointerEvent(t, { bubbles: true, pointerType: 'touch', clientX: X, clientY: Y })); ev('pointerdown', x, y); ev('pointerup', x + dx, y + dy); }, [dx, dy]);
+      const nm = () => q.textContent('#lightbox .lb-name'), cnt = () => q.textContent('#lightbox .lb-count');
+      const names = [...new Set(await q.$$eval('.pz-card', xs => xs.map(x => x.dataset.name)))], N = names.length;          // two copies of one card are one entry in the viewer
+      await q.click('.pz-card >> nth=0'); await q.waitForSelector('#lightbox.show .lb-act');
+      check(`${name}: the viewer shows where you are in the hand ("1 of N")`, (await cnt()) === `1 of ${N}` && (await nm()) === names[0], await cnt());
+      await swipe(120, 0); await q.waitForTimeout(150);
+      check(`${name}: swiping right at the first card stays (no wrap)`, (await nm()) === names[0] && await q.$eval('.lb-nav.prev', e => e.disabled));
+      await swipe(-15, -200); await q.waitForTimeout(150);
+      check(`${name}: a vertical swipe does not move`, (await nm()) === names[0]);
+      await swipe(-120, 10); await q.waitForTimeout(150);
+      check(`${name}: swiping left moves to the next card in screen order, with its own actions`, (await nm()) === names[1] && (await cnt()) === `2 of ${N}` && await q.$$eval('#lightbox .lb-act', xs => xs.length >= 1));
+      await q.$eval('#lightbox .lb-act', b => b.click()); await q.waitForTimeout(100);
+      check(`${name}: the ghost-tap guard holds after a swipe`, await q.$eval('#lightbox', e => e.classList.contains('show')) && await q.$$eval('.pz-card', xs => xs.length) === 7);
+      for (let k = 0; k < 8; k++) await swipe(-120, 0);
+      await q.waitForTimeout(150);
+      check(`${name}: it stops at the last card`, (await nm()) === names[N - 1] && (await cnt()) === `${N} of ${N}` && await q.$eval('.lb-nav.next', e => e.disabled));
+      await q.keyboard.press('Escape'); await q.waitForTimeout(100);
+    }
     await q.click('.pz-giveup'); await q.waitForSelector('.pz-banner'); await q.click('.pz-hint'); await q.click('.pz-lbtn'); await q.waitForTimeout(200);
     await ok('the result with a hint and the lesson open');
     check(`${name}: no page errors`, m.errs.length === 0, m.errs.join(' | '));
