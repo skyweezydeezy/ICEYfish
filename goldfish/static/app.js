@@ -1606,6 +1606,12 @@
     snap();
     quiet(yoursC(x => G.castCard(x, sameInst(x, inst), force)).then(ev => castDone(ev, inst, el, a)));
   }
+  // T-135: play the top card of the library (the cards in play say how: a land, mana, or Bolas's Citadel's life); the stack and the log are the engine's
+  function playFromTop(via, el) {
+    const g = S.game; if (!g || S.busy) return;
+    snap();
+    quiet(yoursC(x => G.playTop(x, via)).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('It cannot be played from the top of your library now'); } play(ev); }));
+  }
   function castDone(ev, inst, el, a) {
     if (!ev) { S.undo.pop(); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); sfx('error'); return toast(a.isAura ? 'You need a creature to enchant. Shift-click to cast anyway.' : 'Not enough mana. Shift-click to cast it anyway.'); }
     play(ev);
@@ -1723,7 +1729,7 @@
     ['cardkingdom', 'Card Kingdom', (c) => `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${enc(c.name)}`],
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
-  const LB_SCOPE = '.table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
+  const LB_SCOPE = '.pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
   const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
@@ -1802,18 +1808,19 @@
   }
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
-  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
+  function lbGo(d) { const n = lb.i + d; if (lb.list.length < 2 || n < 0 || n >= lb.list.length) return; lb.i = n;          // stops at the ends of the group, no wrap
+    lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
   function paintLb() {
     const card = lb.list[lb.i]; if (!card) return;
     const sel = lb.sel;
     lightbox.innerHTML = '';
     const wrap = h('div', 'lb-inner');
     const bar = h('div', 'lb-bar');
-    bar.appendChild(h('span', 'lb-count', lb.list.length > 1 ? `${lb.i + 1} / ${lb.list.length}` : ''));
+    bar.appendChild(h('span', 'lb-count', lb.list.length > 1 ? `${lb.i + 1} of ${lb.list.length}` : ''));
     const x = h('button', 'lb-x', '✕ Close'); x.addEventListener('click', lbClose); bar.appendChild(x);
     wrap.appendChild(bar);
     const row = h('div', 'lb-row');
-    const nav = (cls, label, d) => { const b = h('button', 'lb-nav ' + cls, label); b.setAttribute('aria-label', d < 0 ? 'Previous card' : 'Next card'); b.disabled = lb.list.length < 2; b.addEventListener('click', () => lbGo(d)); return b; };
+    const nav = (cls, label, d) => { const b = h('button', 'lb-nav ' + cls, label); b.setAttribute('aria-label', d < 0 ? 'Previous card' : 'Next card'); b.disabled = lb.list.length < 2 || lb.i + d < 0 || lb.i + d >= lb.list.length; b.addEventListener('click', () => lbGo(d)); return b; };
     row.appendChild(nav('prev', '‹', -1));
     const faces = h('div', 'lb-faces');
     const shown = sel ? Object.assign({}, card, { images: [], remote_images: sel.imgs }) : card;
@@ -1821,9 +1828,12 @@
     if (lb.faceOf !== card) { lb.faceOf = card; lb.face = 0; }          // another card: start on its front
     if (n === 2) { lb.flip = flipCardEl(shown, { face: lb.face || 0, onFlip: f => { lb.face = f; } }); faces.appendChild(lb.flip); }          // a two-faced card: one face at a time, ⟲ (or F) turns it over
     else { lb.flip = null; faces.appendChild(cardEl(shown, { face: 0 })); }
-    let sx = null, sy = null;
-    faces.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
-    faces.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null; if (Math.abs(dx) > 55 && Math.abs(dy) < 60) lbGo(dx < 0 ? 1 : -1); });
+    let sx = null, sy = null, lx = 0, ly = 0;
+    const done = (X, Y) => { if (sx == null) return; const dx = X - sx, dy = Y - sy; sx = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) lbGo(dx < 0 ? 1 : -1); };          // a clear sideways swipe; a scroll (mostly vertical) never moves
+    faces.addEventListener('pointerdown', e => { sx = lx = e.clientX; sy = ly = e.clientY; });
+    faces.addEventListener('pointermove', e => { if (sx != null) { lx = e.clientX; ly = e.clientY; } });
+    faces.addEventListener('pointerup', e => done(e.clientX, e.clientY));
+    faces.addEventListener('pointercancel', () => done(lx, ly));          // the browser took the gesture (a sideways pan): it was still a swipe
     row.appendChild(faces);
     row.appendChild(nav('next', '›', 1));
     wrap.appendChild(row);
@@ -2016,9 +2026,15 @@
     const zones = { hand: g.hand, battlefield: g.battlefield, graveyard: g.graveyard, exile: g.exile, command: g.command };
     let zone = null, obj = null;
     for (const [z, arr] of Object.entries(zones)) { const f = arr.find(x => x.iid === iid); if (f) { zone = z; obj = f; } }
+    if (!obj && g.library[0] && g.library[0].iid === iid && G.topPlay(g)) { zone = 'library'; obj = g.library[0]; }          // T-135: the exposed top card of the library
     if (!obj) return null;
     const inst = zone === 'battlefield' ? obj.inst : obj;
     const items = [];
+    if (zone === 'library') {          // what the cards in play let you do with it right now; what cannot be done now is greyed with the reason (the viewer's 5th field)
+      G.topPlay(g).options.forEach(o => items.push([o.label + (o.source ? ` (${o.source})` : '') + (forViewer || o.ok ? '' : ' — not now: ' + o.why), o.ok ? () => playFromTop(o.via, m) : () => { sfx('error'); toast(o.why); }, o.ok ? 'primary' : '', false, o.ok ? null : o.why]));
+      if (!forViewer) items.push(['🔍 View card', () => showLightbox(inst.card, m)]);
+      return { inst, items };
+    }
     const act = fn => () => { snap(); fn(); G.touch(g); render(); };
     const move = (to, top) => act(() => {
       if (zone === 'battlefield') G.removePerm(g, obj); else zones[zone].splice(zones[zone].indexOf(obj), 1);
@@ -2029,7 +2045,8 @@
       else zones[to].push(inst);
       log(`${esc(inst.card.name)} → ${to}${to === 'library' ? (top ? ' (top)' : ' (bottom)') : ''}`);
     });
-    if (zone === 'hand' || zone === 'command') items.push([inst.card.a.isLand ? '▶ Play land' : '▶ Cast', () => playFromHand(inst, false, m), 'primary']);
+    const ban = zone === 'hand' && G.handBan(g) ? `${G.handBan(g)}: you can't play cards from your hand` : null;          // T-135: Experimental Frenzy
+    if (zone === 'hand' || zone === 'command') items.push([(inst.card.a.isLand ? '▶ Play land' : '▶ Cast') + (ban && !forViewer ? ' — not now: ' + ban : ''), ban ? () => { sfx('error'); toast(ban); } : () => playFromHand(inst, false, m), ban ? '' : 'primary', false, ban]);
     if (zone === 'graveyard' && G.yardCastable(g, inst)) items.push(['▶ Cast from your graveyard', () => playFromHand(inst, false, m), 'primary']);          // Zul Ashur let you cast it this turn
     if (zone === 'hand' && inst.card.a.typecycle) items.push([`🔎 ${inst.card.a.typecycle.basic ? 'Basic land' : inst.card.a.typecycle.type === 'land' ? 'Land' : inst.card.a.typecycle.type[0].toUpperCase() + inst.card.a.typecycle.type.slice(1)}cycle (search for a land)`, () => { snap(); quiet(yours(x => G.landcycleCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to cycle it'); } play(ev); })); }]);
     if (zone === 'hand' && inst.card.a.transmute) items.push([`🔎 Transmute (search for a card with mana value ${inst.card.a.mv || 0})`, () => { snap(); quiet(yours(x => G.transmuteCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to transmute it'); } play(ev); })); }]);
