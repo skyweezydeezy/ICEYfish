@@ -16,6 +16,7 @@ for (const [file, e] of Object.entries(doc.decks)) {
   const A = by.get(file), B = by.get(e.opp);
   if (!B) { bad.push(file + ': opponent ' + e.opp + ' is not a built-in deck'); continue; }
   const r = F.playDuel(A, B, e.seed, e.first); n++;
+  if (r.winner === 0 && !r.visible) bad.push(`${file}: the log of the winning turn does not show how it won (${(r.tally.kill || {}).text}) -> a replay must teach how it won`);
   if (r.winner !== 0 || r.turn !== e.turn) bad.push(`${file} vs ${e.opp} (seed ${e.seed}, first ${e.first}): stored turn ${e.turn}, replayed ${r.winner === 0 ? 'turn ' + r.turn : r.winner == null ? 'no winner' : 'a loss'}`);
 }
 check(`all ${n} stored games replay to the same winner and turn`, !bad.length, bad.slice(0, 5).join(' || ') + (bad.length ? AGAIN : ''));

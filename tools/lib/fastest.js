@@ -28,9 +28,14 @@ function loadDecks() {
 }
 const version = () => +(fs.readFileSync(path.join(STATIC, 'version.js'), 'utf8').match(/ISF_VERSION\s*=\s*(\d+)/) || [])[1];
 
+// A win must teach how it happened: the log of the winning turn has to show what killed the opponent (damage, poison, a combo or alternate win named,
+// the opponent out of the game for a stated reason). A turn that only reads "land; cast X; WINS" is flagged (visible false) and is never kept as a fastest win.
+const KILL_LINE = /damage|poison|Combo:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i;
+function killLine(g, ev) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); return { visible: items.some(x => KILL_LINE.test(x)), text: items.join('; ').slice(0, 300) }; }
 // How hard the opponent (seat 1) fought back in a game seat 0 wins: blocks and counterspells show in notes on seat 0's turns ("X blocks Y",
 // "X counters Y"), removal on seat 1's own turn ("Destroyed the opponent's Y", "Exiled ...", "Returned ..."). Read from the engine's events.
 function interaction(g, ev, tally) {
+  if (ev.some(e => e.type === 'kill')) tally.kill = killLine(g, ev);
   for (const e of ev) {
     if (e.type !== 'note' || typeof e.text !== 'string') continue;
     if (g.pid === 0) { if (/ blocks /.test(e.text)) tally.blocks++; else if (/ counters /.test(e.text)) tally.counters++; }
@@ -41,7 +46,7 @@ function interaction(g, ev, tally) {
 function playDuel(A, B, seed, first) {
   const optsList = [A, B].map(L => Object.assign({}, DUEL_OPTS, { policy: (L.d && L.d.policy) || {} })), tally = { blocks: 0, counters: 0, removal: 0 };
   const pod = G.playPod([A.deck, B.deck], optsList, seed >>> 0, [A.name, B.name], first, (g, ev) => interaction(g, ev, tally)), m = pod.match;
-  return { winner: m.winner, turn: m.winner == null ? null : pod.games[m.winner].turn, round: m.round, tally };
+  return { winner: m.winner, turn: m.winner == null ? null : pod.games[m.winner].turn, round: m.round, tally, visible: !!(tally.kill && tally.kill.visible) };
 }
 // Stage 1: one goldfish game of A from a seed (the same shuffle as seat 0 of a Duel with that seed: both start from mulberry32(seed)); its kill turn, or null.
 // Same options as the Duel (an opponent at 40 life, turns capped at maxTurns).
@@ -51,4 +56,4 @@ function goldfishKill(A, seed, maxTurns) {
   for (let t = 0; t < maxTurns && g.killTurn == null && !G.matchOver(g); t++) G.playTurn(g);
   return g.killTurn == null ? null : g.killTurn;
 }
-module.exports = { G, DUEL_OPTS, loadDecks, playDuel, goldfishKill, version, STATIC, DECKS, ROOT };
+module.exports = { KILL_LINE, G, DUEL_OPTS, loadDecks, playDuel, goldfishKill, version, STATIC, DECKS, ROOT };

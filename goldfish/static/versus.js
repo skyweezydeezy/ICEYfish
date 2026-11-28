@@ -272,7 +272,7 @@
   // self: { file ('' for a deck that is not built in), name }. Resolves to { opp, seed, first, turn, round, interaction, rarity, v } or null.
   // It runs on the page a game at a time so the page stays usable; a new search stops the one before.
   let findToken = 0;
-  const tallyNotes = (g, ev, t) => { for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
+  const tallyNotes = (g, ev, t) => { if (ev.some(e => e.type === 'kill')) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); t.visible = items.some(x => /damage|poison|Combo:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i.test(x)); } for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
   async function findFastest(self, progress, goldfish, nSeeds) {
     const token = ++findToken, say = t => progress && progress(t), meta = window.__isfFastestMeta || {};
     goldfish = goldfish || window.__isfFindGames || 1500; nSeeds = nSeeds || window.__isfFindSeeds || 30;
@@ -296,7 +296,7 @@
     for (const seed of pick) for (const first of [1, 0]) {          // stage 2
       try {
         const t = { blocks: 0, counters: 0, removal: 0 }, pod = G.playPod([M.deck, S.deck], [M.opts, S.opts], seed, [M.name, S.name], first, (g, ev) => tallyNotes(g, ev, t)), m = pod.match;
-        if (m.winner === 0) { const turn = pod.games[0].turn, total = t.blocks + t.counters + t.removal;
+        if (m.winner === 0 && t.visible) { const turn = pod.games[0].turn, total = t.blocks + t.counters + t.removal;
           if (!best || turn < best.turn || (turn === best.turn && (total > best.interaction.total || (total === best.interaction.total && m.round < best.round)))) best = { opp: stdFile, seed, first, turn, round: m.round, interaction: { blocks: t.blocks, counters: t.counters, removal: t.removal, total } }; }
       } catch (e) { /* a Duel that stops on an engine error is not a candidate */ }
       k++; if (k % 2 === 0) { say(`Searching… ${70 + Math.round(k / (pick.length * 2) * 30)}%` + (best ? ` · best so far turn ${best.turn}` : '')); await sleep(0); if (token !== findToken) throw new Error('stopped'); }
