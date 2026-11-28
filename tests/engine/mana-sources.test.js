@@ -12,7 +12,7 @@ const OTHER = { 'Krark-Clan Ironworks': 'sacrifice', 'Phyrexian Altar': 'sacrifi
 const MANA = /^[^:"]*:\s*add\b/im, seen = new Map();
 for (const d of L.index().decks) for (const c of L.loadDeck(d)) if (!seen.has(c.name)) seen.set(c.name, c);
 const FOD = [['Gigantosaurus', 2], ['Ornithopter', 3], ['Swamp', 3]];
-const EXTRA = { 'Selvala, Heart of the Wilds': ['Forest'] };          // a mana ability that costs {G}: it needs a green source to pay it (net X - 1 mana)
+const EXTRA = { 'Selvala, Heart of the Wilds': ['Forest'], 'Mox Amber': ['Kenrith, the Returned King'] };          // Mox Amber (T-140) needs a legendary creature or planeswalker to make mana          // a mana ability that costs {G}: it needs a green source to pay it (net X - 1 mana)
 function bare(c, extra) {
   const deck = G.buildDeck([c].concat(FOD.map(f => by(f[0]))).concat((extra || []).map(n => by(n))).map(x => Object.assign({}, x, { qty: 1 })), []);
   const g = G.newGame(deck, Object.assign({}, L.O), 3); g.turn = 5; g.hand = []; g.battlefield = []; g.command = []; g.graveyard.length = 0; g.exile = []; g.library = [];
