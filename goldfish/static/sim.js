@@ -15072,7 +15072,22 @@ g.actSeq = (g.actSeq || 0) + 1;
   let lockRec = null;                                          // { map: effect -> { t, face, none }, taken: Set } while targets are being chosen
   const LOCKS = new WeakMap(), PENDING = new WeakMap();        // game -> locks in force while its spell resolves; spell instance -> locks (for the counter question)
   const tgtLock = (g, f) => { const m = LOCKS.get(g); if (!m || !m.map.has(f)) return undefined; const L = m.map.get(f); m.map.delete(f); return L; };          // used once
-  const lockable = f => f.type === 'striveCopy' || f.type === 'earthbend' || f.type === 'airbend' || (f.type === 'removal' ? !f.noTarget : f.type === 'bounce' || f.type === 'burnCreature' || f.type === 'divideDamage' || (f.type === 'threaten' && !f.each) || (f.type === 'tapOpp' && f.what !== 'all') || (f.type === 'stealOne' && !!f.mvX) || (f.type === 'damage' && !!f.any && !f.multi));
+  const lockableBase = f => f.type === 'striveCopy' || f.type === 'earthbend' || f.type === 'airbend' || (f.type === 'removal' ? !f.noTarget : f.type === 'bounce' || f.type === 'burnCreature' || f.type === 'divideDamage' || (f.type === 'threaten' && !f.each) || (f.type === 'tapOpp' && f.what !== 'all') || (f.type === 'stealOne' && !!f.mvX) || (f.type === 'damage' && !!f.any && !f.multi));
+  // T-143: effect types whose target is chosen inline at resolution move into lock mode group by group; each group owns one predicate below (return true for the effects it can lock)
+  const lockableA = f => false;          // pumps: pumpOne (non-self), attackerPump, pumpAttacker, gainFire
+  //
+  const lockableB = f => false;          // counters (target scope), distribute
+  //
+  const lockableC = f => false;          // fight, flickerOne / flickerTwo / flickerAll / flickerwisp / flicker (oath)
+  //
+  const lockableD = f => false;          // goad, stealOne (without mvX), threaten, hostage, fiendHunter, drakeSwap / totemSwap / gateExile / breathFury
+  //
+  const lockableE = f => false;          // untapPerms, untapAnother, becomeArtifact, animateArtifacts, skate, mirrorCopy, copyToken, domeCopy
+  //
+  const lockableF = f => false;          // graveyard and other non-battlefield targets: yardExileOne, yardBottom, sozinReanimate, deathReturn, returnOwn, bounceUp
+  //
+  const lockableG = f => false;          // damage with several targets or other shapes (damage multi, divided), redirectSpell, putFromHand / lookBf, airbendOwn
+  const lockable = f => lockableBase(f) || lockableA(f) || lockableB(f) || lockableC(f) || lockableD(f) || lockableE(f) || lockableF(f) || lockableG(f);
   const holderOf = (g, t) => (isPod(g) ? g.match.players : [g, g.opp]).find(x => x && x.battlefield.includes(t));
   // CR 608.2b: the target must still be on the battlefield, of the right kind and not hexproof / shroud / protected now
   function lockLegal(g, t, f) {
