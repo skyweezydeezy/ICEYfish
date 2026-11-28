@@ -131,6 +131,7 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 233** (2026-11-28 16:31 UTC): PR #207, 4/4 + Pages green: T-134 swipe fix (groups, pointercancel), T-135 top of library (Citadel + tax, Mystic Forge colorless, Future Sight, Courser, Experimental Frenzy hand ban, X=0), Tidal Loop (Drive B5, verified B4), T-138 seeded UI tests. Engine 292, sweep bad 0, fingerprint 5b6f7a93 unchanged; 10 UI files ok. T-135 session archived.
 - [V] **Version 232** (2026-11-28 15:50 UTC): PR #206, 4/4 + Pages green: Teach Ajani, Sleeper Agent + Chandra, Torch of Defiance (Teach #205, the owner's pipeline test: filed 15:05, assigned 15:16, taught 15:22, live 15:50, commented and closed). Engine 291, sweep bad 0, UI decisions/abilities ok. Fingerprint now 5b6f7a93... (loyalty-program only).
 - [V] **Version 231** (2026-11-28 15:11 UTC): PR #204, 4/4 + Pages green: T-136 two rows of tabs on Practice/Duel/Pod (CSS only). versus-fit, remote-mobile, duel-loop-phone, step-strip, versus, versus-end ok; puzzles flaky once (ghost-tap timing), 118/118 alone.
 - [V] **Version 230** (2026-11-28 14:24 UTC): PR #202, 4/4 + Pages green: Blood Bank (Edgar Markov) verified B3 (Drive B4) + Teach Master of Dark Rites (false ok fixed). Engine 289, sweep bad 0.
