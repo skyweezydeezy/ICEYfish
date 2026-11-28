@@ -2,6 +2,7 @@
 // Goldfish table: Tap / counters keep the viewer open and update; Cast closes it and the card is played. 1v1: a castable card in your hand
 // offers "Cast" in the viewer, and that plays it exactly as clicking the glowing card does.
 const { chromium, devices } = require('playwright');
+const { pin } = require('../ui-seed');
 const fs = require('fs'), path = require('path');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
@@ -69,7 +70,8 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   // ---- 1v1: a glowing card in your hand offers Cast
   await p.click('[data-tab=duel]');
   for (const sel of await p.$$('#tab-duel .vs-opp')) await sel.selectOption('');
-  await p.selectOption('#tab-duel .vs-you', 'human'); await p.click('#tab-duel .vs-new');
+  await p.selectOption('#tab-duel .vs-you', 'human'); await pin(p);          // T-138: the same Duel opening on every run
+  await p.click('#tab-duel .vs-new');
   await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.phase === 'mull'; }, null, { timeout: 90000 });
   await p.evaluate(() => document.querySelector('#tab-duel .vs-keep').click());
   {          // the opponent may go first: answer its "does it resolve?" questions (the autopilot's pick) and pass its end step
