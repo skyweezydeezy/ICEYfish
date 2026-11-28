@@ -274,7 +274,7 @@
     // "Its controller gains life equal to its power" (removal), and "Put the rest on the bottom of your library" (lookFilter and lookTake put the rest on the bottom).
     if (parts.length > 1) {
       const sig = t => JSON.stringify(parseEffects(t).fx), looks = r.fx.some(f => f.type === 'lookFilter' || f.type === 'lookTake');
-      const absorbs = t => (r.fx.some(f => f.instead) && /^if you control \w+ or more (?:lands|artifacts), draw \w+ cards instead\.?$/i.test(t)) || /^(?:its|that|their) (?:controller|owner) (?:gains?|loses?) /i.test(t) || (r.fx.some(f => f.type === 'reanimate' && f.zombie) && /^that creature is a black zombie in addition to its other colors and types\.?$/i.test(t)) || (looks && (/^put (?:the rest|the other|all the rest|one of them|\w+ of them)\b[^.]*\bbottom of your library\b/i.test(t) || /^you may reveal an? [^.]* card from among them and put it into your hand\.?$/i.test(t)));
+      const absorbs = t => (r.fx.some(f => f.type === 'distribute') && /^they gain [a-z ,]+ until end of turn\.?$/i.test(t)) || (r.fx.some(f => f.instead) && /^if you control \w+ or more (?:lands|artifacts), draw \w+ cards instead\.?$/i.test(t)) || /^(?:its|that|their) (?:controller|owner) (?:gains?|loses?) /i.test(t) || (r.fx.some(f => f.type === 'reanimate' && f.zombie) && /^that creature is a black zombie in addition to its other colors and types\.?$/i.test(t)) || (looks && (/^put (?:the rest|the other|all the rest|one of them|\w+ of them)\b[^.]*\bbottom of your library\b/i.test(t) || /^you may reveal an? [^.]* card from among them and put it into your hand\.?$/i.test(t)));
       let absorbed = 0;
       const bad = parts.filter((t, i) => {
         if (!i) { const q = parseEffects(t); return !q.fx.length && !q.neutral; }
