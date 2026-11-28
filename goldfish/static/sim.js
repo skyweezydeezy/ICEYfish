@@ -7445,11 +7445,15 @@
         case 'mnemonic': { if (!g.opp) break; let k = 0; for (const o of otherPlayers(g)) for (const i of o.graveyard.splice(0)) { i.foreign = true; i.anyMana = true; i.temp = g.turn; i.toYard = true; g.hand.push(i); k++; } ev.push({ type: 'note', text: `${k} card${k === 1 ? '' : 's'} exiled from their graveyards: you may cast spells from among them this turn, with mana of any type`, source }); break; }          // Mnemonic Betrayal
         case 'sweepOpp': { if (!g.opp) break; let k = 0; for (const o of otherPlayers(g)) { const ts = o.battlefield.filter(q => q.card.a.isArtifact && !q.asLand && targetable(o, q) !== false && !indestructible(o, q)); ts.forEach(q => leavePerm(o, q, ev, 'graveyard')); flushLeaves(o, ev); k += ts.length; } ev.push({ type: 'note', text: `Destroyed each artifact they control (${k})`, source }); break; }          // Vandalblast overloaded
         case 'yardExileOne': {                                                                               // Soul-Guide Lantern: exile target card from a graveyard (their best card to reanimate, else nothing worth it)
+          const L = lockRec ? null : tgtLock(g, f);
+          if (L) { if (!L.t) break; if (!lockLegalYard(g, L.t)) { ev.push({ type: 'note', text: `${L.t.card.name} is no longer a legal target`, source }); break; } }          // CR 608.2b: it must still be in a graveyard
           const opts = (g.opp ? g.opp.graveyard.map(i => ({ i, y: g.opp })) : []).concat(g.graveyard.map(i => ({ i, y: g })));
           if (!opts.length) break;
           const best = (g.opp ? g.opp.graveyard.slice().sort((x, y) => reanimateValue(g, y) - reanimateValue(g, x))[0] : null) || null;
           let pick = best && reanimateValue(g, best) > 0 ? best : null;
-          if (g.ask && !g.dry) { const pk = decide(g, { kind: 'target', what: 'yardExile', options: opts.map(o => o.i), def: pick, optional: true, source }); pick = pk || null; }
+          if (!L && g.ask && !g.dry) { const pk = decide(g, { kind: 'target', what: 'yardExile', options: opts.map(o => o.i), def: pick, optional: true, source }); pick = pk || null; }
+          if (lockRec) { lockRec.map.set(f, pick ? { t: pick } : { none: true }); break; }          // T-143: chosen as the ability goes on the stack
+          if (L) pick = L.t;
           if (!pick) break; const o = opts.find(x => x.i === pick); o.y.graveyard.splice(o.y.graveyard.indexOf(pick), 1); o.y.exile.push(pick); ev.push({ type: 'note', text: `${pick.card.name} is exiled from a graveyard`, source }); break;
         }
         case 'chantCast': { const o = g.opp; if (o && !g.dry) { o.silenceSeq = turnSeq(o); ev.push({ type: 'note', text: "Orim's Chant: the other player can't cast spells this turn", source }); } break; }          // Orim's Chant
@@ -7483,9 +7487,11 @@
         case 'oppExileOne': { if (!g.opp) break; const c = g.opp.library.shift(); if (!c) break; g.opp.exile.push(c); ev.push({ type: 'note', text: `${c.card.name} is exiled from their library`, source }); if (f.landBack && c.card.a.isLand && source && g.battlefield.includes(source) && askUse(g, 'Return ' + source.card.name + ' to your hand', 'A land card was exiled', source)) { leavePerm(g, source, ev, 'hand'); flushLeaves(g, ev); } break; }          // Dimensional Infiltrator
         case 'incubateSwept': { const X = g.swept || 0; g.swept = 0; if (X >= 1) createTokens(g, { type: 'token', n: 1, tapped: false, creature: true, p: X, t: X, colors: [], subtypes: ['Phyrexian'], keywords: [], artifact: true, name: 'Phyrexian' }, 1, ev, source); break; }          // Sunfall: incubate X (the Incubator is a creature at once, as in Chrome Host Seedshark)
         case 'bounceUp': {                                                                                   // Marang River Regent: up to N other target nonland permanents (an opponent's threat, or your own enter trigger worth casting again)
-          const cands = airbendCands(g, { pool: 'nonland', other: true }, source);
+          const cands = airbendCands(g, { pool: 'nonland', other: true }, source), L = lockRec ? null : tgtLock(g, f);
           let pick = cands.map(q => ({ q, s: bounceScore(g, q) })).filter(x => x.s >= 3).sort((x, y) => y.s - x.s).slice(0, f.n).map(x => x.q);
-          if (g.ask && !g.dry && cands.length) { const pk = decide(g, { kind: 'target', what: 'bounceMany', multi: true, pick: f.n, upTo: true, min: 0, options: cands, def: pick, source }); if (Array.isArray(pk)) pick = pk.filter(q => cands.includes(q)).slice(0, f.n); }
+          if (!L && g.ask && !g.dry && cands.length) { const pk = decide(g, { kind: 'target', what: 'bounceMany', multi: true, pick: f.n, upTo: true, min: 0, options: cands, def: pick, source }); if (Array.isArray(pk)) pick = pk.filter(q => cands.includes(q)).slice(0, f.n); }
+          if (lockRec) { lockRec.map.set(f, { ts: pick.map(q => ({ q })) }); pick.forEach(q => lockRec.taken.add(q)); break; }          // T-143: chosen as the ability goes on the stack
+          if (L) pick = L.ts.map(x => x.q).filter(q => { const ok = q !== source && lockLegal(g, q, { what: 'permanent' }) && !q.asLand; if (!ok) ev.push({ type: 'note', text: `${q.card.name} is no longer a legal target`, source }); return ok; });          // CR 608.2b
           for (const q of pick) { const o = holderOf(g, q) || g; if (o !== g && against(g, q, () => answered(g, q, 'exile', source, ev))) continue; leavePerm(o, q, ev, 'hand'); flushLeaves(o, ev); ev.push({ type: 'note', text: `${q.card.name} returns to its owner's hand`, source }); }
           break;
         }
@@ -7508,9 +7514,13 @@
           if (!t) break; t.eotArt = true; touch(g); ev.push({ type: 'note', text: `${t.card.name} is an artifact until end of turn`, source }); break;
         }
         case 'yardBottom': {                                                                                 // Barkform Harvester: a card from your graveyard to the bottom of your library
+          const L = lockRec ? null : tgtLock(g, f);
+          if (L) { if (!L.t) break; if (!lockLegalYard(g, L.t, true)) { ev.push({ type: 'note', text: `${L.t.card.name} is no longer a legal target`, source }); break; } }          // CR 608.2b: it must still be in your graveyard
           const cands = g.graveyard.slice(); if (!cands.length) break;
           let c = cands.slice().sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0];
-          if (g.ask && !g.dry) c = decide(g, { kind: 'target', what: 'yardBottom', options: cands, def: c, source }) || c;
+          if (!L && g.ask && !g.dry) c = decide(g, { kind: 'target', what: 'yardBottom', options: cands, def: c, source }) || c;
+          if (lockRec) { lockRec.map.set(f, { t: c }); break; }          // T-143
+          if (L) c = L.t;
           g.graveyard.splice(g.graveyard.indexOf(c), 1); g.library.push(c); ev.push({ type: 'note', text: `${c.card.name} goes to the bottom of your library`, source }); break;
         }
         case 'waterbendOr': {                                                                                // T-104: "... unless you waterbend {N}": tap artifacts and creatures (and spend mana) to keep the card; otherwise the rest happens
@@ -15084,7 +15094,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   //
   const lockableE = f => false;          // untapPerms, untapAnother, becomeArtifact, animateArtifacts, skate, mirrorCopy, copyToken, domeCopy
   //
-  const lockableF = f => false;          // graveyard and other non-battlefield targets: yardExileOne, yardBottom, sozinReanimate, deathReturn, returnOwn, bounceUp
+  const lockableF = f => f.type === 'yardExileOne' || f.type === 'yardBottom' || f.type === 'bounceUp';          // graveyard and other non-battlefield targets: yardExileOne, yardBottom, sozinReanimate, deathReturn, returnOwn, bounceUp
   //
   const lockableG = f => false;          // damage with several targets or other shapes (damage multi, divided), redirectSpell, putFromHand / lookBf, airbendOwn
   // spells (T-072) lock only lockableBase; abilities (T-132, T-143) lock every group
@@ -15095,6 +15105,8 @@ g.actSeq = (g.actSeq || 0) + 1;
     const o = holderOf(g, t);
     return !!o && (f.noTarget || o === g || targetable(o, t)) && (f.what !== 'creature' || isCreaturePerm(t));
   }
+  // T-143 group F: a card in a graveyard stays a legal target while it is still in that graveyard (CR 608.2b)
+  const lockLegalYard = (g, i, own) => !!i && (g.graveyard.includes(i) || (!own && !!g.opp && g.opp.graveyard.includes(i)));
   function lockTargets(g, inst) {
     const a = inst.card.a, fxs = inst.overloaded ? (a.overload && a.overload.fx) : a.spellFx;
     if (g.dry || !g.opp || !a.isInstantSorcery || !fxs || !fxs.length || a.jeska || lockRec || !fxs.some(lockableBase)) return null;
