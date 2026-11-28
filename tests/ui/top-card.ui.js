@@ -1,6 +1,7 @@
 // T-079: a permanent that lets you look at the top card of your library any time (Mystic Forge...) shows that card face up on its owner's side of the
 // table and keeps it up to date; the other player in Duel still sees a card back; "play with the top card revealed" (Courser of Kruphix) shows it to
 // everyone. An explorer's revealed card is flashed on the table for the other players. Practice, Duel; desktop and phone.
+const { pin } = require('../ui-seed');
 const { chromium, devices } = require('playwright');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
@@ -45,19 +46,21 @@ const DECK = ['1 Mystic Forge', '1 Courser of Kruphix', '1 Spyglass Siren', '36 
     // ---- Duel ----
     await p.click('[data-tab=duel]');
     await p.selectOption('#tab-duel .vs-opp', '');
+    await pin(p);          // T-138: the same Duel opening on every run
     await p.click('#tab-duel .vs-new');
     await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.phase === 'mull'; }, null, { timeout: 60000 });
     await p.click('#tab-duel .vs-keep');
     await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g.phase === 'main'; }, null, { timeout: 90000 }).catch(() => {});
     const duelPut = (pid, n) => p.evaluate(([pid, n]) => { const g = window.__isfVersus.duel.game.games[pid], G = window.Goldfish; const card = g.deck.unique.find(c => c.name === n); const pm = G.enterWithTriggers(g, { iid: g.nextIid++, card }, {}, []); pm.sick = false; window.__isfVersus.redraw('duel'); return !!pm; }, [pid, n]);
     const piles = () => p.evaluate(() => [...document.querySelectorAll('#tab-duel .vs-pile.lib')].map(e => ({ pid: e.dataset.pid, open: e.classList.contains('top-open'), back: !!e.querySelector('.card-back') })));
+    const openPile = pid => p.waitForFunction(x => { const e = document.querySelector('#tab-duel .vs-pile.lib[data-pid="' + x + '"]'); return !!e && e.classList.contains('top-open'); }, pid, { timeout: 8000, polling: 100 }).catch(() => {});          // the table is drawn on the game's own schedule: wait for the pile, then check (a pile that never opens still fails the check)
     let pl = await piles();
     check(`${name} Duel: nobody's library top is shown at the start`, pl.length === 2 && pl.every(x => !x.open && x.back), JSON.stringify(pl));
-    await duelPut(0, 'Mystic Forge'); await p.waitForTimeout(400);
+    await duelPut(0, 'Mystic Forge'); await p.waitForTimeout(400); await openPile('0');
     pl = await piles(); const mine = pl.find(x => x.pid === '0'), theirs = pl.find(x => x.pid === '1');
     check(`${name} Duel: your Mystic Forge shows your top card face up`, mine && mine.open && !mine.back, JSON.stringify(pl));
     check(`${name} Duel: the opponent's library stays a card back to you (they have no Mystic Forge)`, theirs && !theirs.open && theirs.back, JSON.stringify(theirs));
-    await duelPut(1, 'Courser of Kruphix'); await p.waitForTimeout(400);
+    await duelPut(1, 'Courser of Kruphix'); await p.waitForTimeout(400); await openPile('1');
     pl = await piles(); const theirs2 = pl.find(x => x.pid === '1');
     check(`${name} Duel: a revealed top card (Courser of Kruphix) is open to everyone`, theirs2 && theirs2.open && !theirs2.back, JSON.stringify(pl));
     // ---- explore: the revealed card is flashed to the other players ----
