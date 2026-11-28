@@ -1,7 +1,7 @@
 /* Service worker: lets the app open offline and keeps card images you've already seen. */
 importScripts('version.js');                              // the version number: one more with every merge (see version.js)
 const VERSION = 'isf-v' + self.ISF_VERSION;
-const SHELL = ['./', 'index.html', 'version.js', 'styles.css', 'app.js', 'versus.js', 'remote.js', 'qr.js', 'remember.js', 'install.js', 'versus.css', 'decide.js', 'choices.js', 'choices.css', 'sim.js', 'source.js', 'charts.js', 'suggest.js', 'compare.js', 'tune.js', 'profile.js', 'tags.js', 'combos.js', 'decks/index.json', 'looks.js', 'audio.js', 'card-sounds.js', 'card-effects.js', 'dice.js', 'battle.js', 'tutorial.js', 'tutorial.css', 'puzzle.js', 'puzzle-core.js', 'puzzle.css', 'puzzles.json', 'worker.js', 'manifest.webmanifest', 'logo.svg', 'donate-qr.jpg', 'whatsnew.json',
+const SHELL = ['./', 'index.html', 'version.js', 'styles.css', 'app.js', 'versus.js', 'remote.js', 'qr.js', 'remember.js', 'install.js', 'versus.css', 'decide.js', 'choices.js', 'choices.css', 'sim.js', 'source.js', 'charts.js', 'suggest.js', 'compare.js', 'tune.js', 'profile.js', 'tags.js', 'combos.js', 'decks/index.json', 'decks/fastest.json', 'looks.js', 'audio.js', 'card-sounds.js', 'card-effects.js', 'dice.js', 'battle.js', 'tutorial.js', 'tutorial.css', 'puzzle.js', 'puzzle-core.js', 'puzzle.css', 'puzzles.json', 'worker.js', 'manifest.webmanifest', 'logo.svg', 'donate-qr.jpg', 'whatsnew.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const IMG = 'gf-img-v1';
 const MAX_IMAGES = 600;

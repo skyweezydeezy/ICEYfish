@@ -265,31 +265,45 @@
   }
   // The loaded deck as seat 0 of a replay (a deck that is not a built-in one). Its choices learned in the Policy lab are used, as in a Duel.
   const mySeat = name => ({ cards: A.S.cards, tokens: A.S.tokens, name: name || 'Your deck', policy: A.currentPolicy() });
-  // Find fastest win (Build tab): the loaded deck plays Duels against a spread of built-in decks, both seats on the autopilot, in the same game as the replay
-  // (REPLAY_OPTS), and the quickest win is kept. self: { file (a built-in deck's file, or ''), name }. Resolves to { opp, seed, first, turn, round, v } or null.
-  // The search runs on the page in small steps (a Duel at a time) so the page stays usable; a new search stops the one before.
+  // Find fastest win (Build tab): the same two-stage search as tools/fastest-kill.js, smaller. Stage 1: goldfish games of the loaded deck from seeds 1..N (on the draw,
+  // up to 7 turns; a seed starts from the same library as seat 0 of a Duel with that seed) give each seed a kill turn. Stage 2: the best seeds are played as Duels
+  // against the standard opponent (decks/fastest.json: "standard", or "fallback" when the deck is the standard one), once with each seat first, both on the
+  // autopilot, in the replay's own game (REPLAY_OPTS). The fastest win is kept; among equal turns the one where the opponent fought back most.
+  // self: { file ('' for a deck that is not built in), name }. Resolves to { opp, seed, first, turn, round, interaction, rarity, v } or null.
+  // It runs on the page a game at a time so the page stays usable; a new search stops the one before.
   let findToken = 0;
-  async function findFastest(self, progress, games, nOpp) {
-    const token = ++findToken, say = t => progress && progress(t);
-    games = games || window.__isfFindGames || 144; nOpp = nOpp || window.__isfFindOpps || 12;
+  const tallyNotes = (g, ev, t) => { for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
+  async function findFastest(self, progress, goldfish, nSeeds) {
+    const token = ++findToken, say = t => progress && progress(t), meta = window.__isfFastestMeta || {};
+    goldfish = goldfish || window.__isfFindGames || 1500; nSeeds = nSeeds || window.__isfFindSeeds || 30;
     await window.Source.init();
-    const me = self.file ? await loadOpp('builtin:' + self.file, say) : mySeat(self.name);
-    const all = A.builtins().filter(b => b.file !== self.file), pick = [];
-    for (let i = 0; i < Math.min(nOpp, all.length); i++) pick.push(all[Math.floor(i * all.length / Math.min(nOpp, all.length))]);
-    const opps = [];
-    for (const b of pick) { say(`Loading ${opps.length + 1} of ${pick.length} opponents…`); opps.push(await loadOpp('builtin:' + b.file, () => {})); if (token !== findToken) throw new Error('stopped'); }
+    const stdFile = self.file === meta.standard ? meta.fallback : meta.standard;
+    if (!stdFile) throw new Error('the standard opponent is not listed (decks/fastest.json)');
+    say('Loading the standard opponent…');
+    const me = self.file ? await loadOpp('builtin:' + self.file, () => {}) : mySeat(self.name), std = await loadOpp('builtin:' + stdFile, () => {});
     const build = p => ({ deck: G.buildDeck(p.cards, p.tokens, p.policy && p.policy.tribe), opts: Object.assign({}, REPLAY_OPTS, { policy: p.policy || {} }), name: shortName(p.name) });
-    const M = build(me), O = opps.map(build); let best = null, wins = 0;
-    for (let k = 0; k < games; k++) {
-      const j = k % O.length, first = Math.floor(k / O.length) % 2, seed = (20261128 + k * 7919) >>> 0;
-      try {
-        const pod = G.playPod([M.deck, O[j].deck], [M.opts, O[j].opts], seed, [M.name, O[j].name], first), m = pod.match;
-        if (m.winner === 0) { wins++; const turn = pod.games[0].turn; if (!best || turn < best.turn || (turn === best.turn && m.round < best.round)) best = { opp: pick[j].file, seed, first, turn, round: m.round }; }
-      } catch (e) { /* a Duel that stops on an engine error is not a candidate */ }
-      say(`Searching… ${k + 1} of ${games} Duels` + (best ? ` · best so far turn ${best.turn}` : ''));
-      await sleep(0); if (token !== findToken) throw new Error('stopped');
+    const M = build(me), S = build(std), CAP = 7, kills = new Array(CAP + 1).fill(0), ranked = [];
+    for (let seed = 1; seed <= goldfish; seed++) {          // stage 1
+      const g = G.newGame(M.deck, Object.assign({}, M.opts, { onPlay: false, turns: CAP }), seed); G.mulligan(g);
+      for (let t = 0; t < CAP && g.killTurn == null && !G.matchOver(g); t++) G.playTurn(g);
+      if (g.killTurn != null) { kills[g.killTurn]++; ranked.push([g.killTurn, seed]); }
+      if (seed % 40 === 0) { say(`Searching… ${Math.round(seed / goldfish * 70)}%`); await sleep(0); if (token !== findToken) throw new Error('stopped'); }
     }
-    return best ? Object.assign(best, { v: window.ISF_VERSION || 0, games, wins }) : null;
+    ranked.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const pick = ranked.slice(0, nSeeds).map(x => x[1]);
+    for (let s = 1; pick.length < nSeeds && s <= goldfish; s++) if (!pick.includes(s)) pick.push(s);
+    let best = null, k = 0;
+    for (const seed of pick) for (const first of [1, 0]) {          // stage 2
+      try {
+        const t = { blocks: 0, counters: 0, removal: 0 }, pod = G.playPod([M.deck, S.deck], [M.opts, S.opts], seed, [M.name, S.name], first, (g, ev) => tallyNotes(g, ev, t)), m = pod.match;
+        if (m.winner === 0) { const turn = pod.games[0].turn, total = t.blocks + t.counters + t.removal;
+          if (!best || turn < best.turn || (turn === best.turn && (total > best.interaction.total || (total === best.interaction.total && m.round < best.round)))) best = { opp: stdFile, seed, first, turn, round: m.round, interaction: { blocks: t.blocks, counters: t.counters, removal: t.removal, total } }; }
+      } catch (e) { /* a Duel that stops on an engine error is not a candidate */ }
+      k++; if (k % 2 === 0) { say(`Searching… ${70 + Math.round(k / (pick.length * 2) * 30)}%` + (best ? ` · best so far turn ${best.turn}` : '')); await sleep(0); if (token !== findToken) throw new Error('stopped'); }
+    }
+    if (!best) return null;
+    const n = kills.slice(0, best.turn + 1).reduce((a, b) => a + b, 0);
+    return Object.assign(best, { rarity: { goldfish, atOrBelow: n, oneIn: n ? Math.round(goldfish / n) : null }, v: window.ISF_VERSION || 0, stage2: pick.length * 2 });
   }
   V.findFastest = findFastest;
   async function watch(spec) {

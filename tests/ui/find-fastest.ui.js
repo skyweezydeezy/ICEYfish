@@ -8,7 +8,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('isf_sound', JSON.stringify({ bg: false })); localStorage.setItem('isf_autosave', '0'); localStorage.setItem('isf_tutorial_off', '1'); window.__isfFindGames = 24; window.__isfFindOpps = 3; const d = JSON.parse(localStorage.getItem('isf_display') || '{}'); if (d.payChoose == null) { d.payChoose = false; localStorage.setItem('isf_display', JSON.stringify(d)); } } catch (e) {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('isf_sound', JSON.stringify({ bg: false })); localStorage.setItem('isf_autosave', '0'); localStorage.setItem('isf_tutorial_off', '1'); window.__isfFindGames = 300; window.__isfFindSeeds = 6; const d = JSON.parse(localStorage.getItem('isf_display') || '{}'); if (d.payChoose == null) { d.payChoose = false; localStorage.setItem('isf_display', JSON.stringify(d)); } } catch (e) {} });
   await ctx.route(u => /scryfall\.(com|io)$/.test(u.hostname), async route => {
     const q = route.request(), c = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
     if (q.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: c });
@@ -28,7 +28,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('#deckWatch .dw-find');
   await p.waitForFunction(() => /Searching|Loading/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 30000 });
   check('the line shows progress while it searches', true);
-  await p.waitForFunction(() => /^Fastest win vs .+: turn \d+$/.test(document.querySelector('#deckWatch .dw-line').textContent) || /No win found/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 280000 });
+  await p.waitForFunction(() => /^Fastest win vs .+: turn \d+ · /.test(document.querySelector('#deckWatch .dw-line').textContent) || /No win found/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 280000 });
   const line = await p.textContent('#deckWatch .dw-line'), spec = await p.evaluate(() => JSON.parse(document.querySelector('#deckWatch').dataset.spec || 'null'));
   check('it finds a win: "Fastest win vs <deck>: turn N" with Watch, and the button reads Again', !!spec && await p.isVisible('#deckWatch .dw-go') && /Again/.test(await p.textContent('#deckWatch .dw-find')), line);
   await p.reload(); await p.waitForFunction(() => document.querySelectorAll('#savedDecks option[value^="builtin:"]').length > 10, null, { timeout: 30000 });

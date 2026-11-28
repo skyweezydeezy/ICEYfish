@@ -22,16 +22,33 @@ function loadDecks() {
       const hit = cards.find(x => x.name === c.name); if (hit) { hit.qty += e.qty; hit.commander = hit.commander || e.commander; } else cards.push(Object.assign({}, c, { qty: e.qty, commander: e.commander }));
     }
     if (!cards.some(c => c.commander)) for (const n of d.commanders || []) { const c = cards.find(x => x.name === n || x.name.split(' // ')[0] === n); if (c) c.commander = true; }
-    return { d, file: d.file, name: d.name, deck: G.buildDeck(cards, [], d.policy && d.policy.tribe) };
+    return { d, file: d.file, name: d.name, cards, deck: G.buildDeck(cards, [], d.policy && d.policy.tribe) };
   });
   return { G, index, decks };
 }
 const version = () => +(fs.readFileSync(path.join(STATIC, 'version.js'), 'utf8').match(/ISF_VERSION\s*=\s*(\d+)/) || [])[1];
 
-// One Duel to the end: seat 0 = A, seat 1 = B; first = the seat that goes first. Returns { winner, turn (the winner's own turn number), round }.
-function playDuel(A, B, seed, first) {
-  const optsList = [A, B].map(L => Object.assign({}, DUEL_OPTS, { policy: (L.d && L.d.policy) || {} }));
-  const pod = G.playPod([A.deck, B.deck], optsList, seed >>> 0, [A.name, B.name], first), m = pod.match;
-  return { winner: m.winner, turn: m.winner == null ? null : pod.games[m.winner].turn, round: m.round };
+// How hard the opponent (seat 1) fought back in a game seat 0 wins: blocks and counterspells show in notes on seat 0's turns ("X blocks Y",
+// "X counters Y"), removal on seat 1's own turn ("Destroyed the opponent's Y", "Exiled ...", "Returned ..."). Read from the engine's events.
+function interaction(g, ev, tally) {
+  for (const e of ev) {
+    if (e.type !== 'note' || typeof e.text !== 'string') continue;
+    if (g.pid === 0) { if (/ blocks /.test(e.text)) tally.blocks++; else if (/ counters /.test(e.text)) tally.counters++; }
+    else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) tally.removal++;
+  }
 }
-module.exports = { G, DUEL_OPTS, loadDecks, playDuel, version, STATIC, DECKS, ROOT };
+// One Duel to the end: seat 0 = A, seat 1 = B; first = the seat that goes first. Returns { winner, turn (the winner's own turn number), round, tally }.
+function playDuel(A, B, seed, first) {
+  const optsList = [A, B].map(L => Object.assign({}, DUEL_OPTS, { policy: (L.d && L.d.policy) || {} })), tally = { blocks: 0, counters: 0, removal: 0 };
+  const pod = G.playPod([A.deck, B.deck], optsList, seed >>> 0, [A.name, B.name], first, (g, ev) => interaction(g, ev, tally)), m = pod.match;
+  return { winner: m.winner, turn: m.winner == null ? null : pod.games[m.winner].turn, round: m.round, tally };
+}
+// Stage 1: one goldfish game of A from a seed (the same shuffle as seat 0 of a Duel with that seed: both start from mulberry32(seed)); its kill turn, or null.
+// Same options as the Duel (an opponent at 40 life, turns capped at maxTurns).
+function goldfishKill(A, seed, maxTurns) {
+  const g = G.newGame(A.deck, Object.assign({}, DUEL_OPTS, { onPlay: false, turns: maxTurns, policy: (A.d && A.d.policy) || {} }), seed >>> 0);
+  G.mulligan(g);
+  for (let t = 0; t < maxTurns && g.killTurn == null && !G.matchOver(g); t++) G.playTurn(g);
+  return g.killTurn == null ? null : g.killTurn;
+}
+module.exports = { G, DUEL_OPTS, loadDecks, playDuel, goldfishKill, version, STATIC, DECKS, ROOT };

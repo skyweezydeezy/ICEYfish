@@ -332,7 +332,9 @@
     const key = d ? d.file : deckKey(), mine = (m => m && m.v === (self.ISF_VERSION || 0) ? m : null)(mineAll()[key]), st = d && FASTEST[d.file] && !FASTEST[d.file].none ? FASTEST[d.file] : null;
     const f = mine && (!st || mine.turn < st.turn) ? mine : st, opp = f && builtinByValue('builtin:' + f.opp);
     el.dataset.file = d ? d.file : ''; el.dataset.key = key; el.dataset.name = d ? d.name : (S.deck.commanders[0] && S.deck.commanders[0].card.name) || 'Your deck';
-    el.querySelector('.dw-line').textContent = f && opp ? `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}` : f ? `Fastest win: turn ${f.turn}` : 'Fastest Duel win: not searched yet';
+    const r = f && f.rarity, it = f && f.interaction, rare = r ? (r.oneIn ? `about 1 game in ${r.oneIn.toLocaleString()}` : `rarer than 1 in ${r.goldfish.toLocaleString()}`) : '';
+    el.querySelector('.dw-line').textContent = f && opp ? `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}${rare ? ' · ' + rare : ''}` : 'Fastest Duel win: not searched yet';
+    el.querySelector('.dw-detail').textContent = f && opp ? ` Found by playing ${r ? r.goldfish.toLocaleString() : 'many'} goldfish games to rank seeds, then ${f.stage2 || 'many'} Duels against ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}, a Bracket 3 deck with blockers, removal and counterspells that does not win fast itself. "About 1 game in N" is how often the goldfish games kill by turn ${f.turn}. In this game the opponent fought back ${it ? it.total : '?'} time${it && it.total === 1 ? '' : 's'}: ${it ? `${it.blocks} block${it.blocks === 1 ? '' : 's'}, ${it.counters} counterspell${it.counters === 1 ? '' : 's'}, ${it.removal} removal` : ''}.` : '';
     el.querySelector('.dw-go').hidden = !(f && opp);
     el.querySelector('.dw-find').textContent = f ? '🔍 Again' : '🔍 Find';
     el.dataset.spec = f && opp ? JSON.stringify(Object.assign({}, f, d ? { file: d.file } : { self: true, name: el.dataset.name })) : '';
@@ -830,7 +832,7 @@
       if (!r.ok) return;
       BUILTIN = ((await r.json()).decks || []).filter(d => d && d.file && d.name);
       decksListed = true; refreshSaved(); fillMirror();
-      fetch('decks/fastest.json').then(r => r.ok ? r.json() : null).then(j => { if (j && j.decks) { FASTEST = j.decks; showWatch(selLoaded && builtinByValue(selLoaded)); } }).catch(() => {});          // the Build line (T-137); no file or offline: no line
+      fetch('decks/fastest.json').then(r => r.ok ? r.json() : null).then(j => { if (j && j.decks) { FASTEST = j.decks; window.__isfFastestMeta = { standard: j.standard, fallback: j.fallback }; showWatch(selLoaded && builtinByValue(selLoaded)); } }).catch(() => {});          // the Build line (T-137); no file or offline: no line
     } catch (e) { /* offline and never loaded: only saved decks are listed */ }
   }
   function refillDeckMenus() {            // the Deck order setting changed: every built-in deck menu is rebuilt, keeping what each one has selected
