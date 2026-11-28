@@ -1,0 +1,102 @@
+// Rules Lawyers (Winota, Joiner of Forces)
+// Bracket 4
+// Checked by ICEYfish (v226, 20,000 games): median kill T7, 8.2% by T5, 78.7% by T7; fastest T3: 0% by T2, 0% by T3, 0.3% by T4; 6 Game Changers; B4 confirmed
+// COMMANDER
+1 Winota, Joiner of Forces
+// DECK
+1 Adeline, Resplendent Cathar
+1 Aether Vial
+1 Ainok Strike Leader
+1 Ancient Tomb
+1 Archivist of Oghma
+1 Archon of Emeria
+1 Arena of Glory
+1 Arid Mesa
+1 Aven Interrupter
+1 Aven Mindcensor
+1 Battlefield Forge
+1 Blade Historian
+1 Bloodstained Mire
+1 Boromir, Warden of the Tower
+1 Cavern of Souls
+1 Caves of Chaos Adventurer
+1 Chrome Mox
+1 City of Brass
+1 City of Traitors
+1 Clifftop Retreat
+1 Combat Celebrant
+1 Command Beacon
+1 Command Tower
+1 Deafening Silence
+1 Deflecting Swat
+1 Drannith Magistrate
+1 Eidolon of Rhetoric
+1 Eiganjo, Seat of the Empire
+1 Elegant Parlor
+1 Enlightened Tutor
+1 Esper Sentinel
+1 Ethersworn Canonist
+1 Flooded Strand
+1 Gemstone Caverns
+1 Giver of Runes
+1 Grand Abolisher
+1 Greymond, Avacyn's Stalwart
+1 Hope of Ghirapur
+1 Imperial Recruiter
+1 Inspiring Vantage
+1 Kiki-Jiki, Mirror Breaker
+1 Lightning, Army of One
+1 Lotus Petal
+1 Loyal Apprentice
+1 Magus of the Moon
+1 Mana Confluence
+1 Mana Vault
+1 Marsh Flats
+1 Mother of Runes
+1 Mountain
+1 Mox Diamond
+1 Needleverge Pathway // Pillarverge Pathway
+1 Ocelot Pride
+1 Orim's Chant
+1 Ornithopter
+1 Ornithopter of Paradise
+1 Path to Exile
+1 Phelia, Exuberant Shepherd
+1 Phyrexian Revoker
+1 Phyrexian Walker
+4 Plains
+1 Plateau
+1 Prismatic Vista
+1 Professional Face-Breaker
+1 Ragavan, Nimble Pilferer
+1 Ranger-Captain of Eos
+1 Rionya, Fire Dancer
+1 Rugged Prairie
+1 Sacred Foundry
+1 Sanctum Prelate
+1 Scalding Tarn
+1 Secluded Courtyard
+1 Serra Ascendant
+1 Shatterskull Smashing // Shatterskull, the Hammer Pass
+1 Signal Pest
+1 Silence
+1 Skrelv, Defector Mite
+1 Skyclave Apparition
+1 Slicer, Hired Muscle // Slicer, High-Speed Antagonist
+1 Sokenzan, Crucible of Defiance
+1 Sol Ring
+1 Solitude
+1 Soulless Jailer
+1 Spectator Seating
+1 Spirit of the Labyrinth
+1 Sunbaked Canyon
+1 Swords to Plowshares
+1 Thalia's Lieutenant
+1 Thalia, Guardian of Thraben
+1 Thalia, Heretic Cathar
+1 Touch the Spirit Realm
+1 Unclaimed Territory
+1 Voice of Victory
+1 Windswept Heath
+1 Witch Enchanter // Witch-Blessed Meadow
+1 Wooded Foothills

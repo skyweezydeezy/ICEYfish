@@ -2366,12 +2366,12 @@
    "set_type": "expansion",
    "icon": "https://svgs.scryfall.io/sets/mid.svg?1794805200",
    "partial": true,
-   "cards": 44,
-   "originals": 44,
+   "cards": 46,
+   "originals": 46,
    "reprints": 0,
    "missing": 0,
    "coverage": {
-    "full": 41,
+    "full": 43,
     "approx": 0,
     "partial": 3,
     "none": 0
@@ -3788,12 +3788,12 @@
    "set_type": "expansion",
    "icon": "https://svgs.scryfall.io/sets/otj.svg?1794805200",
    "partial": true,
-   "cards": 51,
-   "originals": 51,
+   "cards": 52,
+   "originals": 52,
    "reprints": 0,
    "missing": 0,
    "coverage": {
-    "full": 46,
+    "full": 47,
     "approx": 1,
     "partial": 3,
     "none": 1
@@ -4184,12 +4184,12 @@
    "set_type": "expansion",
    "icon": "https://svgs.scryfall.io/sets/rix.svg?1794805200",
    "partial": true,
-   "cards": 47,
-   "originals": 46,
+   "cards": 48,
+   "originals": 47,
    "reprints": 1,
    "missing": 0,
    "coverage": {
-    "full": 44,
+    "full": 45,
     "approx": 1,
     "partial": 1,
     "none": 1
@@ -5480,14 +5480,14 @@
    "set_type": "expansion",
    "icon": "https://svgs.scryfall.io/sets/war.svg?1794805200",
    "partial": true,
-   "cards": 75,
-   "originals": 75,
+   "cards": 76,
+   "originals": 76,
    "reprints": 0,
    "missing": 0,
    "coverage": {
-    "full": 71,
+    "full": 72,
     "approx": 1,
-    "partial": 2,
+    "partial": 3,
     "none": 1
    }
   },

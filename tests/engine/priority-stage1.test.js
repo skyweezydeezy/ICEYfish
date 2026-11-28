@@ -40,7 +40,7 @@ T('off by default: a seated person is never asked for priority', () => {
 T('opts.priority on, smart: the person holding Lightning Bolt is asked on the other player\'s turn', () => {
   const r = run({ priority: true }, null, play);
   const st = asked(r.qs);
-  check('asked at the beginning of combat and at the end of the main phase, and passing changes nothing', st.includes('beginCombat') && st.includes('main'), st.join(','));
+  check('asked after blockers (a smart stop on the other player\'s turn; the attackers window keeps its own instant question), and passing changes nothing', st.includes('blockers') && !st.includes('upkeep') && !st.includes('main'), st.join(','));
   check('the default is Pass: Lightning Bolt is still in hand', r.b.hand.includes(r.bolt) && r.b.graveyard.length === 0);
 });
 T('opts.autoPass always: never asked', () => {
@@ -53,8 +53,8 @@ T('opts.autoPass never: asked at every step, also on their own turn', () => {
   const qs = seated(a, null, () => { G.combat(a); });
   check('the active person is asked at the beginning of their own combat', asked(qs).includes('beginCombat'), asked(qs).join(','));
 });
-T('a person who answers with Lightning Bolt casts it as a response at the beginning of combat', () => {
-  const r = run({ priority: true }, (d) => d.kind === 'priority' && d.step === 'beginCombat' ? d.options.find(o => o.card && o.card.name === 'Lightning Bolt') : undefined, play);
+T('a person who answers with Lightning Bolt casts it as a response after blockers', () => {
+  const r = run({ priority: true }, (d) => d.kind === 'priority' && d.step === 'blockers' ? d.options.find(o => o.card && o.card.name === 'Lightning Bolt') : undefined, play);
   check('the Bolt left the hand (cast)', !r.b.hand.includes(r.bolt) && r.b.graveyard.includes(r.bolt), r.b.graveyard.length);
 });
 T('the table stack is empty after the turn (stage 0: one stack per table)', () => {
