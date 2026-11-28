@@ -7552,13 +7552,21 @@
         case 'flickerwisp': {          // Flickerwisp: their best token (gone for good), else your best permanent with an enter trigger (back at the end step)
           let tk = g.opp && g.opp.battlefield.filter(q => q.token && targetable(g.opp, q)).sort((x, y) => threat(g.opp, g, y) - threat(g.opp, g, x))[0];
           let mine = g.battlefield.filter(q => q !== source && !q.token && q.inst && !q.card.commander && q.card.a.triggers.some(t => t.kinds.includes('etb'))).sort((x, y) => fxValue(g, [].concat(...y.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))) - fxValue(g, [].concat(...x.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))))[0];
-          if (g.ask && !g.dry) {          // a person picks: another player's token (gone for good) or a card of yours (back at the end step)
+          const L = lockRec ? null : tgtLock(g, f);          // T-143: the target permanent is chosen as the ability goes on the stack
+          if (L) {
+            const p = L.t;
+            if (p && g.opp && g.opp.battlefield.includes(p) && p.token && targetable(g.opp, p)) { if (!answered(g, p, 'exile', source, ev)) { leavePerm(g.opp, p, ev, 'exile'); flushLeaves(g.opp, ev); ev.push({ type: 'note', text: `${p.card.name} (a token) is exiled for good`, source }); } break; }
+            if (!(p && g.battlefield.includes(p) && p !== source && !p.token && p.inst && !p.card.commander)) { ev.push({ type: 'note', text: `${p ? p.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }          // CR 608.2b
+            tk = null; mine = p;
+          } else if (g.ask && !g.dry) {          // a person picks: another player's token (gone for good) or a card of yours (back at the end step)
             const def = tk && threat(g.opp, g, tk) >= 1 ? tk : mine || null, opts = (g.opp ? eachFoe(g, () => g.opp.battlefield.filter(q => q.token && targetable(g.opp, q))) : []).concat(g.battlefield.filter(q => q !== source && !q.token && q.inst && !q.card.commander));
             const pick = opts.length ? decide(g, { kind: 'target', what: 'flickerwisp', options: opts, def, optional: true, source }) : def;
             if (!pick) break;
+            if (lockRec) { lockRec.map.set(f, { t: pick }); lockRec.taken.add(pick); break; }
             if (!g.battlefield.includes(pick)) { const done = against(g, pick, () => { if (answered(g, pick, 'exile', source, ev)) return false; leavePerm(g.opp, pick, ev, 'exile'); flushLeaves(g.opp, ev); ev.push({ type: 'note', text: `${pick.card.name} (a token) is exiled for good`, source }); return true; }); if (done) break; tk = null; }          // protected: the autopilot's own card instead, as before
             else { tk = null; mine = pick; }
           }
+          if (lockRec) { const pk = tk && threat(g.opp, g, tk) >= 1 ? tk : mine; if (pk) { lockRec.map.set(f, { t: pk }); lockRec.taken.add(pk); } break; }
           if (tk && threat(g.opp, g, tk) >= 1 && !answered(g, tk, 'exile', source, ev)) { leavePerm(g.opp, tk, ev, 'exile'); flushLeaves(g.opp, ev); ev.push({ type: 'note', text: `${tk.card.name} (a token) is exiled for good`, source }); break; }
           if (mine) { const i = mine.inst; leavePerm(g, mine, ev, 'exile'); flushLeaves(g, ev); if (g.exile.includes(i)) (g.endFlicker = g.endFlicker || []).push(i); ev.push({ type: 'note', text: `${mine.card.name} is exiled until the end step`, source }); }
           break;
@@ -7774,8 +7782,11 @@
         } break;
         case 'stealEnchantments': for (const o of otherPlayers(g)) for (const q of o.battlefield.filter(x => x.card.a.isEnchantment && !x.card.a.isAura && !x.asLand)) stealPerm(g, q, ev, false, o); break;          // Aura Thief: the Auras stay where they are
         case 'fight': if (g.opp) {          // Decisive Denial, Inscription of Abundance: fight; Ram Through: one-way, trample over
-          const pr = fightPair(g, f); if (!pr) break; let { m, t } = pr; const d = g.opp;
-          if (g.ask && !g.dry) { m = decide(g, { kind: 'target', what: f.bite ? 'biter' : 'fighter', options: g.battlefield.filter(isCreaturePerm), def: m, source }) || m; t = decide(g, { kind: 'target', what: f.bite ? 'bitten' : 'fought', options: d.battlefield.filter(q => isCreaturePerm(q) && targetable(d, q)), def: t, source, fighter: m }) || t; }          // a person picks both creatures
+          const d = g.opp, L = lockRec ? null : tgtLock(g, f); let m, t;          // T-143: the fighter and the fought creature are chosen as the ability goes on the stack
+          if (L) { m = L.m; t = L.t; if (!(m && t && g.battlefield.includes(m) && d.battlefield.includes(t) && lockLegal(g, m, { what: 'creature' }) && lockLegal(g, t, { what: 'creature' }))) { ev.push({ type: 'note', text: `${t ? t.card.name : 'A target'} or ${m ? m.card.name : 'the other creature'} is no longer a legal target: the ability does nothing`, source }); break; } }          // CR 608.2b
+          else { const pr = fightPair(g, f); if (!pr) break; m = pr.m; t = pr.t; }
+          if (g.ask && !g.dry && !L) { m = decide(g, { kind: 'target', what: f.bite ? 'biter' : 'fighter', options: g.battlefield.filter(isCreaturePerm), def: m, source }) || m; t = decide(g, { kind: 'target', what: f.bite ? 'bitten' : 'fought', options: d.battlefield.filter(q => isCreaturePerm(q) && targetable(d, q)), def: t, source, fighter: m }) || t; }          // a person picks both creatures
+          if (lockRec) { lockRec.map.set(f, { t, m }); lockRec.taken.add(t); lockRec.taken.add(m); break; }
           if (answered(g, t, 'damage', source, ev) || !g.battlefield.includes(m)) break;
           const pm = Math.max(0, powerOf(g, m)), pt = Math.max(0, powerOf(d, t)), lethalT = Math.max(0, toughnessOf(d, t) - (t.dmg || 0));
           ev.push({ type: 'note', text: `${m.card.name} ${f.bite ? 'deals ' + pm + ' damage to' : 'fights'} ${t.card.name}`, source });
@@ -8078,8 +8089,10 @@
         case 'attackerKw': { const tg = f.best ? g.battlefield.filter(q => q.attacking).sort((x, y) => powerOf(g, y) - powerOf(g, x)).slice(0, 1) : (subject ? [subject] : []); tg.forEach(q => { q.eotKw = new Set([...(q.eotKw || []), f.kw]); }); break; }
         case 'pastInFlames': for (const i of g.graveyard) if (i.card.a.isInstantSorcery && !i.card.a.spellFx.some(x => x.type === 'pastInFlames')) { i.yardCastTurn = g.turn; i.exileInstead = true; } ev.push({ type: 'note', text: 'Past in Flames: instants and sorceries in your graveyard have flashback this turn', source }); break;
         case 'peer': { const k = Math.min(25, Math.floor(g.library.length / 2)); draw(g, k, ev); g.life = Math.ceil(g.life / 2); ev.push({ type: 'note', text: `Peer into the Abyss: drew ${k} cards, life is ${g.life}`, source }); break; }
-        case 'flickerOne': { if (entryBlocked(g, { a: { isCreature: true } }, 'other')) break; const c = (f.drawIf && g.battlefield.find(q => q !== source && isCreaturePerm(q) && !q.token && q.inst && f.drawIf.split('|').some(t => cardHasType(q.card, t)) && !q.card.a.triggers.some(t => t.kinds.includes('etb')))) || g.battlefield.filter(q => q !== source && isCreaturePerm(q) && !q.token && q.inst && q.card.a.triggers.some(t => t.kinds.includes('etb'))).sort((x, y) => fxValue(g, [].concat(...y.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))) - fxValue(g, [].concat(...x.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))))[0];
-          const c1 = g.ask && !g.dry ? decide(g, { kind: 'target', what: 'flicker', options: g.battlefield.filter(q => q !== source && isCreaturePerm(q) && !q.token && q.inst), def: c || null, optional: !c, source }) : c;          // a person chooses (Felidar Guardian): any other creature of theirs
+        case 'flickerOne': { const L = lockRec ? null : tgtLock(g, f); if (!lockRec && entryBlocked(g, { a: { isCreature: true } }, 'other')) break; const c = L ? null : (f.drawIf && g.battlefield.find(q => q !== source && isCreaturePerm(q) && !q.token && q.inst && f.drawIf.split('|').some(t => cardHasType(q.card, t)) && !q.card.a.triggers.some(t => t.kinds.includes('etb')))) || g.battlefield.filter(q => q !== source && isCreaturePerm(q) && !q.token && q.inst && q.card.a.triggers.some(t => t.kinds.includes('etb'))).sort((x, y) => fxValue(g, [].concat(...y.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))) - fxValue(g, [].concat(...x.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => t.fx))))[0];
+          let c1 = g.ask && !g.dry && !L ? decide(g, { kind: 'target', what: 'flicker', options: g.battlefield.filter(q => q !== source && isCreaturePerm(q) && !q.token && q.inst), def: c || null, optional: !c, source }) : c;          // a person chooses (Felidar Guardian): any other creature of theirs
+          if (L) { c1 = L.t; if (!(c1 && g.battlefield.includes(c1) && isCreaturePerm(c1) && !c1.token && c1.inst)) { ev.push({ type: 'note', text: `${c1 ? c1.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } }          // T-143, CR 608.2b
+          if (lockRec) { if (c1) { lockRec.map.set(f, { t: c1 }); lockRec.taken.add(c1); } break; }          // chosen as the ability goes on the stack
           if (c1) { removePerm(g, c1); const np = enterWithTriggers(g, c1.inst, {}, ev); ev.push({ type: 'note', text: `${c1.card.name} is flickered`, source }); if (f.counter && g.battlefield.includes(np)) addCounters(g, np, '+1/+1', f.counter, ev, source); if (f.drawIf && f.drawIf.split('|').some(t => cardHasType(np.card, t))) draw(g, 1, ev); } break; }          // drawIf: Splash Portal (T-036)
         case 'flickerAll': { let cs = g.battlefield.filter(q => isCreaturePerm(q) && !q.token && q.inst && q.card.a.triggers.some(t => t.kinds.includes('etb')));
           if (g.ask && !g.dry) { const opts = g.battlefield.filter(q => isCreaturePerm(q) && q.inst); if (opts.length) { const pk = decide(g, { kind: 'target', what: 'flickerAll', options: opts, def: cs, multi: true, pick: opts.length, upTo: true, source }); cs = Array.isArray(pk) ? pk.filter(q => !q.token) : cs; } }          // Eerie Interlude: a person picks any number (a token is gone for good: the engine leaves it)
@@ -9100,7 +9113,10 @@
         case 'flicker': {                                                                                    // Oath of Teferi: exile another permanent, it returns at the end step (a creature re-triggers its enter ability)
           const cs = g.battlefield.filter(q => q !== source && !q.token && q.card.a.triggers.some(t => t.kinds.includes('etb') && fxValue(g, t.fx) >= 2));
           cs.sort((x, y) => Math.max(...y.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => fxValue(g, t.fx))) - Math.max(...x.card.a.triggers.filter(t => t.kinds.includes('etb')).map(t => fxValue(g, t.fx))));
-          let t = cs[0]; if (t && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'oath', options: g.battlefield.filter(q => q !== source && q.inst), def: t, source }) || t;          // a person picks the permanent
+          const L = lockRec ? null : tgtLock(g, f);          // T-143
+          let t = cs[0]; if (t && g.ask && !g.dry && !L) t = decide(g, { kind: 'target', what: 'oath', options: g.battlefield.filter(q => q !== source && q.inst), def: t, source }) || t;          // a person picks the permanent
+          if (L) { t = L.t; if (!(t && g.battlefield.includes(t) && t !== source && t.inst)) { ev.push({ type: 'note', text: `${t ? t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } }          // CR 608.2b
+          if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; }
           if (t) { removePerm(g, t); (g.flickering = g.flickering || []).push(t.inst); ev.push({ type: 'note', text: `Oath of Teferi exiles ${t.card.name}: it returns at the end step`, source }); }
           break;
         }
@@ -15078,7 +15094,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   //
   const lockableB = f => false;          // counters (target scope), distribute
   //
-  const lockableC = f => false;          // fight, flickerOne / flickerTwo / flickerAll / flickerwisp / flicker (oath)
+  const lockableC = f => f.type === 'fight' || f.type === 'flickerOne' || f.type === 'flickerwisp' || f.type === 'flicker';          // fight, flickerOne / flickerTwo / flickerAll / flickerwisp / flicker (oath)
   //
   const lockableD = f => false;          // goad, stealOne (without mvX), threaten, hostage, fiendHunter, drakeSwap / totemSwap / gateExile / breathFury
   //
