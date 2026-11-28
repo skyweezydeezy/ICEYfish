@@ -1,0 +1,557 @@
+{
+ "about": "Fastest 1v1 Duel win of each built-in deck against another built-in deck (T-137). Rebuild with: node tools/fastest-kill.js. Seat 0 is this deck; first = the seat that goes first. v = engine version it was found on.",
+ "v": 230,
+ "games": 300,
+ "decks": {
+  "black-mage-blackout.txt": {
+   "opp": "second-breakfast.txt",
+   "oppName": "Second Breakfast (Frodo & Sam)",
+   "seed": 42702449,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "blood-bank.txt": {
+   "opp": "value-meal.txt",
+   "oppName": "Value Meal (The Cabbage Merchant)",
+   "seed": 34520288,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "bridge-to-the-inevitable-abyss.txt": {
+   "opp": "heavy-metal-landfall.txt",
+   "oppName": "Heavy Metal Landfall (Toph, the First Metalbender)",
+   "seed": 20371994,
+   "first": 0,
+   "turn": 7,
+   "round": 7,
+   "v": 230,
+   "games": 300
+  },
+  "captains-lockdown.txt": {
+   "opp": "mermaids.txt",
+   "oppName": "Mermaids (Hakbal of the Surging Soul)",
+   "seed": 21498701,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "compleat-contagion.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 29829114,
+   "first": 1,
+   "turn": 1,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "compound-interest.txt": {
+   "opp": "landslide-victory.txt",
+   "oppName": "Landslide Victory (Bumi, Unleashed)",
+   "seed": 29490806,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "counter-culture.txt": {
+   "opp": "second-breakfast.txt",
+   "oppName": "Second Breakfast (Frodo & Sam)",
+   "seed": 63702512,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "court-of-ruin.txt": {
+   "opp": "odds-and-ends.txt",
+   "oppName": "Odds and Ends (Yennett, Cryptic Sovereign)",
+   "seed": 34815500,
+   "first": 1,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "current-without-end.txt": {
+   "opp": "tidewoven.txt",
+   "oppName": "Tidewoven (Tymna + Thrasios)",
+   "seed": 42783848,
+   "first": 1,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "dead-ringers.txt": {
+   "opp": "undead-witches.txt",
+   "oppName": "Undead Witches (Zul Ashur)",
+   "seed": 45367651,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "dead-sea.txt": {
+   "opp": "value-meal.txt",
+   "oppName": "Value Meal (The Cabbage Merchant)",
+   "seed": 45092695,
+   "first": 1,
+   "turn": 1,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "death-tax.txt": {
+   "opp": "spectrum-of-extinction.txt",
+   "oppName": "Spectrum of Extinction (Esika, God of the Tree // The Prismatic Bridge)",
+   "seed": 46575757,
+   "first": 1,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "double-down.txt": {
+   "opp": "captains-lockdown.txt",
+   "oppName": "Captain's Lockdown (Sisay, Weatherlight Captain)",
+   "seed": 48407255,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "final-heaven.txt": {
+   "opp": "friendship-is-magic.txt",
+   "oppName": "Friendship Is Magic (Princess Twilight Sparkle)",
+   "seed": 63277095,
+   "first": 0,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "finale-of-the-floodborn.txt": {
+   "opp": "spectrum-of-extinction.txt",
+   "oppName": "Spectrum of Extinction (Esika, God of the Tree // The Prismatic Bridge)",
+   "seed": 48148137,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "fine-print-fatal-clause.txt": {
+   "opp": "scorched-sky.txt",
+   "oppName": "Scorched Sky (The Ur-Dragon)",
+   "seed": 30712541,
+   "first": 1,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "friendship-is-magic.txt": {
+   "opp": "double-down.txt",
+   "oppName": "Double Down (Veyran)",
+   "seed": 24597239,
+   "first": 1,
+   "turn": 4,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "gnome-alone.txt": {
+   "opp": "heavy-metal-landfall.txt",
+   "oppName": "Heavy Metal Landfall (Toph, the First Metalbender)",
+   "seed": 50090501,
+   "first": 0,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "hatsune-miku.txt": {
+   "opp": "spectrum-of-extinction.txt",
+   "oppName": "Spectrum of Extinction (Esika, God of the Tree // The Prismatic Bridge)",
+   "seed": 49720517,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "heavy-metal-landfall.txt": {
+   "opp": "salt-mine.txt",
+   "oppName": "Salt Mine (Nekusar, the Mindrazer)",
+   "seed": 35403715,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "ice-age-engine.txt": {
+   "opp": "the-kings-gambit.txt",
+   "oppName": "The King's Gambit (Kenrith, the Returned King)",
+   "seed": 65583733,
+   "first": 1,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "landslide-victory.txt": {
+   "opp": "the-kings-gambit.txt",
+   "oppName": "The King's Gambit (Kenrith, the Returned King)",
+   "seed": 51156065,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "loyalty-program.txt": {
+   "opp": "black-mage-blackout.txt",
+   "oppName": "Black Mage Blackout (Vivi Ornitier)",
+   "seed": 31419541,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "mermaids.txt": {
+   "opp": "blood-bank.txt",
+   "oppName": "Blood Bank (Edgar Markov)",
+   "seed": 51364168,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "mob-storm.txt": {
+   "opp": "scorched-sky.txt",
+   "oppName": "Scorched Sky (The Ur-Dragon)",
+   "seed": 65712646,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "moving-parts.txt": {
+   "opp": "current-without-end.txt",
+   "oppName": "Current Without End (Kinnan, Bonder Prodigy)",
+   "seed": 66863110,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "nights-curfew.txt": {
+   "opp": "value-meal.txt",
+   "oppName": "Value Meal (The Cabbage Merchant)",
+   "seed": 36665045,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "nothing-personal.txt": {
+   "opp": "friendship-is-magic.txt",
+   "oppName": "Friendship Is Magic (Princess Twilight Sparkle)",
+   "seed": 75415255,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "odds-and-ends.txt": {
+   "opp": "tidecaller.txt",
+   "oppName": "Tidecaller (Thrasios, Triton Hero)",
+   "seed": 38844979,
+   "first": 1,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "otk.txt": {
+   "opp": "tidal-loop.txt",
+   "oppName": "Tidal Loop (Hakbal of the Surging Soul)",
+   "seed": 52981853,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "overtime-at-the-treasure-mine.txt": {
+   "opp": "captains-lockdown.txt",
+   "oppName": "Captain's Lockdown (Sisay, Weatherlight Captain)",
+   "seed": 67269188,
+   "first": 0,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "permafrost-prodigy.txt": {
+   "opp": "value-meal.txt",
+   "oppName": "Value Meal (The Cabbage Merchant)",
+   "seed": 55375600,
+   "first": 0,
+   "turn": 2,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "red-rum-raiders.txt": {
+   "opp": "black-mage-blackout.txt",
+   "oppName": "Black Mage Blackout (Vivi Ornitier)",
+   "seed": 39274814,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "rules-lawyers.txt": {
+   "opp": "scorched-sky.txt",
+   "oppName": "Scorched Sky (The Ur-Dragon)",
+   "seed": 54712613,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "salt-mine.txt": {
+   "opp": "final-heaven.txt",
+   "oppName": "Final Heaven (Tifa Lockhart)",
+   "seed": 40876661,
+   "first": 1,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "scorched-sky.txt": {
+   "opp": "nights-curfew.txt",
+   "oppName": "Night's Curfew (Y'shtola, Night's Blessed)",
+   "seed": 24662800,
+   "first": 1,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "second-breakfast.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 41401524,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "second-draw.txt": {
+   "opp": "red-rum-raiders.txt",
+   "oppName": "Red Rum Raiders (Admiral Beckett Brass)",
+   "seed": 68403814,
+   "first": 0,
+   "turn": 4,
+   "round": 4,
+   "v": 230,
+   "games": 300
+  },
+  "short-circuit.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 55546317,
+   "first": 0,
+   "turn": 2,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "sodium-seraphim.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 70409530,
+   "first": 0,
+   "turn": 2,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "soul-brokers.txt": {
+   "opp": "scorched-sky.txt",
+   "oppName": "Scorched Sky (The Ur-Dragon)",
+   "seed": 56284993,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "spectrum-of-extinction.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 26256728,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "the-kings-gambit.txt": {
+   "opp": "loyalty-program.txt",
+   "oppName": "Loyalty Program (Atraxa, Praetors' Voice)",
+   "seed": 27478463,
+   "first": 1,
+   "turn": 2,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "the-shoal-must-go-on.txt": {
+   "opp": "bridge-to-the-inevitable-abyss.txt",
+   "oppName": "Bridge to the Inevitable Abyss (Esika, God of the Tree)",
+   "seed": 57261239,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "tidal-loop.txt": {
+   "opp": "value-meal.txt",
+   "oppName": "Value Meal (The Cabbage Merchant)",
+   "seed": 59092737,
+   "first": 1,
+   "turn": 1,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "tidecaller.txt": {
+   "opp": "current-without-end.txt",
+   "oppName": "Current Without End (Kinnan, Bonder Prodigy)",
+   "seed": 60718341,
+   "first": 1,
+   "turn": 2,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "tidewoven.txt": {
+   "opp": "blood-bank.txt",
+   "oppName": "Blood Bank (Edgar Markov)",
+   "seed": 34066696,
+   "first": 0,
+   "turn": 3,
+   "round": 3,
+   "v": 230,
+   "games": 300
+  },
+  "tookens.txt": {
+   "opp": "ulalek-titanstorm.txt",
+   "oppName": "Ulalek Titanstorm (Ulalek, Fused Atrocity)",
+   "seed": 71164044,
+   "first": 0,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "ulalek-titanstorm.txt": {
+   "opp": "salt-mine.txt",
+   "oppName": "Salt Mine (Nekusar, the Mindrazer)",
+   "seed": 26403688,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "undead-witches.txt": {
+   "opp": "second-breakfast.txt",
+   "oppName": "Second Breakfast (Frodo & Sam)",
+   "seed": 71419661,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  },
+  "unified-misery.txt": {
+   "opp": "current-without-end.txt",
+   "oppName": "Current Without End (Kinnan, Bonder Prodigy)",
+   "seed": 28710326,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "value-meal.txt": {
+   "opp": "tidecaller.txt",
+   "oppName": "Tidecaller (Thrasios, Triton Hero)",
+   "seed": 72997751,
+   "first": 1,
+   "turn": 7,
+   "round": 7,
+   "v": 230,
+   "games": 300
+  },
+  "void-tax.txt": {
+   "opp": "the-shoal-must-go-on.txt",
+   "oppName": "The Shoal Must Go On (Kinnan, Bonder Prodigy)",
+   "seed": 75837171,
+   "first": 1,
+   "turn": 1,
+   "round": 2,
+   "v": 230,
+   "games": 300
+  },
+  "winota.txt": {
+   "opp": "void-tax.txt",
+   "oppName": "Void Tax (Zhulodok, Void Gorger)",
+   "seed": 61108581,
+   "first": 1,
+   "turn": 5,
+   "round": 5,
+   "v": 230,
+   "games": 300
+  },
+  "zimone-infinite-analyst.txt": {
+   "opp": "nothing-personal.txt",
+   "oppName": "Nothing Personal (Ultima, Origin of Oblivion)",
+   "seed": 61673039,
+   "first": 0,
+   "turn": 6,
+   "round": 6,
+   "v": 230,
+   "games": 300
+  }
+ }
+}

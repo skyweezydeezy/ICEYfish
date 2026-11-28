@@ -323,8 +323,22 @@
   // "Fastest possible" for a built-in deck that was checked: the earliest win turn seen and the share of games won by turns 2, 3 and 4 (T-093).
   // One compact line; what it means is behind the ⓘ.
   const pctS = x => (x < 1 && x > 0 ? x.toFixed(1) : Math.round(x * 10) / 10) + '%';
+  function showWatch(d) {          // T-137: one line under the speed line: "Fastest win vs <deck>: turn N ▶ Watch"
+    const el = $('#deckWatch'); if (!el) return;
+    const f = d && FASTEST[d.file], opp = f && !f.none && builtinByValue('builtin:' + f.opp);
+    if (!f || f.none || !opp) { el.hidden = true; el.dataset.file = ''; return; }
+    el.querySelector('.dw-line').textContent = `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}`;
+    el.dataset.file = d.file; el.hidden = false;
+  }
+  $('#deckWatch .dw-go').addEventListener('click', () => {
+    const f = FASTEST[$('#deckWatch').dataset.file];
+    if (f && window.__isfVersus && window.__isfVersus.watch) window.__isfVersus.watch({ file: $('#deckWatch').dataset.file, opp: f.opp, seed: f.seed, first: f.first, turn: f.turn, round: f.round });
+  });
+  { const t = $('#deckWatch .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckWatch .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }
   { const t = $('#deckSpeed .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckSpeed .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }
+  let FASTEST = {};          // decks/fastest.json (tools/fastest-kill.js): each built-in deck's fastest Duel win
   function showSpeed(d) {
+    showWatch(d);
     const el = $('#deckSpeed'); if (!el) return;
     if (!d || d.by2 == null) { el.hidden = true; return; }
     el.querySelector('.ds-line').textContent = `Fastest win ${d.earliestKill ? 'T' + d.earliestKill : 'after T4'} · ${pctS(d.by2)} by T2 · ${pctS(d.by3)} by T3 · ${pctS(d.by4)} by T4`;
@@ -795,6 +809,7 @@
       if (!r.ok) return;
       BUILTIN = ((await r.json()).decks || []).filter(d => d && d.file && d.name);
       decksListed = true; refreshSaved(); fillMirror();
+      fetch('decks/fastest.json').then(r => r.ok ? r.json() : null).then(j => { if (j && j.decks) { FASTEST = j.decks; showWatch(selLoaded && builtinByValue(selLoaded)); } }).catch(() => {});          // the Build line (T-137); no file or offline: no line
     } catch (e) { /* offline and never loaded: only saved decks are listed */ }
   }
   function refillDeckMenus() {            // the Deck order setting changed: every built-in deck menu is rebuilt, keeping what each one has selected
