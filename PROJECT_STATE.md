@@ -131,6 +131,7 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 232** (2026-11-28 15:50 UTC): PR #206, 4/4 + Pages green: Teach Ajani, Sleeper Agent + Chandra, Torch of Defiance (Teach #205, the owner's pipeline test: filed 15:05, assigned 15:16, taught 15:22, live 15:50, commented and closed). Engine 291, sweep bad 0, UI decisions/abilities ok. Fingerprint now 5b6f7a93... (loyalty-program only).
 - [V] **Version 231** (2026-11-28 15:11 UTC): PR #204, 4/4 + Pages green: T-136 two rows of tabs on Practice/Duel/Pod (CSS only). versus-fit, remote-mobile, duel-loop-phone, step-strip, versus, versus-end ok; puzzles flaky once (ghost-tap timing), 118/118 alone.
 - [V] **Version 230** (2026-11-28 14:24 UTC): PR #202, 4/4 + Pages green: Blood Bank (Edgar Markov) verified B3 (Drive B4) + Teach Master of Dark Rites (false ok fixed). Engine 289, sweep bad 0.
 - [V] **Version 229** (2026-11-28 13:26 UTC): PR #201, 4/4 + Pages green: **T-127 stage 6, full priority ON by default** (smart stops trimmed; lone goldfish runs no rounds) + Rules Lawyers update (14 cards, B4 re-verified). Stage-6 tree: engine 287, sweep bad 0, **full UI 85/85**; final tree: engine 288, sweep bad 0, UI priority/decisions/versus/puzzles. Default fingerprint now a2e96ee33608669c02845f94a0b1448c (ISF_PRIORITY=0 keeps b8ce7c97...).
