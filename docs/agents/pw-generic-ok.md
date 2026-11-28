@@ -6,7 +6,7 @@ Counts over the planeswalker cards in goldfish/static/data/sets (first printings
 
 - Chandra, Awakened Inferno
 - Chandra, Flamecaller
-- Chandra, Torch of Defiance
+- ~~Chandra, Torch of Defiance~~ (taught, issue #205)
 - Commodore Guff
 - Dihada, Binder of Wills
 - Domri, Anarch of Bolas

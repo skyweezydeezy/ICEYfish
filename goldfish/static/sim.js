@@ -3036,6 +3036,8 @@
         const pwt = m[3];
         const r = /^gain control of target (creature|permanent)|^gain control of all nonland permanents until end of turn\. untap them|^~ deals damage to target creature equal to the number of \w+ you control\.?$|^until your next turn, up to one target creature gains reach and vigilance\.?$/i.test(pwt) ? { fx: [], neutral: true }          // rules batch 52-53: Dihada's -11 (the opponents' permanents), Koth's -3 (an opponent's creature), Vivien's +1
           : /^reveal the top card of your library\. if it's an? ([a-z, ]+?) card, put it into your hand\. otherwise, you may put it on the bottom of your library\.?$/i.test(pwt) ? { fx: [{ type: 'revealTake', spec: pwt.match(/if it's an? ([a-z, ]+?) card/i)[1].toLowerCase() }] }          // Ajani, Sleeper Agent +1: revealed, then to hand or (your choice) the bottom
+          : /^exile the top card of your library\. you may cast that card\. if you don't, ~ deals (\d+) damage to each opponent\.?$/i.test(pwt) ? { fx: [{ type: 'chandraExile', n: +pwt.match(/deals (\d+)/i)[1] }] }          // Chandra, Torch of Defiance +1
+          : /^you get an emblem with "whenever you cast a spell, this emblem deals (\d+) damage to any target\."$/i.test(pwt) ? { fx: [{ type: 'castEmblem', n: +pwt.match(/deals (\d+)/i)[1] }] }          // Chandra, Torch of Defiance -7
           : /^untap two target lands\.?$/i.test(pwt) ? { fx: [{ type: 'untapLands', n: 2 }] }          // Garruk Wildspeaker
           : /^untap up to four target permanents\.?$/i.test(pwt) ? { fx: [{ type: 'untapPerms', n: 4 }] }          // T-100: Teferi, Temporal Archmage
           : /^put all creature cards from all graveyards onto the battlefield under your control\.?$/i.test(pwt) ? { fx: [{ type: 'massReanimate' }] }
@@ -8674,6 +8676,25 @@
           shuffle(g.library, g.rnd);
           break;
         }
+        case 'chandraExile': {          // Chandra, Torch of Defiance +1: exile the top card; you may cast it now (paying its costs); if you don't, damage to each opponent
+          const who = source ? source.card.name : 'Chandra', c = g.library.shift();
+          if (!c) { ev.push({ type: 'note', text: `${who}: your library is empty, nothing is exiled`, source }); applyEffects(g, [{ type: 'damage', n: f.n, any: false }], source, ev, null); break; }
+          g.exile.push(c); ev.push({ type: 'reveal', inst: c, source, pid: g.pid });
+          const why = c.card.a.isLand ? "a land card can't be cast" : castBlocked(g, c) ? 'something stops you from casting it' : (cc => canPay(cc, allUnits(g)) ? null : `you can't pay ${costText(cc)} (you have ${allUnits(g).length} mana)`)(effectiveCost(g, c));
+          let cast = false;
+          if (!why) { g.hand.push(c); const sc = spellScore(g, c); g.hand.splice(g.hand.indexOf(c), 1); cast = sc > 0; }
+          if (g.ask && !g.dry) cast = decide(g, { kind: 'may', options: ['yes', 'no'], def: cast ? 'yes' : 'no', title: `${who}: cast ${c.card.name}?`, text: `${c.card.name} was exiled. You may cast it now, paying its costs. If you don't, ${who} deals ${f.n} damage to each opponent.`, yes: `Cast ${c.card.name}`, no: `Don't cast: ${f.n} damage to each opponent`, yesWhy: why, source }) === 'yes' && !why;
+          if (cast) {
+            g.exile.splice(g.exile.indexOf(c), 1); g.hand.push(c); const ce = castCard(g, c);
+            if (g.hand.includes(c)) { g.hand.splice(g.hand.indexOf(c), 1); g.exile.push(c); }
+            if (ce) { ev.push({ type: 'note', text: `${who}: exiles ${c.card.name} and casts it`, source }, ...ce); break; }
+            cast = false;
+          }
+          ev.push({ type: 'note', text: `${who}: exiles ${c.card.name}${why ? ` (${why})` : ", doesn't cast it"}: ${f.n} damage to each opponent`, source });
+          applyEffects(g, [{ type: 'damage', n: f.n, any: false }], source, ev, null);
+          break;
+        }
+        case 'castEmblem': g.castEmblems = (g.castEmblems || []).concat([{ n: f.n || 5 }]); ev.push({ type: 'note', text: `Emblem: whenever you cast a spell, it deals ${f.n || 5} damage to any target`, source }); break;          // Chandra, Torch of Defiance -7
         case 'revealTake': {          // Ajani, Sleeper Agent +1: reveal the top card; a creature or planeswalker card goes to your hand, otherwise you may put it on the bottom
           const top = g.library[0], who = source ? source.card.name : 'It';
           if (!top) { ev.push({ type: 'note', text: `${who}: your library is empty, nothing to reveal`, source }); break; }
@@ -9274,6 +9295,7 @@
       if (a.cost && a.cost.x) g.xCastTurn = g.turn;
       { const ts = turnSeq(g); if (g.castSeqT !== ts) { g.castSeqT = ts; g.castSeqN = 0; } g.castSeqN++; if (!a.isArtifact) g.nonArtSeq = ts; }          // Rule of Law, Ethersworn Canonist: spells cast this turn
       if (g.ajaniPoison && (a.isCreature || a.isPlaneswalker) && g.killTurn == null && !matchOver(g)) addPoison(g, g.ajaniPoison, ev, null, "Ajani's emblem");          // Ajani, Sleeper Agent: two poison counters for each creature or planeswalker spell
+      if (g.castEmblems && g.killTurn == null && !matchOver(g)) for (const em of g.castEmblems) { g.lastCast = inst; applyEffects(g, [{ type: 'damage', n: em.n, any: true }], null, ev, null); ev.push({ type: 'note', text: `Emblem: ${a.name || inst.card.name} was cast, ${em.n} damage to any target` }); }          // Chandra, Torch of Defiance's emblem
       g.mvCast = { turn: g.turn, n: (g.mvCast && g.mvCast.turn === g.turn ? g.mvCast.n : 0) + (a.mv || 0) };          // Call Forth the Tempest
       g.lastCast = inst;
       if (a.trapWatch !== false && (inst.card.colors || []).includes('U')) g.blueSeq = turnSeq(g);
@@ -10766,6 +10788,8 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (f.type === 'poisonWin') v += Math.max(0, 9 - (g.poisonDealt || 0)) * poisonWorth(g) + 4;          // nine counters: the next proliferate or toxic hit wins
       if (f.type === 'poison') { const k = typeof n === 'number' ? n : 1; v += (g.poisonDealt || 0) + k >= 10 ? 1000 : k * poisonWorth(g); }
       if (f.type === 'ajaniEmblem') v += 6;
+      if (f.type === 'chandraExile') v += 3;
+      if (f.type === 'castEmblem') v += 6;
       if (f.type === 'reanimateX') { const sp = g.battlefield.find(q => (q.card.a.pwAbilities || []).some(ab => ab.fx.includes(f))), b = sp ? xReanimateBest(g, sp) : null; v += b ? reanimateValue(g, b) : -30; }          // Sorin, Vengeful Bloodlord: the best creature card the loyalty can pay for
       if (f.type === 'tapOpp') v += g.opp && !g.combatDone && g.battlefield.some(q => canAttack(g, q)) ? (f.what === 'all' ? 2 * g.opp.battlefield.filter(q => isCreaturePerm(q) && !q.tapped).length : 2) : 0.2;
       if (f.type === 'landWipe') v += g.opp && landWipeWorth(g, f) ? 12 : -20;          // only when it hurts them more
