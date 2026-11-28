@@ -1998,7 +1998,8 @@
       else zones[to].push(inst);
       log(`${esc(inst.card.name)} → ${to}${to === 'library' ? (top ? ' (top)' : ' (bottom)') : ''}`);
     });
-    if (zone === 'hand' || zone === 'command') items.push([inst.card.a.isLand ? '▶ Play land' : '▶ Cast', () => playFromHand(inst, false, m), 'primary']);
+    const ban = zone === 'hand' && G.handBan(g) ? `${G.handBan(g)}: you can't play cards from your hand` : null;          // T-135: Experimental Frenzy
+    if (zone === 'hand' || zone === 'command') items.push([(inst.card.a.isLand ? '▶ Play land' : '▶ Cast') + (ban && !forViewer ? ' — not now: ' + ban : ''), ban ? () => { sfx('error'); toast(ban); } : () => playFromHand(inst, false, m), ban ? '' : 'primary', false, ban]);
     if (zone === 'graveyard' && G.yardCastable(g, inst)) items.push(['▶ Cast from your graveyard', () => playFromHand(inst, false, m), 'primary']);          // Zul Ashur let you cast it this turn
     if (zone === 'hand' && inst.card.a.typecycle) items.push([`🔎 ${inst.card.a.typecycle.basic ? 'Basic land' : inst.card.a.typecycle.type === 'land' ? 'Land' : inst.card.a.typecycle.type[0].toUpperCase() + inst.card.a.typecycle.type.slice(1)}cycle (search for a land)`, () => { snap(); quiet(yours(x => G.landcycleCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to cycle it'); } play(ev); })); }]);
     if (zone === 'hand' && inst.card.a.transmute) items.push([`🔎 Transmute (search for a card with mana value ${inst.card.a.mv || 0})`, () => { snap(); quiet(yours(x => G.transmuteCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to transmute it'); } play(ev); })); }]);

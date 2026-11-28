@@ -4,7 +4,7 @@
 const { chromium, devices } = require('playwright');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
-const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 Sol Ring', '1 Gravecrawler', '1 Sun Titan', '1 Lightning Bolt', '30 Swamp', '10 Island'].join('\n');
+const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 Sol Ring', '1 Experimental Frenzy', '1 Gravecrawler', '1 Sun Titan', '1 Lightning Bolt', '30 Swamp', '10 Island'].join('\n');
 (async () => {
   const b = await chromium.launch();
   for (const [name, opts] of [['PC', { viewport: { width: 1360, height: 1000 } }], ['iPhone', devices['iPhone 13']]]) {
@@ -69,6 +69,14 @@ const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 
     check(`${name} Practice: Sol Ring is cast from the top with mana, and logged`, s1.bf.includes('Sol Ring') && /Sol Ring cast from the top of the library \(Mystic Forge\)/.test(await logText()), JSON.stringify(s1.bf) + (await logText()).slice(-160));
     await setTop('Sun Titan'); await redraw(); items = await menu();
     check(`${name} Practice: no mana left (or too little): Not enough mana`, items.some(t => /Cast.*(Not enough mana|Not an artifact)/.test(t)), items.join(' | '));
+    await p.keyboard.press('Escape');
+    // ---- Experimental Frenzy: no cards from the hand ----
+    await put('Experimental Frenzy');
+    await p.evaluate(() => { const g = window.__isf.game; g.hand.push({ iid: g.nextIid++, card: g.deck.unique.find(c => c.name === 'Sol Ring') }); });
+    await redraw();
+    await p.evaluate(() => { const hs = [...document.querySelectorAll('#zHand .mtg')]; hs[hs.length - 1].click(); }); await p.waitForSelector('#ctxMenu', { state: 'visible' }); await p.waitForTimeout(450);
+    items = await p.$$eval('#ctxMenu button', bs => bs.map(b => b.textContent.trim()));
+    check(`${name} Practice: Experimental Frenzy: a hand card shows Cast greyed with the reason`, items.some(t => /Cast.*Experimental Frenzy: you can't play cards from your hand/.test(t)), items.join(' | '));
     await p.keyboard.press('Escape');
     check(`${name} Practice: no page errors so far`, errs.length === 0, errs.join(' | '));
     if (name === 'PC') {

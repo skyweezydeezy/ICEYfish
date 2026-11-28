@@ -137,5 +137,23 @@ T('Future Sight and Experimental Frenzy are the real cards', () => {
   const g = bare(); putOn(g, 'Experimental Frenzy'); top(g, 'Swamp');
   check('Experimental Frenzy: look-only, lands and spells from the top', by('Experimental Frenzy').a.topLook && !!opt(g, 'land') && G.topCardView(g) === 'owner');
 });
+T('Experimental Frenzy: every line is read and does its effect', () => {
+  const c = by('Experimental Frenzy');
+  check('all four lines read ok', c.a.coverage.length === 4 && c.a.coverage.every(r => r.status === 'ok'), c.a.coverage.map(r => r.status + ':' + (r.tag || '')).join(' '));
+  const g = bare(); putOn(g, 'Experimental Frenzy'); g.hand.push(inst(g, 'Sol Ring'), inst(g, 'Swamp')); putOn(g, 'Island');
+  check('handBan names it', G.handBan(g) === 'Experimental Frenzy');
+  check('a spell cannot be cast from the hand', G.castCard(g, g.hand[0], false) === null && !onBf(g, 'Sol Ring'));
+  check('a land cannot be played from the hand', !G.canPlayLand(g) && G.landStep(g) !== undefined && !onBf(g, 'Swamp') && g.hand.some(i => i.card.name === 'Swamp'));
+  g.turn++; G.castOne(g); check('the autopilot casts nothing from the hand either', !onBf(g, 'Sol Ring'));
+  top(g, 'Sol Ring'); const o = opt(g, 'mana');
+  check('but the top card can be cast (it is look-only: owner view)', o && o.ok && G.topCardView(g) === 'owner', JSON.stringify(o));
+  check('...and it is cast', !!G.playTop(g, 'mana') && onBf(g, 'Sol Ring'));
+  g.library.unshift(inst(g, 'Swamp')); check('a land from the top is fine', !!opt(g, 'land') && !!G.playTop(g, 'land') && onBf(g, 'Swamp'));
+  const p = g.battlefield.find(x => x.card.name === 'Experimental Frenzy'), i = G.abilityMenu(g, p).findIndex(a => /Destroy/.test(a.label));
+  check('{3}{R}: Destroy is on the menu, not payable without red', i >= 0 && !G.abilityMenu(g, p)[i].ok, JSON.stringify(G.abilityMenu(g, p)));
+  g.battlefield.push({ iid: 777, card: by('Gilded Lotus'), tapped: false, produce: by('Gilded Lotus').a.produce, enteredTurn: 1, counters: 0 }); G.touch(g);
+  const ok = G.abilityMenu(g, p)[i]; check('with mana (Gilded Lotus, any color) it can be used', ok.ok, JSON.stringify(ok));
+  const ev = G.useAbility(g, p, i); check('using it destroys Frenzy (to the graveyard) and the hand is playable again', !!ev && !onBf(g, 'Experimental Frenzy') && g.graveyard.some(x => x.card.name === 'Experimental Frenzy') && G.handBan(g) === null);
+});
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

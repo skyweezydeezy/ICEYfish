@@ -1058,7 +1058,7 @@
       const a = i.card.a, e = node(st, `h${g.pid}:${i.iid}`, i.card), slot = h('div', 'vs-slot');
       e.classList.add('vs-card'); e.dataset.iid = i.iid;
       if (mull) { e.classList.add(need ? 'can' : 'show'); if (gm.bottom.has(i.iid)) { e.classList.add('pick'); e.appendChild(h('span', 'tag', 'to the bottom')); } }
-      else if (quick ? quick.has(i) : mine && (a.isLand ? landOk : castable(g, i))) e.classList.add('can');
+      else if (quick ? quick.has(i) : mine && !G.handBan(g) && (a.isLand ? landOk : castable(g, i))) e.classList.add('can');
       if (human && reply(i)) e.title = 'A counterspell: you are asked when an opponent casts a spell.'; else e.removeAttribute('title');
       slot.appendChild(e);
       if (mine && a.mdfcLand && !a.isLand && landOk) { const b = h('button', 'ghost vs-asland', 'Play as land'); b.dataset.iid = i.iid; slot.appendChild(b); }
@@ -1150,6 +1150,7 @@
     }
     if (iid == null || !el.closest('.vs-hand, .vs-seat.me')) return null;
     const out = [];
+    if (el.closest('.vs-hand') && G.handBan(gm.games[gm.human]) && gm.phase !== 'mull') return [[card.a && card.a.isLand ? '▶ Play land' : '▶ Cast', () => {}, '', false, `${G.handBan(gm.games[gm.human])}: you can't play cards from your hand`]];          // T-135
     const fresh = sel => () => { const t = root.querySelector(sel); if (t) { bypassSel = true; try { t.click(); } finally { bypassSel = false; } } };
     const cardSel = `.vs-card[data-iid="${iid}"]`;
     if (el.classList.contains('vs-card') && el.classList.contains('can')) {

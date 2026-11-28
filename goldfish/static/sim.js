@@ -2013,6 +2013,8 @@
       if (/^you may play lands from your graveyard/i.test(line)) { a.statics.landsFromYard = true; rec.status = 'ok'; continue; }                                                   // Crucible of Worlds, Conduit of Worlds
       if (/^you may play lands from the top of your library/i.test(line)) { a.statics.landsFromTop = true; rec.status = 'ok'; continue; }                                          // Oracle of Mul Daya
       if (/^play with the top card of your library revealed/i.test(line)) { rec.status = 'ok'; continue; }
+      if (/^you can't play lands or cast spells from your hand\.?$/i.test(line)) { a.noHandPlay = true; rec.status = 'ok'; continue; }          // T-135: Experimental Frenzy (CR 305.1, 601.2: lands and spells only from the top)
+      { const sd = line.match(/^((?:\{[^}]+\})+): destroy (?:~|this enchantment)\.?$/i); if (sd) { a.selfDestroy = sd[1]; rec.status = 'ok'; continue; } }          // T-135: Experimental Frenzy: {3}{R}: destroy it
       if (/^you may cast artifact spells and colorless spells from the top of your library/i.test(line)) { a.topCast = 'artifact|colorless'; rec.status = 'ok'; continue; }                 // Mystic Forge (T-135: colorless spells too)
       { const wg = line.match(/^whenever enchanted (land|forest|island|swamp|mountain|plains) is tapped for mana, its controller adds an additional (\{[wubrg]\}|one mana of the chosen color|one mana of any color)/i); if (wg) { a.landAura = { colors: /\{/.test(wg[2]) ? [wg[2][1].toUpperCase()] : null }; a.enchantLand = true; rec.status = 'ok'; continue; } }          // Wild Growth, Utopia Sprawl
       if (/^enchant (land|forest|island|swamp|mountain|plains)\b/i.test(line)) { a.enchantLand = true; rec.status = 'ok'; continue; }
@@ -11187,6 +11189,9 @@ g.actSeq = (g.actSeq || 0) + 1;
         p.tapped = true; leavePerm(g, f, ev); flushLeaves(g, ev); if (!g.graveyard.includes(c)) return;
         g.graveyard.splice(g.graveyard.indexOf(c), 1); const perm = enterWithTriggers(g, c, {}, ev); ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${f.card.name}, ${c.card.name} returns`, source: p }, { type: 'rampLand', inst: c, perm, source: p });
       }); }
+    if (a.selfDestroy && onBf) { const c = parseCost(a.selfDestroy);          // T-135: Experimental Frenzy
+      add(`Destroy ${p.card.name}`, c, blocked || payWhy(c), ev => { pay(g, c); leavePerm(g, p, ev); flushLeaves(g, ev); ev.push({ type: 'note', text: `${p.card.name} is destroyed`, source: p }); });
+    }
     if (a.zulAshur) { const zs = g.graveyard.filter(i => i.card.a.isCreature && matchesFilter(i.card, 'zombie') && i.zulCast !== g.turn);          // Zul Ashur, Lich Lord: then cast it from the graveyard (its menu there)
       add('You may cast target Zombie creature card from your graveyard this turn', '{T}', blocked || sickTap(g, p) || (zs.length ? null : 'no Zombie creature card in your graveyard'), ev => {
         let c = zs.slice().sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0]; if (g.ask && zs.length > 1) c = decide(g, { kind: 'search', options: zs, def: c, f: { dest: 'cast' }, source: p }) || c;
@@ -12261,7 +12266,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     g.battlefield.forEach(p => { if (p.card.a.statics) n += p.card.a.statics.extraLands; });
     return n;
   }
-  function canPlayLand(g) { return g.landsPlayedThisTurn < landsAllowed(g) && g.hand.some(c => c.card.a.isLand || c.card.a.mdfcLand); }
+  function canPlayLand(g) { return g.landsPlayedThisTurn < landsAllowed(g) && !handBan(g) && g.hand.some(c => c.card.a.isLand || c.card.a.mdfcLand); }
 
   function cloneState(g) {
     // a dry run must never touch the other player: give the copy its own stand-in opponent and match record
@@ -15236,8 +15241,11 @@ g.actSeq = (g.actSeq || 0) + 1;
   const castsThisTurn = g => g.castSeqT === turnSeq(g) ? g.castSeqN || 0 : 0;
   // may g cast this spell now? Rule of Law and Ethersworn Canonist (anyone's), Grafdigger's Cage (anyone's), and the other players' Silence, Grand
   // Abolisher and Dragonlord Dromoka (on their turn), Drannith Magistrate (only from the hand), Void Winnower (no even mana value), Sen Triplets
+  // T-135: Experimental Frenzy: you can't play lands or cast spells from your hand. The card that says so (null: nothing does)
+  function handBan(g) { if (!tableHas(g, 'noHandPlay')) return null; const q = g.battlefield.find(x => x.card.a.noHandPlay); return q ? q.card.name : null; }
   function castBlocked(g, inst) {
     const a = inst.card.a; if (a.isLand) return false;
+    if (g.hand.includes(inst) && handBan(g)) return true;
     const fromHand = g.hand.includes(inst) && !inst.foreign, n = castsThisTurn(g), ts = turnSeq(g);
     const all = g.battlefield.map(q => ({ q, o: g })).concat(othersPerms(g));
     for (const { q, o } of all) {
@@ -15961,7 +15969,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     parseEffects, analyze, buildDeck, tokenCard, newGame, mulligan, chooseBottom, draw, enter, enterWithTriggers, manaUnits, allUnits, canPay, payAssign, payWaste, floatingLoss, emptyPool,
     traceCoverage: on => { TRACING = !!on; }, effectiveCost, castCard, castOne, useAbilities, castPhase, playLand, playLandCard, chooseLand, canPlayLand, beginTurn, landStep, combat,
     postCombat, transformPerm, leavePerm, fodderList, endTurn, playTurn, simulate, monteCarlo, monteCarloPart, monteCarloMerge, createTokens, removePerm, applyEffects, damageOpp,
-    topCardView, topPlay, playTop, powerOf, toughnessOf, hasKw, isCreaturePerm, hyperPmf, hyperAtLeast, keepable, landCount, mulberry32, shuffle, pay, madness, fxValue,
+    topCardView, topPlay, playTop, handBan, powerOf, toughnessOf, hasKw, isCreaturePerm, hyperPmf, hyperAtLeast, keepable, landCount, mulberry32, shuffle, pay, madness, fxValue,
     topCastable, instantWindow, isInstantInteraction, interactionHit, holdForInstant, spellScore, commanderBonus, lockOf, untapStep, lockWorth,
     lockUpkeep, ghostTurn, castBlocked, abilBlocked, searchRule, comboLines, infiniteMana, bestTutorTarget, stealPerm, discardWorst, setTribe: t => { curTribe = t; }, playMatch,
     comparePolicies, tribeOf, labChoices, LAB_CHOICES, pol, crackFetch, matchMonteCarlo, comparePoliciesPart, comparePoliciesMerge, matchMonteCarloPart, matchMonteCarloMerge, matchLog, linkMatch, matchOver, chooseBlocks,
