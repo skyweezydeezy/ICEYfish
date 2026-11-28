@@ -2,6 +2,14 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 229,
+      "lines": [
+        "Full priority is on: spells, triggers and abilities now go on a real stack, the way the Comprehensive Rules have it, so you and the autopilot can respond to each one in turn.",
+        "Cast triggers now resolve before the spell that caused them, so a few game results shift slightly.",
+        "Rules Lawyers (Winota) is updated to its newest list from Drive (14 cards changed, still Bracket 4)."
+      ]
+    },
+    {
       "v": 228,
       "lines": [
         "Taught: Sorin, Vengeful Bloodlord. Your creatures and planeswalkers have lifelink during your turn, and his −X returns a creature card with mana value X from your graveyard as a Vampire."
