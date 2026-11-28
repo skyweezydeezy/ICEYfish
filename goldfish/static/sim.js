@@ -302,6 +302,12 @@
       else if (/^if you created a token this turn$/i.test(part)) conds.push({ k: 'token' });
       else if ((m = part.match(/^if you attacked with (two|three|four) or more creatures this turn$/i))) conds.push({ k: 'attackers', n: NUM[m[1].toLowerCase()] });
       else if (/^if you have the city's blessing$/i.test(part)) conds.push({ k: 'blessing' });
+      else if (/^if you have no cards in hand$/i.test(part)) conds.push({ k: 'handMax', n: 0 });          // Sea Gate Wreckage
+      else if ((m = part.match(/^if you have (\w+) or more cards in your hand$/i)) && NUM[m[1].toLowerCase()]) conds.push({ k: 'handMin', n: NUM[m[1].toLowerCase()] });          // Resonating Lute
+      else if ((m = part.match(/^if you control (\w+) or more lands with the same name$/i)) && NUM[m[1].toLowerCase()]) conds.push({ k: 'sameLands', n: NUM[m[1].toLowerCase()] });          // Endless Atlas
+      else if ((m = part.match(/^if there are (\w+) or more card types among cards in your graveyard$/i)) && NUM[m[1].toLowerCase()]) conds.push({ k: 'delirium', n: NUM[m[1].toLowerCase()] });          // Raving Visionary
+      else if ((m = part.match(/^if you control (\w+) or more (white|blue|black|red|green) permanents$/i)) && NUM[m[1].toLowerCase()]) conds.push({ k: 'colorPerms', n: NUM[m[1].toLowerCase()], c: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()] });          // Leechridden Swamp
+      else if ((m = part.match(/^if (?:~|this enchantment|this artifact|this creature) has (\w+) or more (\w+) counters on it$/i)) && NUM[m[1].toLowerCase()]) conds.push({ k: 'selfCounters', n: NUM[m[1].toLowerCase()], kind: m[2].toLowerCase() });          // Luminarch Ascension
       else if ((m = part.match(/^if you have at least (\d+) life more than your starting life total$/i))) conds.push({ k: 'lifeOver', n: +m[1] });
       else return null;
     }
@@ -315,6 +321,12 @@
       if (c.k === 'token' && g.tokenTurn !== g.turn) return 'you have not created a token this turn';
       if (c.k === 'attackers' && (g.atkMax || 0) < c.n) return `you have not attacked with ${c.n} or more creatures this turn`;
       if (c.k === 'blessing' && !cityBlessed(g)) return "you don't have the city's blessing";
+      if (c.k === 'handMax' && g.hand.length > c.n) return 'you have cards in hand';
+      if (c.k === 'handMin' && g.hand.length < c.n) return `you need ${c.n} or more cards in hand`;
+      if (c.k === 'sameLands') { const m = {}; for (const q of g.battlefield) if (q.asLand && !q.phased) m[q.card.name] = (m[q.card.name] || 0) + 1; if (Math.max(0, ...Object.values(m)) < c.n) return `you need ${c.n} lands with the same name`; }
+      if (c.k === 'delirium') { const ty = new Set(); for (const i of g.graveyard) for (const t of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery', 'Tribal']) if (new RegExp('\\b' + t + '\\b').test((i.card.type_line || '').split('//')[0])) ty.add(t); if (ty.size < c.n) return `only ${ty.size} card types in your graveyard`; }
+      if (c.k === 'colorPerms' && g.battlefield.filter(q => !q.phased && colorsOf(g, q.card).includes(c.c)).length < c.n) return `you need ${c.n} permanents of that color`;
+      if (c.k === 'selfCounters' && ((p.other && p.other[c.kind]) || 0) < c.n) return `it needs ${c.n} ${c.kind} counters`;
       if (c.k === 'lifeOver' && g.life < (g.opts.startLife || 40) + c.n) return `it needs ${c.n} more life than your starting life total`;
     }
     return null;
@@ -788,6 +800,7 @@
       // ---- rules batch 58: the top-5000 pool (one card each)
       { const ACT = (cost, fx, extra, st) => { a.activated.push(Object.assign({ cost: parseCost(cost), fx, text: raw }, extra || {})); rec.status = st || 'ok'; if (st === 'partial') rec.tag = 'approx'; };
         if (/^at the beginning of your end step, put a loyalty counter on another target planeswalker you control\.?$/i.test(line)) { a.triggers.push({ kinds: ['end'], fx: [{ type: 'pwCounterOther' }], text: raw }); rec.status = 'ok'; continue; }          // T-139: Commodore Guff
+        if (/^\{2\}, \{t\}: flip a coin\. if you win the flip, create a treasure token\.?$/i.test(line)) { ACT('{2}', [{ type: 'coinTreasure' }], { tap: true }); continue; }          // T-139: The Gold Saucer
         if (/^\{4\}: scry 1, then reveal the top card of your library\. if it's a land card, put it onto the battlefield tapped\. otherwise, draw a card\.?$/i.test(line)) { ACT('{4}', [{ type: 'thrasios' }], { gate: 'topDraw', late: true }); continue; }          // T-139: Thrasios, Triton Hero
         { const bm = line.match(/^((?:\{[^}]+\})+): until end of turn, ~ becomes a (\d+)\/(\d+) [a-z ]+ creature with "whenever ~ attacks, put a \+1\/\+1 counter on it\." it's still a land\.?$/i); if (bm) { a.selfAnimate = { cost: parseCost(bm[1]), p: +bm[2], t: +bm[3], eot: true }; a.triggers.push({ kinds: ['attack'], fx: [{ type: 'counters', kind: '+1/+1', n: 1, scope: 'self', other: false, excl: false, types: [] }], text: raw }); rec.status = 'ok'; continue; } }          // T-139: Raging Ravine
         if (/^\{t\}: choose target commander that entered this turn\. put a \+1\/\+1 counter on it if it's a creature and a loyalty counter on it if it's a planeswalker\.?$/i.test(line)) { ACT('', [{ type: 'forgeCmdr' }], { tap: true, gate: 'forgeCmdr' }); continue; }          // T-139: Forge of Heroes
@@ -3156,6 +3169,17 @@
           : /^up to one target creature you control can't be blocked this turn\. draw a card, then discard a card\.?$/i.test(pwt) ? { fx: [{ type: 'pumpOne', self: false, p: 0, t: 0, keywords: ['unblockable'] }, { type: 'draw', n: 1 }, { type: 'discardSelf', n: 1 }] }          // T-139: Kaito, Cunning Infiltrator +1
           : /^you lose 1 life\. look at the top three cards of your library\. put one of them into your hand and the rest into your graveyard\.?$/i.test(pwt) ? { fx: [{ type: 'loseLife', n: 1 }, { type: 'lookTake', look: 3, take: 1, toYard: true }] }          // T-139: Professor Onyx +1
           : /^each opponent may discard a card\. if they don't, they lose 3 life\. repeat this process six more times\.?$/i.test(pwt) ? { fx: [{ type: 'onyxUlt' }] }          // T-139: Professor Onyx -8
+          : /^draw three cards\. you get an emblem with "instant and sorcery spells you cast have storm\."$/i.test(pwt) ? { fx: [{ type: 'draw', n: 3 }, { type: 'stormEmblem' }] }          // T-139: Ral, Crackling Wit -10
+          : /^draw three cards\. you get an emblem with "you may cast spells from your hand without paying their mana costs\."$/i.test(pwt) ? { fx: [{ type: 'draw', n: 3 }, { type: 'freeCastEmblem' }] }          // T-139: Tamiyo, Field Researcher -7
+          : /^draw cards equal to half the number of cards in your library, rounded up\. you get an emblem with "you have no maximum hand size\."$/i.test(pwt) ? { fx: [{ type: 'draw', n: 'HALFLIB' }, { type: 'noMaxHand' }] }          // T-139: Tamiyo, Inquisitive Student -7
+          : /^return all permanent cards from your graveyard to your hand\. you get an emblem with "you have no maximum hand size\."$/i.test(pwt) ? { fx: [{ type: 'gyReturnPerm' }, { type: 'noMaxHand' }] }          // T-139: Wrenn and Seven -8
+          : /^exile the top ten cards of your library\. put all artifact cards from among them onto the battlefield\.?$/i.test(pwt) ? { fx: [{ type: 'exileTopArt', n: 10 }] }          // T-139: Tezzeret, Master of the Bridge -8
+          : /^flip five coins\. take an extra turn after this one for each coin that comes up heads\.?$/i.test(pwt) ? { fx: [{ type: 'zarekUlt' }] }          // T-139: Ral Zarek -7
+          : /^choose up to one target artifact, up to one target creature, and up to one target land\. untap the chosen permanents you control\. tap the chosen permanents you don't control\. you gain 2 life\.?$/i.test(pwt) ? { fx: [{ type: 'teferiWSS' }, { type: 'gainLife', n: 2 }] }          // T-139: Teferi, Who Slows the Sunset +1
+          : /^the next spell you cast this turn has affinity for artifacts\.?$/i.test(pwt) ? { fx: [{ type: 'affinityNext' }] }          // T-139: Saheeli, the Gifted +1
+          : /^for each artifact you control, create a token that's a copy of it\. those tokens gain haste\. exile those tokens at the beginning of the next end step\.?$/i.test(pwt) ? { fx: [{ type: 'saheeliUlt' }] }          // T-139: Saheeli, the Gifted -7
+          : /^when you next cast an instant or sorcery spell this turn, copy that spell\. you may choose new targets for the copy\.?$/i.test(pwt) ? { fx: [{ type: 'nextSpellCopy' }] }          // T-139: Ral, Storm Conduit -2 (rules batch 52's effect; this line read only the first sentence)
+          : /^untap each enchanted permanent you control\.?$/i.test(pwt) ? { fx: [{ type: 'untapEnchanted' }] }          // T-139: Estrid, the Masked +2
           : /^add \{r\}\{r\}\{r\}\. spend this mana only to cast instant or sorcery spells\.?$/i.test(pwt) ? { fx: [{ type: 'restrictMana', colors: ['R'], amount: 3, R: { k: 'instantSorcery' } }] }          // T-139: Jaya Ballard
           : /^you gain 2 life\. add \{u\}, \{r\}, or \{w\}\. spend this mana only to cast a noncreature spell\.?$/i.test(pwt) ? { fx: [{ type: 'gainLife', n: 2 }, { type: 'restrictMana', colors: ['U', 'R', 'W'], amount: 1, R: { k: 'noncreature' } }] }          // T-139: Narset of the Ancient Way
           : /^add \{r\} or \{g\}\. creature spells you cast this turn can't be countered\.?$/i.test(pwt) ? { fx: parseEffects('Add {R} or {G}.').fx.concat([{ type: 'noCounterCreat' }]) }          // T-139: Domri, Anarch of Bolas
@@ -5594,6 +5618,8 @@
   }
   function effectiveCost(g, inst) {
     let c = effectiveCost1(g, inst);
+    if (g.freeCastEmblem && !g.dry && g.hand.includes(inst) && !inst.card.a.isLand) c = { generic: 0, pips: [], x: 0 };          // T-139: Tamiyo, Field Researcher's emblem
+    else if (g.affNext === g.turn && c.generic > 0) c = Object.assign({}, c, { generic: Math.max(0, c.generic - g.battlefield.filter(q => q.card.a.isArtifact && !q.phased).length) });          // T-139: Saheeli, the Gifted +1 (affinity for artifacts)
     inst._phyLife = 0;
     if (inst.xZero && c.x) c = Object.assign({}, c, { generic: Math.max(0, c.generic - c.x), x: 0 });          // T-135 (the base X = 1 sits in the generic part, a.cost): a person chose X = 0 (CR 107.3): no mana for X
     if (!c.phy || !c.phy.length) return c;
@@ -6931,6 +6957,7 @@
       else if (n === 'LASTMV') n = g.lastCast && g.lastCast.card ? (g.lastCast.card.a.mv || 0) : 0;          // Secret Arcade: that spell's mana value
       else if (n === 'SELFCOUNTERS') n = source ? Math.max(0, source.counters || 0) : 0;          // Big Mother Mouser: its +1/+1 counters
       else if (n === 'SRCCOUNTERS') n = source ? (source.counters || 0) + Object.values(source.other || {}).reduce((t, v) => t + (v > 0 ? v : 0), 0) : 0;          // Warden of the Grove
+      else if (n === 'HALFLIB') n = Math.ceil(g.library.length / 2);          // T-139: Tamiyo, Inquisitive Student -7
       else if (n === 'COLORLESSC') n = g.battlefield.filter(q => isCreaturePerm(q) && !colorsOf(g, q.card).length).length;          // Tomb of the Spirit Dragon
       if (f.instead && f.type === 'draw') { const have = f.instead.what === 'lands' ? g.battlefield.filter(q => q.asLand && !q.phased).length : g.battlefield.filter(q => q.card.a.isArtifact && !q.phased).length; if (have >= f.instead.min) n = f.instead.n; }          // T-139: "Draw a card. If you control eight or more lands, draw two cards instead." (Zimone, Tezzeret)
       if (f.countWhat) n = countWhat(g, f.countWhat, source);
@@ -8873,6 +8900,42 @@
           }
           ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}each opponent discards or loses 3 life, seven times`, source }); break;
         }
+        case 'stormEmblem': g.stormEmblem = true; ev.push({ type: 'note', text: 'Emblem: instant and sorcery spells you cast have storm', source }); break;
+        case 'freeCastEmblem': g.freeCastEmblem = true; ev.push({ type: 'note', text: 'Emblem: you may cast spells from your hand without paying their mana costs', source }); break;
+        case 'gyReturnPerm': {                                                                              // T-139: Wrenn and Seven -8: every permanent card from your graveyard to your hand
+          const back = g.graveyard.filter(i => i.card.a.isPermanent && !i.card.commander);
+          back.forEach(i => { g.graveyard.splice(g.graveyard.indexOf(i), 1); g.hand.push(i); });
+          if (back.length) ev.push({ type: 'note', text: `Returned ${back.length} permanent card${back.length > 1 ? 's' : ''} from the graveyard to your hand`, source }); break;
+        }
+        case 'exileTopArt': {                                                                               // T-139: Tezzeret, Master of the Bridge -8: exile the top ten, the artifact cards among them onto the battlefield
+          const top = g.library.splice(0, Math.min(f.n || 10, g.library.length)); const arts = top.filter(i => i.card.a.isArtifact && !i.card.a.isLand && !entryBlocked(g, i.card, 'lib'));
+          for (const i of top) if (!arts.includes(i)) g.exile.push(i);
+          ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}exiles ${top.map(i => i.card.name).join(', ')}`, source });
+          for (const i of arts) enterWithTriggers(g, i, {}, ev); break;
+        }
+        case 'zarekUlt': {                                                                                  // T-139: Ral Zarek -7: flip five coins, an extra turn for each heads
+          let h = 0; for (let k = 0; k < 5; k++) if (g.rnd() < 0.5) h++;
+          ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}flips five coins: ${h} heads`, source }); if (h > 0) applyEffects(g, [{ type: 'extraTurn', n: h }], source, ev, null); break;
+        }
+        case 'teferiWSS': {                                                                                 // T-139: Teferi, Who Slows the Sunset +1: untap yours, tap theirs (an artifact, a creature and a land)
+          const kinds = [q => q.card.a.isArtifact && !q.asLand && !isCreaturePerm(q), q => isCreaturePerm(q), q => q.asLand];
+          for (const ok of kinds) {
+            const mine1 = g.battlefield.filter(q => !q.phased && ok(q) && q.tapped).sort((x, y) => (y.produce ? y.produce.amount : 0) + (isCreaturePerm(y) ? powerOf(g, y) : 0) - (x.produce ? x.produce.amount : 0) - (isCreaturePerm(x) ? powerOf(x.card ? g : g, x) : 0))[0];
+            if (mine1) { mine1.tapped = false; touch(g); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untaps ${mine1.card.name}`, source }); }
+            if (g.opp && !g.dry) { const th = g.opp.battlefield.filter(q => !q.phased && ok(q) && !q.tapped && targetable(g.opp, q)).sort((x, y) => (isCreaturePerm(y) ? threat(g.opp, g, y) : (y.produce ? y.produce.amount : 0)) - (isCreaturePerm(x) ? threat(g.opp, g, x) : (x.produce ? x.produce.amount : 0)))[0]; if (th) { th.tapped = true; touch(g.opp); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}taps ${th.card.name}`, source }); } }
+          }
+          break;
+        }
+        case 'affinityNext': g.affNext = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}the next spell you cast this turn has affinity for artifacts`, source }); break;
+        case 'saheeliUlt': {                                                                                // T-139: Saheeli, the Gifted -7: a hasty token copy of each artifact, exiled at the next end step
+          const arts = g.battlefield.filter(q => q.card.a.isArtifact && !q.phased && !q.asLand).slice(0, 40);
+          for (const q of arts) { if (g.battlefield.length >= 250) break; const np = enterWithTriggers(g, { iid: g.nextIid++, card: q.card }, { token: true }, ev); np.token = true; np.sick = false; np.eotKw = new Set([...(np.eotKw || []), 'haste']); np.exileEnd = true; }
+          ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}${arts.length} token cop${arts.length === 1 ? 'y' : 'ies'} with haste, exiled at the next end step`, source }); break;
+        }
+        case 'untapEnchanted': {                                                                            // T-139: Estrid, the Masked +2: untap each enchanted permanent you control
+          const hit = g.battlefield.filter(q => q.tapped && g.battlefield.some(a => a.card.a.isAura && a.attachedTo === q.iid)); hit.forEach(q => { q.tapped = false; }); if (hit.length) { touch(g); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untaps ${hit.map(q => q.card.name).join(', ')}`, source }); } break;
+        }
+        case 'coinTreasure': { const win = g.rnd() < 0.5; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}flips a coin: ${win ? 'wins' : 'loses'}`, source }); if (win) createTokens(g, { type: 'token', n: 1, creature: false, name: 'Treasure', artifact: true }, 1, ev, source); break; }          // T-139: The Gold Saucer
         case 'noCounterCreat': g.noCounterCreat = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}creature spells you cast this turn can't be countered`, source }); break;
         case 'jaceMM': {                                                                                   // T-139: Jace, Mirror Mage 0: draw and reveal a card, remove that many loyalty counters from him
           const before = g.hand.length; draw(g, 1, ev); const c = g.hand.length > before ? g.hand[g.hand.length - 1] : null; if (!c) break;
@@ -9831,7 +9894,8 @@
     const a = inst.card.a;
     const storms = (tableHas(g, 'statics.stormCopy') ? g.battlefield.filter(p => p.card.a.statics.stormCopy) : []).length;
     if (storms && (g.isCast || 0) > 0) copySpell(g, inst, ev, (g.isCast || 0) * storms);
-    if ((a.storm || (a.isInstantSorcery && bfInfo(g).stormAll)) && (g.spellsCast || 0) > 1) { ev.push({ type: 'note', text: `Storm: ${g.spellsCast - 1} cop${g.spellsCast === 2 ? 'y' : 'ies'} of ${inst.card.name}` }); copySpell(g, inst, ev, g.spellsCast - 1); }
+    g.affNext = null;          // T-139: Saheeli's affinity was for this one spell
+    if ((a.storm || (a.isInstantSorcery && (bfInfo(g).stormAll || g.stormEmblem))) && (g.spellsCast || 0) > 1) { ev.push({ type: 'note', text: `Storm: ${g.spellsCast - 1} cop${g.spellsCast === 2 ? 'y' : 'ies'} of ${inst.card.name}` }); copySpell(g, inst, ev, g.spellsCast - 1); }
     g.isCast = (g.isCast || 0) + 1;
     if (a.spellFx.length && a.castMv <= 4 && fxValue(g, a.spellFx) >= 2) {
       const c = g.hand.find(i => i.card.a.copyOne && a.castMv <= i.card.a.copyOne.mv && canPay(effectiveCost(g, i), allUnits(g)));

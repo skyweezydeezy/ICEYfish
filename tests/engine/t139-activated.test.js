@@ -8,7 +8,7 @@ const idx = JSON.parse(fs.readFileSync(path.join(DS, 'index.json'), 'utf8')), st
 idx.sets.forEach(s => { store[s.code] = JSON.parse(fs.readFileSync(path.join(DS, (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s.code) ? s.code + '_' : s.code) + '.json'), 'utf8')); });
 const find = n => { for (const f of Object.values(store)) { const c = f.cards.find(x => (x.name === n || x.name.split(' // ')[0] === n) && !x.ref); if (c) return Object.assign({}, c, { qty: 1 }); } throw new Error('not in the database: ' + n); };
 const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'red-rum-raiders-loaded.json'), 'utf8'));
-const NAMES = ["Bonders' Enclave", 'Idol of Oblivion', 'Minas Tirith', 'Arch of Orazca', 'Speaker of the Heavens', 'The Raven Man', 'Tinybones, Bauble Burglar', 'Ozolith, the Shattered Spire', 'Voldaren Estate', 'Serra Angel', 'Vampire Nighthawk', 'Llanowar Elves', 'Shivan Dragon', 'Swamp', 'Mountain', 'Plains', 'Forest'];
+const NAMES = ["Bonders' Enclave", 'Idol of Oblivion', 'Minas Tirith', 'Arch of Orazca', 'Speaker of the Heavens', 'The Raven Man', 'Tinybones, Bauble Burglar', 'Ozolith, the Shattered Spire', 'Voldaren Estate', 'Serra Angel', 'Vampire Nighthawk', 'Llanowar Elves', 'Shivan Dragon', 'Swamp', 'Mountain', 'Plains', 'Forest', 'Island', 'Endless Atlas', 'Raving Visionary', 'Sea Gate Wreckage', 'Resonating Lute', 'Leechridden Swamp', 'Luminarch Ascension', 'The Gold Saucer'];
 const cards = base.cards.filter(c => !NAMES.includes(c.name)).slice(0, 30).concat(NAMES.map(n => find(n)));
 const deck = G.buildDeck(cards, base.tokens);
 const O = { turns: 20, onPlay: false, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40, prioritizeCommander: true };
@@ -92,6 +92,26 @@ T('Voldaren Estate: {5}, {T}: Blood token, {1} less for each Vampire you control
   let e = entry(g, p, /Blood/i); check('five mana needed, four lands + itself cannot pay while it taps: blocked', e && !e.ok, e && e.why);
   putOn(g, 'Vampire Nighthawk'); e = entry(g, p, /Blood/i); check('one Vampire: {4} suffices', e && e.ok, e && e.why);
   const n = g.battlefield.length; run(g, p, e); check('a Blood token is made and the four lands are tapped', g.battlefield.length === n + 1 && g.battlefield.some(q => q.token && /Blood/.test(q.card.name)) && g.battlefield.filter(q => q.asLand && q.tapped).length >= 4);
+});
+
+T('Endless Atlas, Sea Gate Wreckage, Resonating Lute, Raving Visionary, Leechridden Swamp, Luminarch Ascension: their "Activate only" conditions', () => {
+  for (const n of ['Endless Atlas', 'Raving Visionary', 'Sea Gate Wreckage', 'Resonating Lute', 'Leechridden Swamp', 'Luminarch Ascension']) check(n + ': every line ok or neutral', by(n).a.coverage.every(r => r.status === 'ok' || r.status === 'neutral'), by(n).a.coverage.map(r => r.status).join());
+  let g = bare(); lands(g, 5, 'Island'); let p = putOn(g, 'Endless Atlas'); g.library.unshift(inst(g, 'Plains'));
+  let e = entry(g, p, /Draw a card/); check('Endless Atlas: three lands with the same name needed (Islands + the Atlas itself)', e && e.ok, e && e.why);
+  g = bare(); putOn(g, 'Island'); putOn(g, 'Island'); putOn(g, 'Swamp'); lands(g, 2, 'Plains'); p = putOn(g, 'Endless Atlas'); e = entry(g, p, /Draw a card/); check('...two of each name only: blocked', e && !e.ok && /same name/.test(e.why || ''), e && e.why);
+  g = bare(); lands(g, 3, 'Island'); p = putOn(g, 'Sea Gate Wreckage'); g.hand = [inst(g, 'Plains')]; e = entry(g, p, /Draw a card/); check('Sea Gate Wreckage: blocked with a card in hand', e && !e.ok && /in hand/.test(e.why || ''), e && e.why);
+  g.hand = []; putOn(g, 'Sol Ring'); e = entry(g, p, /Draw a card/); check('...available with an empty hand', e && e.ok, e && e.why);
+  g = bare(); lands(g, 2, 'Island'); p = putOn(g, 'Resonating Lute'); g.hand = Array.from({ length: 6 }, () => inst(g, 'Plains')); e = entry(g, p, /Draw a card/); check('Resonating Lute: six cards in hand: blocked', e && !e.ok, e && e.why);
+  g.hand.push(inst(g, 'Plains')); e = entry(g, p, /Draw a card/); check('...seven: available', e && e.ok, e && e.why);
+  g = bare(); lands(g, 2, 'Swamp'); p = putOn(g, 'Raving Visionary'); e = entry(g, p, /Draw a card/ ); g.graveyard = [inst(g, 'Plains'), inst(g, 'Serra Angel'), inst(g, 'Sol Ring')]; const e3 = G.abilityMenu(g, p).filter(x => /Draw a card$/.test(x.label || '') || /Draw a card/.test(x.label || ''));
+  check('Raving Visionary: delirium (four card types) needed for the second ability', e3.some(x => !x.ok && /card types/.test(x.why || '')), JSON.stringify(e3.map(x => x.why)));
+  g.graveyard.push(inst(g, 'Swamp')); g.graveyard.push({ iid: g.nextIid++, card: by('Shivan Dragon') }); g.graveyard.push(inst(g, 'Llanowar Elves'));
+  g = bare(); lands(g, 2, 'Swamp'); p = putOn(g, 'Leechridden Swamp'); let m = G.abilityMenu(g, p).find(x => /loses 1 life/.test(x.label || '')); check('Leechridden Swamp: blocked below two black permanents', m && !m.ok && /color/.test(m.why || ''), m && m.why);
+  putOn(g, 'Vampire Nighthawk'); putOn(g, 'Vampire Nighthawk'); m = G.abilityMenu(g, p).find(x => /loses 1 life/.test(x.label || '')); check('...a black creature makes it available', m && m.ok, m && m.why);
+  g = bare(); lands(g, 2, 'Plains'); p = putOn(g, 'Luminarch Ascension'); e = entry(g, p, /Angel/); check('Luminarch Ascension: blocked with no quest counters', e && !e.ok && /quest/.test(e.why || ''), e && e.why);
+  p.other = { quest: 4 }; e = entry(g, p, /Angel/); check('...available with four', e && e.ok, e && e.why);
+  g = bare(); lands(g, 2, 'Island'); p = putOn(g, 'The Gold Saucer'); g.rnd = () => 0.1; e = entry(g, p, /Flip a coin/); run(g, p, e); check('The Gold Saucer: a won flip makes a Treasure', g.battlefield.some(q => q.token && /Treasure/.test(q.card.name)));
+  g = bare(); lands(g, 2, 'Island'); p = putOn(g, 'The Gold Saucer'); g.rnd = () => 0.9; e = entry(g, p, /Flip a coin/); run(g, p, e); check('...a lost flip does not', !g.battlefield.some(q => q.token && /Treasure/.test(q.card.name)));
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
