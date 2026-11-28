@@ -3995,11 +3995,11 @@
 
   // T-127 stage 6: the priority loop is on by default. `priority: false` in a game's options (or ISF_PRIORITY=0 in the environment, for comparing with the old engine) turns it off.
   const PRIORITY_DEFAULT = !(typeof process !== 'undefined' && !!process.env && process.env.ISF_PRIORITY === '0');
-  // T-132: targets of triggered and activated abilities are chosen as they go on the stack (CR 602.2b, 603.3d) and checked again as they resolve (608.2b). Off unless opts.abilityTargets (ISF_ABILITY_TARGETS=1 turns it on for a whole run).
-  const ABILITY_TARGETS_ENV = typeof process !== 'undefined' && !!process.env && process.env.ISF_ABILITY_TARGETS === '1';
+  // T-132: targets of triggered and activated abilities are chosen as they go on the stack (CR 602.2b, 603.3d) and checked again as they resolve (608.2b). On by default; `abilityTargets: false` in a game's options (or ISF_ABILITY_TARGETS=0 in the environment, to compare with the old engine) turns it off.
+  const ABILITY_TARGETS_DEFAULT = !(typeof process !== 'undefined' && !!process.env && process.env.ISF_ABILITY_TARGETS === '0');
   function newGame(deck, opts, seed) {
     if (PRIORITY_DEFAULT && opts.priority === undefined) opts = Object.assign({}, opts, { priority: true });
-    if (ABILITY_TARGETS_ENV && opts.abilityTargets === undefined) opts = Object.assign({}, opts, { abilityTargets: true });
+    if (ABILITY_TARGETS_DEFAULT && opts.abilityTargets === undefined) opts = Object.assign({}, opts, { abilityTargets: true });
     const rnd = mulberry32(seed >>> 0);
     const g0 = {
       rnd, opts, seed, deck, U: deckFacts(deck),
