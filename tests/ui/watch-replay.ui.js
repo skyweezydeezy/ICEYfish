@@ -28,7 +28,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.waitForSelector('#deckWatch:not([hidden])', { timeout: 10000 });
   const line = await p.$eval('#deckWatch .dw-line', e => e.textContent);
   check('Build: one line "Fastest win vs <deck>: turn N" with a Watch button', new RegExp(`^Fastest win vs .+: turn ${stored.turn} · (about 1 game in [\\d,]+|rarer than 1 in [\\d,]+)$`).test(line) && /Watch/.test(await p.$eval('#deckWatch .dw-go', e => e.textContent)), line);
-  check('Build: the line is compact (at most two rows), its explanation is folded behind the i', await p.$eval('#deckWatch', e => e.getBoundingClientRect().height < 60) && await p.$eval('#deckWatch .hint', e => e.classList.contains('folded')));
+  check('Build: the line is one line high, its explanation is folded behind the i', await p.$eval('#deckWatch', e => e.getBoundingClientRect().height < 34) && await p.$eval('#deckWatch .hint', e => e.classList.contains('folded')));
   const V = () => p.evaluate(() => { const g = window.__isfVersus.duel.game; return g ? { ply: g.ply, over: g.over, playing: g.playing, busy: g.busy, winner: g.match.winner, turns: g.games.map(x => x.turn), round: g.match.round, fp: JSON.stringify(g.games.map(x => [x.turn, x.life, x.hand.map(i => i.card.name).sort(), x.battlefield.map(i => i.card.name).sort(), x.graveyard.length, x.library.length])) } : null; });
   const atPly = (n) => p.waitForFunction(n => { const g = window.__isfVersus.duel.game; return g && g.ply === n && !g.busy; }, n, { timeout: 90000 });
   // ▶ Watch: the Duel tab, the dice first

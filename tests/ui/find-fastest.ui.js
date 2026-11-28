@@ -24,13 +24,13 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('#loadDeck');
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 });
   await p.waitForSelector('#deckWatch:not([hidden])', { timeout: 10000 });
-  check('a pasted deck: the line offers the search, no Watch yet', /not searched yet/.test(await p.textContent('#deckWatch .dw-line')) && await p.isHidden('#deckWatch .dw-go') && /Find/.test(await p.textContent('#deckWatch .dw-find')));
+  check('a pasted deck: the line offers the search, no Watch yet', /not searched yet/.test(await p.textContent('#deckWatch .dw-line')) && await p.isHidden('#deckWatch .dw-go') && /Find/.test(await p.getAttribute('#deckWatch .dw-find', 'aria-label')) && await p.isVisible('#deckWatch .dw-find'));
   await p.click('#deckWatch .dw-find');
   await p.waitForFunction(() => /Searching|Loading/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 30000 });
   check('the line shows progress while it searches', true);
   await p.waitForFunction(() => /^Fastest win vs .+: turn \d+ · /.test(document.querySelector('#deckWatch .dw-line').textContent) || /No win found/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 280000 });
   const line = await p.textContent('#deckWatch .dw-line'), spec = await p.evaluate(() => JSON.parse(document.querySelector('#deckWatch').dataset.spec || 'null'));
-  check('it finds a win: "Fastest win vs <deck>: turn N" with Watch, and the button reads Again', !!spec && await p.isVisible('#deckWatch .dw-go') && /Again/.test(await p.textContent('#deckWatch .dw-find')), line);
+  check('it finds a win: "Fastest win vs <deck>: turn N" with Watch, and Search again moves behind the i', !!spec && await p.isVisible('#deckWatch .dw-go') && /Search again/.test(await p.textContent('#deckWatch .dw-find')) && await p.isHidden('#deckWatch .dw-find'), line);
   await p.reload(); await p.waitForFunction(() => document.querySelectorAll('#savedDecks option[value^="builtin:"]').length > 10, null, { timeout: 30000 });
   await p.fill('#deckText', fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'frodo.txt'), 'utf8')); await p.click('#loadDeck');
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 });

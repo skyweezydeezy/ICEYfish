@@ -336,7 +336,10 @@
     el.querySelector('.dw-line').textContent = f && opp ? `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}${rare ? ' · ' + rare : ''}` : 'Fastest Duel win: not searched yet';
     el.querySelector('.dw-detail').textContent = f && opp ? ` Found by playing ${r ? r.goldfish.toLocaleString() : 'many'} goldfish games to rank seeds, then ${f.stage2 || 'many'} Duels against ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}, a Bracket 3 deck with blockers, removal and counterspells that does not win fast itself. "About 1 game in N" is how often the goldfish games kill by turn ${f.turn}. In this game the opponent fought back ${it ? it.total : '?'} time${it && it.total === 1 ? '' : 's'}: ${it ? `${it.blocks} block${it.blocks === 1 ? '' : 's'}, ${it.counters} counterspell${it.counters === 1 ? '' : 's'}, ${it.removal} removal` : ''}.` : '';
     el.querySelector('.dw-go').hidden = !(f && opp);
-    el.querySelector('.dw-find').textContent = f ? '🔍 Again' : '🔍 Find';
+    const fb = el.querySelector('.dw-find') || (() => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost dw-find'; return b; })();
+    fb.textContent = f ? '🔍 Search again' : '🔍'; fb.title = 'Find fastest win: search this deck\'s quickest win in a Duel against the standard opponent (about half a minute)'; fb.setAttribute('aria-label', 'Find fastest win');
+    (f && opp ? el.querySelector('.dw-slot2') : el.querySelector('.dw-slot')).appendChild(fb);          // one line: a small 🔍 on it until there is a result; then Search again sits behind the i
+    el.querySelector('.dw-line').title = el.querySelector('.dw-line').textContent;
     el.dataset.spec = f && opp ? JSON.stringify(Object.assign({}, f, d ? { file: d.file } : { self: true, name: el.dataset.name })) : '';
     el.hidden = false;
   }
@@ -344,7 +347,8 @@
     const sp = $('#deckWatch').dataset.spec;
     if (sp && window.__isfVersus && window.__isfVersus.watch) window.__isfVersus.watch(JSON.parse(sp));
   });
-  $('#deckWatch .dw-find').addEventListener('click', async () => {
+  $('#deckWatch').addEventListener('click', async e => {
+    if (!e.target.closest('.dw-find')) return;
     const el = $('#deckWatch'), btn = el.querySelector('.dw-find'), line = el.querySelector('.dw-line'), V = window.__isfVersus;
     if (!V || !V.findFastest || btn.disabled) return;
     const key = el.dataset.key, file = el.dataset.file, was = line.textContent;
