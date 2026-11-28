@@ -64,9 +64,9 @@ T('Saheeli, the Gifted +1 (affinity for artifacts) and -7 (hasty token copies of
   const tk = g2.battlefield.filter(q => q.token && q.exileEnd); check('two token copies marked to be exiled at the end step, with haste', tk.length === 2 && tk.every(q => G.hasKw(g2, q, 'haste')), tk.length);
 });
 T('Ral, Storm Conduit -2: the next instant or sorcery is copied', () => {
-  const g = duel()[0]; const r = putOn(g, 'Ral, Storm Conduit'); r.loyalty = 5; act(g, r, pwa(g, 'Ral, Storm Conduit', -2)); check('the flag is set for this turn', g.copyNext === g.turn);
+  const g = duel()[0]; const r = putOn(g, 'Ral, Storm Conduit'); r.loyalty = 5; act(g, r, pwa(g, 'Ral, Storm Conduit', -2)); check('the flag is set for this turn', g.twinfernoTurn === g.turn);
   for (let i = 0; i < 4; i++) putOn(g, 'Forest'); g.hand.push(inst(g, 'Harmonize')); g.library = g.library.slice(0, 20); const n0 = g.hand.length; const ev = G.castCard(g, g.hand[g.hand.length - 1]);
-  check('Harmonize (draw three) is cast and copied: six cards drawn', g.hand.length - (n0 - 1) === 6 && !g.copyNext, g.hand.length - (n0 - 1) + ' copyNext ' + g.copyNext);
+  check('Harmonize (draw three) is cast and copied: six cards drawn', g.hand.length - (n0 - 1) === 6 && !g.twinfernoTurn, g.hand.length - (n0 - 1));
 });
 T('Estrid +2: untap each enchanted permanent you control', () => {
   const g = duel()[0]; const e = putOn(g, 'Estrid, the Masked'); const t = putOn(g, 'Sol Ring'); t.tapped = true; const au = putOn(g, 'Animate Dead'); au.attachedTo = t.iid; act(g, e, pwa(g, 'Estrid, the Masked', 2));

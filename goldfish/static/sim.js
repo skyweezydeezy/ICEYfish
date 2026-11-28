@@ -3165,7 +3165,7 @@
           : /^choose up to one target artifact, up to one target creature, and up to one target land\. untap the chosen permanents you control\. tap the chosen permanents you don't control\. you gain 2 life\.?$/i.test(pwt) ? { fx: [{ type: 'teferiWSS' }, { type: 'gainLife', n: 2 }] }          // T-139: Teferi, Who Slows the Sunset +1
           : /^the next spell you cast this turn has affinity for artifacts\.?$/i.test(pwt) ? { fx: [{ type: 'affinityNext' }] }          // T-139: Saheeli, the Gifted +1
           : /^for each artifact you control, create a token that's a copy of it\. those tokens gain haste\. exile those tokens at the beginning of the next end step\.?$/i.test(pwt) ? { fx: [{ type: 'saheeliUlt' }] }          // T-139: Saheeli, the Gifted -7
-          : /^when you next cast an instant or sorcery spell this turn, copy that spell\. you may choose new targets for the copy\.?$/i.test(pwt) ? { fx: [{ type: 'copyNextIS' }] }          // T-139: Ral, Storm Conduit -2
+          : /^when you next cast an instant or sorcery spell this turn, copy that spell\. you may choose new targets for the copy\.?$/i.test(pwt) ? { fx: [{ type: 'nextSpellCopy' }] }          // T-139: Ral, Storm Conduit -2 (rules batch 52's effect; this line read only the first sentence)
           : /^untap each enchanted permanent you control\.?$/i.test(pwt) ? { fx: [{ type: 'untapEnchanted' }] }          // T-139: Estrid, the Masked +2
           : /^add \{r\}\{r\}\{r\}\. spend this mana only to cast instant or sorcery spells\.?$/i.test(pwt) ? { fx: [{ type: 'restrictMana', colors: ['R'], amount: 3, R: { k: 'instantSorcery' } }] }          // T-139: Jaya Ballard
           : /^you gain 2 life\. add \{u\}, \{r\}, or \{w\}\. spend this mana only to cast a noncreature spell\.?$/i.test(pwt) ? { fx: [{ type: 'gainLife', n: 2 }, { type: 'restrictMana', colors: ['U', 'R', 'W'], amount: 1, R: { k: 'noncreature' } }] }          // T-139: Narset of the Ancient Way
@@ -8919,7 +8919,6 @@
           for (const q of arts) { if (g.battlefield.length >= 250) break; const np = enterWithTriggers(g, { iid: g.nextIid++, card: q.card }, { token: true }, ev); np.token = true; np.sick = false; np.eotKw = new Set([...(np.eotKw || []), 'haste']); np.exileEnd = true; }
           ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}${arts.length} token cop${arts.length === 1 ? 'y' : 'ies'} with haste, exiled at the next end step`, source }); break;
         }
-        case 'copyNextIS': g.copyNext = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}the next instant or sorcery spell you cast this turn is copied`, source }); break;
         case 'untapEnchanted': {                                                                            // T-139: Estrid, the Masked +2: untap each enchanted permanent you control
           const hit = g.battlefield.filter(q => q.tapped && g.battlefield.some(a => a.card.a.isAura && a.attachedTo === q.iid)); hit.forEach(q => { q.tapped = false; }); if (hit.length) { touch(g); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untaps ${hit.map(q => q.card.name).join(', ')}`, source }); } break;
         }
@@ -9881,7 +9880,6 @@
     const a = inst.card.a;
     const storms = (tableHas(g, 'statics.stormCopy') ? g.battlefield.filter(p => p.card.a.statics.stormCopy) : []).length;
     if (storms && (g.isCast || 0) > 0) copySpell(g, inst, ev, (g.isCast || 0) * storms);
-    if (g.copyNext === g.turn && a.isInstantSorcery) { g.copyNext = null; ev.push({ type: 'note', text: `${inst.card.name} is copied (Ral, Storm Conduit)` }); copySpell(g, inst, ev, 1); }          // T-139
     g.affNext = null;          // T-139: Saheeli's affinity was for this one spell
     if ((a.storm || (a.isInstantSorcery && (bfInfo(g).stormAll || g.stormEmblem))) && (g.spellsCast || 0) > 1) { ev.push({ type: 'note', text: `Storm: ${g.spellsCast - 1} cop${g.spellsCast === 2 ? 'y' : 'ies'} of ${inst.card.name}` }); copySpell(g, inst, ev, g.spellsCast - 1); }
     g.isCast = (g.isCast || 0) + 1;
