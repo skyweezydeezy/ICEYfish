@@ -1686,7 +1686,7 @@
     ['cardkingdom', 'Card Kingdom', (c) => `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${enc(c.name)}`],
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
-  const LB_SCOPE = '.pz-tiles, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
+  const LB_SCOPE = '.pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
   const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
@@ -1785,9 +1785,12 @@
     if (lb.faceOf !== card) { lb.faceOf = card; lb.face = 0; }          // another card: start on its front
     if (n === 2) { lb.flip = flipCardEl(shown, { face: lb.face || 0, onFlip: f => { lb.face = f; } }); faces.appendChild(lb.flip); }          // a two-faced card: one face at a time, ⟲ (or F) turns it over
     else { lb.flip = null; faces.appendChild(cardEl(shown, { face: 0 })); }
-    let sx = null, sy = null;
-    faces.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; });
-    faces.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) lbGo(dx < 0 ? 1 : -1); });          // a clear sideways swipe; a scroll (mostly vertical) never moves
+    let sx = null, sy = null, lx = 0, ly = 0;
+    const done = (X, Y) => { if (sx == null) return; const dx = X - sx, dy = Y - sy; sx = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) lbGo(dx < 0 ? 1 : -1); };          // a clear sideways swipe; a scroll (mostly vertical) never moves
+    faces.addEventListener('pointerdown', e => { sx = lx = e.clientX; sy = ly = e.clientY; });
+    faces.addEventListener('pointermove', e => { if (sx != null) { lx = e.clientX; ly = e.clientY; } });
+    faces.addEventListener('pointerup', e => done(e.clientX, e.clientY));
+    faces.addEventListener('pointercancel', () => done(lx, ly));          // the browser took the gesture (a sideways pan): it was still a swipe
     row.appendChild(faces);
     row.appendChild(nav('next', '›', 1));
     wrap.appendChild(row);
