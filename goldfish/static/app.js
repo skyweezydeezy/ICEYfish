@@ -132,7 +132,6 @@
       minHandSize: +$('#optMullTo').value || 5, idealLandRatio: fmt === 'commander' ? 0.42 : 0.4, n: +$('#optN').value || 2000,
       policy: currentPolicy(),                                // choices learned in the Policy lab for this deck
       bookCombos: S.bookCombos || [],                         // the Commander Spellbook combos the goldfish counts for this deck (renderComboBook)
-      ...(window.__isfPriority ? { priority: true } : {}),          // T-130: the priority loop (off unless the hidden test toggle is on)
       ...(window.__isfAutoPass && window.__isfAutoPass !== 'smart' ? { autoPass: window.__isfAutoPass } : {}),          // 'never' asks at every step, 'always' never asks (Settings → Display → Stop to respond)
     };
   }
@@ -181,7 +180,6 @@
     $('#dispPayChoose').checked = d.payChoose !== false;          // T-099: on unless the person switched it off
     if (['smart', 'never', 'always'].includes(d.stop)) $('#dispStop').value = d.stop;
     $('#dispFuzzy').checked = d.fuzzy === true;          // T-131: off unless the person turned it on
-    window.__isfPriority = d.priority === true;          // T-130: a hidden test toggle (no control): { priority: true } in isf_display turns opts.priority on. The engine session makes it the default at stage 6.
     // T-131 "Guess unknown rules": the lines the engine can read are loaded the first time it is switched on; the deck is read again with it on or off.
     // Only this page's own reading changes. Simulations (worker.js), the rankings and the bracket checks never guess.
     let fuzzyIdx = null;
@@ -195,7 +193,7 @@
     apply();
     for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop', '#dispFuzzy']) $(id).addEventListener('change', () => {
       apply(); if (id === '#dispFuzzy') applyFuzzy();
-      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, priority: d.priority === true, fuzzy: $('#dispFuzzy').checked })); } catch (e) { /* storage blocked */ }
+      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, fuzzy: $('#dispFuzzy').checked })); } catch (e) { /* storage blocked */ }
     });
   })();
 
