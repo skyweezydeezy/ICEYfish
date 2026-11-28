@@ -21,6 +21,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.goto('http://127.0.0.1:8800/');
   await p.fill('#deckText', fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'frodo.txt'), 'utf8')); await p.click('#loadDeck');
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 }); await p.waitForTimeout(1500);
+  await require('../ui-seed').pin(p);          // the same games on every run
   const cdp = await ctx.newCDPSession(p);
   const swipe = async (dx, dy) => {
     const r = await p.evaluate(() => { const f = document.querySelector('#lightbox .lb-faces').getBoundingClientRect(); return { x: f.left + f.width / 2, y: f.top + f.height / 2 }; });

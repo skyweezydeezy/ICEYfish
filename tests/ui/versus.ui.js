@@ -80,10 +80,11 @@ const shot = process.env.VERSUS_SHOTS;
   check('your hand is shown as card pictures, with the playable ones glowing', hand0 >= 5 && (await p.$$('#tab-duel .vs-hand .mtg img')).length >= 1 && (await p.$$('#tab-duel .vs-card.can')).length >= 1, hand0);
   const lands0 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].battlefield.filter(x => x.asLand).length);
   await p.evaluate(() => { const g = window.__isfVersus.duel.game.games[0]; const l = g.hand.find(i => i.card.a.isLand); if (l) document.querySelector('#tab-duel .vs-card[data-iid="' + l.iid + '"]').click(); });
+  await viewerPick(p);          // T-134: the card opens in the viewer; "Play land" is its button
   // a land may ask first (a shock land: pay 2 life?) and enter only once answered: take the autopilot's answer, as everywhere here
   await until('duel', n => { const g = window.__isfVersus.duel.game; return !g.choice && g.games[0].battlefield.filter(x => x.asLand).length > n; }, lands0, 15000).catch(() => {});
   const lands1 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].battlefield.filter(x => x.asLand).length);
-  check('clicking a land in your hand plays it', lands1 === lands0 + 1, lands0 + ' -> ' + lands1);
+  check('tapping a land in your hand opens it, and its Play land button plays it', lands1 === lands0 + 1, lands0 + ' -> ' + lands1);
   await p.click('#tab-duel .vs-attack');
   check('Attack… opens the attacker chooser', !!(await p.$('#tab-duel .vs-attack-go')));
   await p.click('#tab-duel .vs-attack-go');
