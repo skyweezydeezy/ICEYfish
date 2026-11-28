@@ -80,6 +80,160 @@
         const ok = ks !== null && sel.size === P.n; $('.ch-ok').disabled = !ok;
         $('.ch-count').textContent = `${sel.size} of ${P.n} chosen${sel.size === P.n && !ok ? ' · does not pay the cost' : ''}`;
       };
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const t = e.target;
+        if (t.closest('.ch-peek')) { const f = el.classList.toggle('peek'); t.closest('.ch-peek').textContent = f ? 'Show the choice' : 'Look at the table'; return; }
+        const cb = t.closest('.ch-col'); if (cb) { sel.set(+cb.dataset.u, cb.dataset.col || null); return render(); }
+        const b = t.closest('.ch-opt');
+        if (b) { const u = +b.dataset.u; if (sel.has(u)) sel.delete(u); else if (sel.size < P.n) sel.set(u, null); return render(); }
+        if (t.closest('.ch-auto')) return finish('smart');
+        if (t.closest('.ch-ok') && !$('.ch-ok').disabled) return finish(picks());
+      });
+      open = { q, el, resolve, reject };
+      document.body.appendChild(el);
+      render();
+    });
+  }
+
+  // T-130: the priority sheet (T-127; docs/PRIORITY-DESIGN.md section 6). You hold priority at a step: one line says what is happening
+  // (the top of the stack, else whose turn it is), a big Pass is the default, and what you can use now sits below it as options.
+  // Touch: a tap selects an option and "Cast"/"Use" confirms it (T-102: nothing is played by one stray tap). Mouse: a click plays it.
+  // Every button ignores taps in the first 350 ms after the sheet opens or the selection changes (the ghost tap of the tap that opened it).
+  const GHOST_MS = 350;
+  function priorityLine(q) {
+    const top = q.stack && q.stack[0];
+    if (top) {
+      const verb = top.kind === 'spell' ? (top.who === 'You' ? 'cast' : 'casts') : top.kind === 'ability' ? (top.who === 'You' ? 'activated' : 'activates') : 'trigger:';
+      return `${top.who} ${verb} ${top.name}${top.text ? ' · ' + top.text : ''}${q.stack.length > 1 ? ` (+${q.stack.length - 1} more)` : ''}`;
+    }
+    return q.turnOf === 'You' || !q.turnOf ? 'Your turn · nothing is on the stack' : `${q.turnOf}'s turn · nothing is on the stack`;
+  }
+  function askPriority(q) {
+    close();
+    return new Promise((resolve, reject) => {
+      const el = h('div', 'ch-sheet priority');
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', (q.stepName || 'You have priority') + ': you have priority');
+      const seen = new Map(), items = [];          // identical options (two Lightning Bolts) share one chip; it plays the first
+      for (const o of q.options) { const key = o.name + '|' + o.note; const it = seen.get(key); if (it) it.n++; else { const x = { o, n: 1 }; seen.set(key, x); items.push(x); } }
+      el.innerHTML = `
+        <div class="ch-head"><b class="ch-title">${esc(q.stepName || 'You have priority')}</b><button class="ghost ch-i" type="button" aria-expanded="false" title="What is this?" aria-label="What is this?">ⓘ</button><button class="ghost ch-peek" title="Fold this away to look at the table">Look at the table</button></div>
+        <div class="ch-body">
+          <div class="pr-ctx" role="status">${esc(priorityLine(q))}</div>
+          <div class="ch-info hint" hidden>${esc(q.text || '')} Passing moves the game on; if everyone passes with something on the stack, it resolves. You can change when you are stopped in Settings → Display → Stop to respond.</div>
+          <div class="row ch-btns pr-btns"><button class="primary pr-pass ch-none ch-auto" type="button">Pass</button><button class="pr-go" type="button" hidden></button></div>
+          <div class="ch-opts pr-opts" role="group" aria-label="What you can use now"></div>
+        </div>`;
+      const $ = s => el.querySelector(s), box = $('.pr-opts'), go = $('.pr-go');
+      let sel = null, at = Date.now(), lastType = '';
+      const ghost = () => Date.now() - at < GHOST_MS;
+      const touchy = () => lastType ? lastType === 'touch' : !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      const verbOf = o => (o.ability ? 'Use ' : 'Cast ') + o.name;
+      items.forEach((it, i) => {
+        const b = h('button', 'ch-opt text pr-opt'); b.type = 'button'; b.dataset.i = i; b.dataset.k = it.o.k; b.setAttribute('aria-pressed', 'false');
+        b.appendChild(h('span', 'ch-name', esc(it.o.name) + (it.n > 1 ? ` <i>×${it.n}</i>` : '')));
+        if (it.o.note) b.appendChild(h('small', 'ch-note', esc(it.o.note.replace(/^in response: /, ''))));
+        box.appendChild(b);
+      });
+      if (!items.length) box.remove();
+      const paint = () => {
+        box.querySelectorAll('.pr-opt').forEach(b => { const on = sel === +b.dataset.i; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+        go.hidden = sel == null; if (sel != null) go.textContent = verbOf(items[sel].o);
+      };
+      el.addEventListener('pointerdown', e => { lastType = e.pointerType || ''; }, true);
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const t = e.target;
+        if (t.closest('.ch-peek')) { const f = el.classList.toggle('peek'); t.closest('.ch-peek').textContent = f ? 'Show the choice' : 'Look at the table'; return; }
+        if (t.closest('.ch-i')) { const b = t.closest('.ch-i'), inf = $('.ch-info'); inf.hidden = !inf.hidden; b.setAttribute('aria-expanded', inf.hidden ? 'false' : 'true'); return; }
+        if (ghost()) return;
+        const b = t.closest('.pr-opt');
+        if (b) { const i = +b.dataset.i; if (!touchy()) return finish(items[i].o.k); sel = sel === i ? null : i; at = Date.now(); return paint(); }
+        if (t.closest('.pr-go') && sel != null) return finish(items[sel].o.k);
+        if (t.closest('.pr-pass')) return finish('none');
+      });
+      open = { q, el, resolve, reject };
+      document.body.appendChild(el);
+      paint();
+    });
+  }
+
+  function ask(q) {
+    if (q.kind === 'priority') return askPriority(q);
+    if (q.pay) return window.__isfPayChoose ? askPay(q) : Promise.resolve('smart');          // the Display setting "Choose how I pay mana" (off: nothing is shown, and the payment that wastes no mana is made)
+    close();
+    return new Promise((resolve, reject) => {
+      const ts = tiles(q), take = new Map();                  // tile -> how many of its cards are chosen
+      ts.forEach(t => { if (t.def) take.set(t, q.multi ? t.def : 1); });
+      if (!q.multi) { let one = false; ts.forEach(t => { if (take.has(t)) { if (one) take.delete(t); one = true; } }); }
+      const fan = !!q.fan && ts.every(t => t.o.card);
+      const el = h('div', 'ch-sheet ' + q.kind + (fan ? ' fanned' : ''));
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', q.title);
+      const defNames = q.def.map(k => q.options[k].name);
+      el.innerHTML = `
+        <div class="ch-head"><b class="ch-title">${esc(q.title)}</b><button class="ghost ch-peek" title="Fold this away to look at the table">Look at the table</button></div>
+        <div class="ch-body">
+          <div class="ch-text hint">${esc(q.text)}${q.multi ? ` <b class="ch-count"></b>` : ''}</div>
+          ${q.combo ? `<div class="ch-combo" role="status"><b>Combo assembled</b><span class="ch-combo-name">${esc(q.combo.name)}</span>${q.combo.cards.length ? `<small>${esc(q.combo.cards.join(' + '))}</small>` : ''}</div>` : ''}
+          ${q.combo && q.combo.outcome === 'mana' ? `<div class="ch-mana row"><label>How much mana? <input class="ch-mana-n" type="number" min="1" step="1" placeholder="number" aria-label="How much mana"></label><button class="ch-mana-go" type="button" disabled>Take that much</button><button class="ch-mana-inf" type="button" title="As much as you like" aria-label="Infinite mana: as much as you like">∞<span class="ch-inf-w"> Infinite</span></button></div>` : ''}
+          ${q.dest ? `<div class="ch-dest"><span>Goes to</span> <b>${esc(q.dest)}</b></div>` : ''}
+          ${ts.length > 12 ? '<input class="ch-filter" type="search" placeholder="Filter by name or type…" aria-label="Filter the cards">' : ''}
+          ${q.stack && q.stack.length ? `<details class="ch-stack"><summary>On the stack · ${q.stack.length} <small>(top: ${esc(q.stack[0].name)})</small></summary><div class="ch-stack-list"></div></details>` : ''}
+          <div class="ch-main"><div class="ch-spell"></div><div class="ch-opts"></div></div>
+          <div class="ch-picked"></div>
+          <div class="row wrap ch-btns">
+            <button class="primary ch-ok"></button>
+            ${q.none ? `<button class="ch-none">${esc(q.none)}</button>` : ''}
+            ${q.noAuto ? '' : `<button class="ghost ch-auto" title="Take what the autopilot would choose">Let the autopilot decide<small> · ${esc(defNames.length ? defNames.join(', ') : (q.none || 'nothing'))}</small></button>`}
+          </div>
+        </div>`;
+      const $ = s => el.querySelector(s), box = $('.ch-opts');
+      if (q.stack && q.stack.length) {          // the stack, newest first: each item with whose it is and what it is
+        const KIND = { spell: 'spell', ability: 'triggered ability', triggered: 'triggered, waiting to go on the stack' };
+        for (const it of q.stack) { const b = h('div', 'ch-stack-item'); if (it.card) b.appendChild(A.cardEl(it.card, {})); b.appendChild(h('small', '', `${esc(it.who)} · ${KIND[it.kind] || it.kind}`)); if (it.text) b.title = it.text; $('.ch-stack-list').appendChild(b); }
+      }
+      if (q.spell) { const c = A.cardEl(q.spell, { eager: true }); $('.ch-spell').append(c, h('small', '', esc(q.spellNote || 'being cast'))); } else $('.ch-spell').remove();
+      if (q.targets && q.targets.length) { const tb = h('div', 'ch-targets'); for (const t of q.targets) { const b = h('div', 'ch-target'); if (t.card) b.appendChild(A.cardEl(t.card, {})); b.appendChild(h('small', '', esc('target: ' + t.name))); tb.appendChild(b); } const sp = $('.ch-spell'); if (sp) sp.appendChild(tb); }          // T-072: what the spell targets
+      for (const t of ts) {
+        const b = h('button', 'ch-opt' + (t.def ? ' def' : '') + (t.o.card ? '' : ' text') + (t.o.disabled ? ' off' : ''));
+        if (t.o.disabled) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); }          // shown, with the reason in its note, but it cannot be picked
+        b.type = 'button'; b.dataset.t = t.i; b.dataset.k = t.ks[0]; b.title = t.o.name + (t.ks.length > 1 ? ` (${t.ks.length} in your library)` : '');
+        b.dataset.find = (t.o.name + ' ' + (t.o.card ? t.o.card.type_line || '' : '')).toLowerCase();
+        if (t.o.card) { const c = A.cardEl(t.o.card, { face: t.o.face || 0 }); b.appendChild(c); }
+        b.appendChild(h('span', 'ch-name', esc(t.o.name) + (t.ks.length > 1 ? ` <i>×${t.ks.length}</i>` : '')));
+        if (t.o.note) b.appendChild(h('small', 'ch-note', esc(t.o.note)));
+        if (t.def && !q.noAuto) b.appendChild(h('span', 'ch-star', '★ autopilot'));
+        b.appendChild(h('span', 'ch-took'));
+        b._acts = () => viewerActs(t);          // T-134: a tap on its picture opens the viewer; picking it is the button there
+        box.appendChild(b);
+      }
+      // the fan: a few cards spread in an arc; a long library is one overlapping row that scrolls sideways
+      const layFan = () => {
+        if (!fan) return;
+        const shown = [...box.querySelectorAll('.ch-opt')].filter(b => !b.hidden), n = shown.length;
+        const w = shown[0] ? shown[0].getBoundingClientRect().width || 128 : 128, arc = n <= 14 && box.clientWidth >= w * (1 + (n - 1) * 0.58) + 60;          // an arc only when it fits
+        box.classList.toggle('arc', arc);
+        shown.forEach((b, i) => { const x = n > 1 ? i / (n - 1) - 0.5 : 0; b.style.setProperty('--rot', arc ? (x * Math.min(28, n * 3.2)).toFixed(1) + 'deg' : '0deg'); b.style.setProperty('--dip', arc ? (x * x * Math.min(36, n * 4)).toFixed(1) + 'px' : '0px'); b.style.zIndex = String(i + 1); b.style.marginLeft = i === 0 ? '0' : arc ? `calc(var(--fan-w) * ${n <= 5 ? -0.12 : n <= 9 ? -0.3 : -0.42})` : ''; });          // a few cards barely overlap
+      };
+      const count = () => [...take.values()].reduce((a, b) => a + b, 0);
+      const picks = () => { const ks = []; for (const [t, n] of take) ks.push(...t.ks.slice(0, n)); return ks.sort((x, y) => x - y); };
+      const refresh = () => {
+        box.querySelectorAll('.ch-opt').forEach(b => { const t = ts[+b.dataset.t], n = take.get(t) || 0; b.classList.toggle('sel', n > 0); b.setAttribute('aria-pressed', n > 0 ? 'true' : 'false'); b.querySelector('.ch-took').textContent = n > 1 ? '×' + n : ''; });
+        const ok = $('.ch-ok'), n = count(), word = q.kind === 'search' ? 'Submit' : null;
+        ok.hidden = !ts.length;                               // nothing to pick (a spell on the stack you cannot answer): only "Let it resolve"
+        if (q.multi) {
+          ok.disabled = n < q.min || n > q.max;
+          ok.textContent = word ? (n ? `Submit (${n})` : 'Submit: take nothing') : q.kind === 'mode' ? 'Choose these' : `Confirm ${n} card${n === 1 ? '' : 's'}`;
+          $('.ch-count').textContent = q.min === q.max ? `${n} of ${q.max} chosen.` : q.min === 0 ? `${n} of up to ${q.max} chosen.` : `${n} chosen (${q.min} to ${q.max}).`;
+        } else {
+          const t = [...take.keys()][0];
+          ok.disabled = !t;
+          ok.textContent = !t ? (word ? 'Select a card' : q.kind === 'loyalty' ? 'Choose an ability' : 'Choose a card') : (word ? 'Submit' : q.kind === 'loyalty' ? 'Activate ' + t.o.label : (q.kind === 'counter' && !/^counter it/.test(t.o.note || '')) || q.kind === 'resolve' || q.kind === 'face' ? 'Cast ' + t.o.name : q.kind === 'counter' ? 'Counter with ' + t.o.name : 'Choose ' + t.o.name);
+          if (flip) { const fi = $('.ch-faceinfo'); if (fi && t) fi.innerHTML = `<b>${esc(t.o.name)}</b><small>${esc(t.o.note || '')}</small><span class="hint">${t.o.face ? 'Back face' : 'Front face'} · ⟲ turns the card over</span>`; }
+        }
+        const pk = $('.ch-picked');
+        if (pk && q.kind === 'search') pk.textContent = n ? 'Selected: ' + picks().map(k => q.options[k].name).join(', ') : 'Nothing selected yet.'; else if (pk) pk.remove();
+      };
       const pickTile = tile => {
         const has = take.get(tile) || 0;
         if (!q.multi) { const was = has; take.clear(); if (!was || !fan) take.set(tile, 1); }
