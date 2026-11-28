@@ -8,11 +8,10 @@ const D = path.join(ROOT, 'goldfish', 'static', 'data', 'sets'), idx = {};
 for (const f of fs.readdirSync(D)) { if (f === 'index.json') continue; for (const c of JSON.parse(fs.readFileSync(path.join(D, f), 'utf8')).cards || []) if (c.oracle_text !== undefined && !idx[c.name]) idx[c.name] = c; }
 const get = n => { if (!idx[n]) throw new Error('no card ' + n); return Object.assign({}, idx[n], { qty: 1 }); };
 const card = (name, type, text, extra) => Object.assign({ name, type_line: type, oracle_text: text, mana_cost: '{1}', cmc: 1, colors: [], color_identity: [], keywords: [], qty: 1, rarity: 'common' }, extra || {});
-const FUTURE = card('Future Sight', 'Enchantment', 'Play with the top card of your library revealed.\nYou may play lands and cast spells from the top of your library.', { mana_cost: '{2}{U}{U}{U}', cmc: 5, colors: ['U'] });
 const DRONE = card('Colorless Drone', 'Creature — Eldrazi Drone', '', { mana_cost: '{2}', cmc: 2, power: '2', toughness: '2' });
 const ISLAND = card('Island', 'Basic Land — Island', '{T}: Add {U}.', { mana_cost: '', cmc: 0, qty: 30, produced_mana: ['U'], produced: ['U'] });
 const SWAMP = card('Swamp', 'Basic Land — Swamp', '{T}: Add {B}.', { mana_cost: '', cmc: 0, qty: 10, produced_mana: ['B'], produced: ['B'] });
-const cards = [get("Bolas's Citadel"), get('Mystic Forge'), get('Courser of Kruphix'), get('Citadel Siege'), get('Sol Ring'), get('Walking Ballista'), get('Gravecrawler'), get('Sun Titan'), get('Lightning Bolt'), FUTURE, DRONE, ISLAND, SWAMP];
+const cards = [get("Bolas's Citadel"), get('Mystic Forge'), get('Courser of Kruphix'), get('Citadel Siege'), get('Sol Ring'), get('Walking Ballista'), get('Gravecrawler'), get('Sun Titan'), get('Lightning Bolt'), get('Future Sight'), get('Experimental Frenzy'), get('Thalia, Guardian of Thraben'), get('Sphere of Resistance'), get('Gilded Lotus'), DRONE, ISLAND, SWAMP];
 const deck = G.buildDeck(cards, []);
 const O = { turns: 20, onPlay: false, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40 };
 let pass = 0, fail = 0;
@@ -106,6 +105,37 @@ T('stack path: a spell cast from the top is on the stack and can be answered', (
   let sawStack = false; const orig = g.opts;
   const ev = G.playTop(g, 'life');
   check('cast went through castCard (the creature resolved onto the battlefield)', !!ev && onBf(g, 'Gravecrawler'));
+});
+T("Bolas's Citadel: cost increases still apply (CR 118.9d, 601.2f)", () => {
+  const g = bare(); putOn(g, "Bolas's Citadel"); putOn(g, 'Thalia, Guardian of Thraben'); top(g, 'Sol Ring');
+  let o = opt(g, 'life'); check('Thalia: "Cast for 1 life + {1}", greyed with no mana', o && !o.ok && /1 life \+ \{1\}/.test(o.label) && /Not enough mana/.test(o.why), JSON.stringify(o));
+  check('and playTop refuses, paying nothing', G.playTop(g, 'life') === null && g.life === 20 && g.library[0].card.name === 'Sol Ring');
+  putOn(g, 'Island'); o = opt(g, 'life'); check('with an Island: offered', o && o.ok, JSON.stringify(o));
+  const ev = G.playTop(g, 'life');
+  check('Sol Ring is cast: life paid, the Island tapped for the tax', !!ev && onBf(g, 'Sol Ring') && g.life === 19 && g.battlefield.find(p => p.card.name === 'Island').tapped && /\(Bolas's Citadel, 1 life \+ \{1\}\)/.test(notes(ev)), notes(ev) + g.life);
+  const g2 = bare(); putOn(g2, "Bolas's Citadel"); putOn(g2, 'Thalia, Guardian of Thraben'); top(g2, 'Gravecrawler');
+  o = opt(g2, 'life'); check('a creature spell is not taxed by Thalia', o && o.ok && !/\+/.test(o.label), JSON.stringify(o));
+  const g3 = bare(); putOn(g3, "Bolas's Citadel"); putOn(g3, 'Sphere of Resistance'); top(g3, 'Gravecrawler');
+  o = opt(g3, 'life'); check('Sphere of Resistance taxes every spell', o && !o.ok && /\+ \{1\}/.test(o.label), JSON.stringify(o));
+  const g4 = bare(); putOn(g4, "Bolas's Citadel"); putOn(g4, 'Sphere of Resistance'); top(g4, 'Gravecrawler'); g4.library.unshift(inst(g4, 'Swamp')); g4.library.shift(); G.castOne(g4);
+  check('the autopilot does not cast it for free past the Sphere', !onBf(g4, 'Gravecrawler'));
+});
+T('X = 0 with mana (CR 107.3)', () => {
+  const run = pick => { const g = bare(); for (let i = 0; i < 3; i++) putOn(g, 'Island'); const b = inst(g, 'Walking Ballista'); g.hand.push(b); const seen = [];
+    g.ask = (gg, d) => { if (d.kind === 'x') { seen.push({ o: d.options.slice(), def: d.def }); return pick === 'def' ? d.def : pick; } return d.def; };
+    const ev = G.castCard(g, b, false); g.ask = null; return { g, ev, seen, bp: g.battlefield.find(p => p.card.name === 'Walking Ballista'), tapped: g.battlefield.filter(p => p.card.name === 'Island' && p.tapped).length }; };
+  let r = run(0);
+  check('X offers 0 first, the old default (all the mana) stays the default', r.seen.length === 1 && r.seen[0].o[0] === 0 && r.seen[0].o.includes(1) && r.seen[0].def === Math.max(...r.seen[0].o), JSON.stringify(r.seen));
+  check('X = 0: Walking Ballista enters with no counters, no mana paid', !!r.ev && r.bp && (r.bp.counters || 0) === 0 && r.tapped === 0, r.bp && r.bp.counters + '/' + r.tapped);
+  r = run(1); check('X = 1: one counter, {2} paid', r.bp && r.bp.counters === 1 && r.tapped === 2, r.bp && r.bp.counters + '/' + r.tapped);
+  r = run('def'); check('the default is the autopilot\'s X (1 here, with three Islands)', r.bp && r.bp.counters === 1, r.bp && r.bp.counters);
+  const g = bare(); g.hand.push(inst(g, 'Walking Ballista')); g.ask = (gg, d) => d.kind === 'x' ? 0 : d.def;
+  const ev = G.castCard(g, g.hand[0], false); check('X = 0 with no mana at all is castable (it costs {0})', !!ev && onBf(g, 'Walking Ballista'));
+});
+T('Future Sight and Experimental Frenzy are the real cards', () => {
+  check('Future Sight: revealed to all, any spell and lands from the top', by('Future Sight').a.topReveal && by('Future Sight').a.topCast === 'any' && by('Future Sight').a.statics.landsFromTop);
+  const g = bare(); putOn(g, 'Experimental Frenzy'); top(g, 'Swamp');
+  check('Experimental Frenzy: look-only, lands and spells from the top', by('Experimental Frenzy').a.topLook && !!opt(g, 'land') && G.topCardView(g) === 'owner');
 });
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
