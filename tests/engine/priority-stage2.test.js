@@ -30,11 +30,11 @@ T('CR 603.3: Young Pyromancer\'s trigger resolves (its token is made) before Lig
   check('the token comes before the damage', at('token') >= 0 && at('damage') > at('token'), ev.map(e => e.type).join(','));
   check('the stack is empty afterwards', (g.match.stack || []).length === 0);
 });
-T('the opponent\'s end-step window is the priority question when opts.priority is on', () => {
+T('the opponent\'s end-step window keeps its instant question when opts.priority is on (and obeys autoPass)', () => {
   const [a, b] = match2(); on(a); on(b); lands(b, 3, 'Mountain'); const bolt = (b.hand.push(inst(b, 'Lightning Bolt')), b.hand[0]); b.hand.length = 1;
   const qs = seated(b, null, () => { G.instantWindow(b, [], 'end'); });
-  const q = qs.find(x => x.d.kind === 'priority');
-  check('kind priority, step end, title "End step"', !!q && q.d.step === 'end' && /^End step/.test(q.q.title), q && q.q.title);
+  const q = qs.find(x => x.d.kind === 'instant');
+  check('kind instant, step end, title "End of ...\'s turn"', !!q && q.d.step === 'end' && /^End of .*'s turn: cast an instant\?/.test(q.q.title), q && q.q.title);
   check('Pass is the default for a person who takes it', b.hand.includes(bolt) || b.graveyard.includes(bolt));
 });
 T('opts.autoPass always: the end-step window does not ask, and the person passes', () => {

@@ -4,9 +4,11 @@
 // each turn is played with D.resolveSync(D.playPlan) beside a copy nobody plays, and D.dump is compared after every turn.
 //   node tools/every-default-sweep.js            all pairs (about 2 minutes)
 //   PRIORITY=1 node tools/every-default-sweep.js   the same with opts.priority on and a question at every step (T-127)
+//   FUZZY=1 node tools/every-default-sweep.js     the same with "Guess unknown rules" on (T-131: guessed lines play like their template; the person must still play the autopilot's game)
 //   node tools/every-default-sweep.js 0 4        part 0 of 4 (run the four parts side by side)
 // Prints 'bad 0' when nothing differs; a DIVERGE line names the pair, seed, seat and round. Exit code 1 on any difference.
 const fs=require('fs'),R=require('path').join(__dirname,'..'),G=require(R+'/goldfish/static/sim.js'),D=require(R+'/goldfish/static/decide.js');
+if(process.env.FUZZY)G.setFuzzy(JSON.parse(fs.readFileSync(R+'/goldfish/static/data/fuzzy-index.json','utf8')));          // T-131: off unless asked for; the default sweep, the fingerprint and the bench never guess
 const names=fs.readdirSync(R+'/tests/fixtures').filter(f=>f.endsWith('-loaded.json')).map(f=>f.replace('-loaded.json','')).filter(n=>!/combo-pieces|punishers|locks|chosen/.test(n));
 const L={};names.forEach(n=>{const r=JSON.parse(fs.readFileSync(R+'/tests/fixtures/'+n+'-loaded.json','utf8'));L[n]=r;});
 const O={turns:25,onPlay:false,minLands:2,maxLands:5,freeMulligan:true,minHandSize:5,oppLife:40,prioritizeCommander:true};
