@@ -38,7 +38,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     check(`${name}: "Pick cards on the left" and the second box are gone`, await p.evaluate(() => !/Pick cards on the left/.test(document.body.textContent) && !document.querySelector('#tab-odds .two-col') && document.querySelector('#chartOdds').closest('.card-box') === document.querySelector('#oddsPicker').closest('.card-box')));
     check(`${name}: the card picker is folded under "Choose cards"`, !s0.chooseOpen && s0.picker > 10);
     await p.click('#oddsChoose > summary'); await p.waitForTimeout(300);
-    await p.click('#oddsPicker .mtg >> nth=3', { position: { x: 10, y: 60 } }); await p.waitForTimeout(400);
+    await p.click('#oddsPicker .mtg >> nth=3', { position: { x: 10, y: 60 } }); await p.waitForSelector('#lightbox.show .lb-act'); await p.waitForTimeout(450); await p.click('#lightbox .lb-act:has-text("Add to the odds")'); await p.keyboard.press('Escape'); await p.waitForTimeout(400);          // T-134: a tap opens the card; "Add to the odds" is its button
     const s1 = await st();
     check(`${name}: picking a card replaces the default group`, s1.sel === 1 && /^At least 1 of \d+ cards? \(library/.test(s1.title) && s1.title !== s0.title, s1.title);
     await p.click('#oddsClear'); await p.waitForTimeout(400);

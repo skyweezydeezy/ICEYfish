@@ -1,5 +1,5 @@
 // Every card on every tab can be opened in the card viewer (price, printings, TCGplayer / Card Kingdom / ManaPool):
-// a click where clicking means nothing else, otherwise the 🔍 corner or a right-click.
+// a tap or click (T-134: where a card has an action, it is a button in the viewer), or a right-click.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
 let pass = 0, fail = 0;
@@ -46,7 +46,14 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('Opening Hands: card in the drawn hand', await opens('.fan .mtg:nth-child(4)') === true);
   await p.click('#dealMany'); await p.waitForTimeout(1500);
   const pickedHands = await p.$$eval('.mini-hand.selected', x => x.length);
-  check('Opening Hands: sample hand card, 🔍 corner opens it without picking the hand', await opens('.mini-hand .mtg:nth-child(2)', 'cornerL') === true && pickedHands === await p.$$eval('.mini-hand.selected', x => x.length));
+  check('Opening Hands: sample hand card, a plain tap opens it without picking the hand', await opens('.mini-hand .mtg:nth-child(2)') === true && pickedHands === await p.$$eval('.mini-hand.selected', x => x.length));
+  { // T-134: the viewer from a sample hand offers the hand's own buttons, and swipes within that one hand
+    await p.click('.mini-hand >> nth=0 >> .mtg >> nth=1'); await p.waitForSelector('#lightbox.show .lb-act', { timeout: 5000 }); await p.waitForTimeout(450);
+    const v = await p.evaluate(() => ({ acts: [...document.querySelectorAll('#lightbox .lb-act')].map(x => x.textContent), count: document.querySelector('#lightbox .lb-count').textContent, n: document.querySelectorAll('.mini-hand')[0].querySelectorAll('.mtg').length }));
+    check('Opening Hands: the viewer has "Use this hand" and "Goldfish ▶ with this hand", and swipes only through that hand', v.acts.length === 2 && /^Use this hand/.test(v.acts[0]) && /Goldfish/.test(v.acts[1]) && /^\d+ of \d+$/.test(v.count) && +v.count.split(' of ')[1] <= v.n, JSON.stringify(v));
+    await p.click('#lightbox .lb-act:has-text("Use this hand")'); await p.waitForTimeout(400);
+    check('Opening Hands: pressing it swaps that hand in and closes the viewer', !(await p.isVisible('#lightbox.show')) && (await p.$$eval('.mini-hand.selected', x => x.length)) === 1);
+  }
   check('Opening Hands: sample hand card, right-click', await opens('.mini-hand .mtg', 'right') === true);
   await p.click('[data-tab=deck]'); await p.fill('#optN', '500');          // a sample game is all this needs: the default 10,000 games took over two minutes
   await p.click('[data-tab=sim]'); await p.click('#runSim');
@@ -57,10 +64,14 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('[data-tab=odds]'); await p.waitForTimeout(500);
   await p.evaluate(() => { document.querySelector('#oddsChoose').open = true; }); await p.waitForTimeout(200);          // the picker is folded under "Choose cards" (T-076)
   const sel0 = await p.$$eval('#oddsPicker .mtg.sel', x => x.length);
-  check('Draw Odds: picker card, 🔍 corner opens it without picking the card', await opens('#oddsPicker .mtg', 'corner') === true && sel0 === await p.$$eval('#oddsPicker .mtg.sel', x => x.length));
+  check('Draw Odds: picker card, a plain tap opens it without picking the card', await opens('#oddsPicker .mtg') === true && sel0 === await p.$$eval('#oddsPicker .mtg.sel', x => x.length));
   check('Draw Odds: picker card, right-click', await opens('#oddsPicker .mtg', 'right') === true);
-  await p.click('#oddsPicker .mtg', { position: { x: 10, y: 60 } }); await p.waitForTimeout(500);
-  check('Draw Odds: a plain click still picks the card for the odds', (await p.$$eval('#oddsPicker .mtg.sel', x => x.length)) === sel0 + 1);
+  await p.click('#oddsPicker .mtg', { position: { x: 10, y: 60 } }); await p.waitForSelector('#lightbox.show .lb-act', { timeout: 5000 }); await p.waitForTimeout(450);
+  check('Draw Odds: the viewer has "Add to the odds" as its button', (await p.$$eval('#lightbox .lb-act', xs => xs.map(x => x.textContent))).join() === 'Add to the odds');
+  await p.click('#lightbox .lb-act'); await p.waitForTimeout(500);
+  check('Draw Odds: pressing it picks the card (the viewer stays open and now offers "Remove from the odds")', (await p.$$eval('#oddsPicker .mtg.sel', x => x.length)) === sel0 + 1 && (await p.$$eval('#lightbox .lb-act', xs => xs.map(x => x.textContent))).join() === 'Remove from the odds');
+  await p.click('#lightbox .lb-act'); await p.waitForTimeout(400); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  check('Draw Odds: ...and Remove takes it out again', (await p.$$eval('#oddsPicker .mtg.sel', x => x.length)) === sel0);
   check('no page errors', errs.length === 0, errs.join(' | '));
   await b.close();
   console.log(`\n${pass} passed, ${fail} failed`);

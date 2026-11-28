@@ -138,10 +138,6 @@
 .vs-hand .vs-card.can:hover { transform: translateY(-10px); }
 .vs-card.pick { box-shadow: 0 0 0 2px var(--warning, #fab219); filter: grayscale(.7) brightness(.6); }
 .vs-asland { position: absolute; left: 3px; bottom: 3px; z-index: 6; padding: 3px 7px; min-height: 0; font-size: 11px; background: rgba(4,12,20,.92); }
-.vs-hand .mtg::after { content: '🔍'; position: absolute; top: 4px; left: 4px; z-index: 5; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px;
-  background: rgba(4,10,16,.78); box-shadow: 0 0 0 1px rgba(143,216,255,.5); opacity: 0; transition: opacity .15s; pointer-events: none; }
-.vs-hand .mtg:hover::after { opacity: 1; }
-@media (hover: none) { .vs-hand .mtg::after { opacity: .92; } }
 
 /* blocks */
 .vs-atkline { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 6px; font-size: 12.5px; }
@@ -307,7 +303,6 @@
   .vs-arena.pod .vs-opps .vs-imp .tag { display: none; }
 }
 @media (max-width: 600px) , (horizontal-viewport-segments: 2) {
-  .vs-hand .mtg::after { width: 18px; height: 18px; font-size: 9px; top: 2px; left: 2px; opacity: .8; }
   .vs-arena .mtg .pt { font-size: 10.5px; padding: 0 4px; }
   .vs-cnt { font-size: 10px; padding: 0 5px; }
 }

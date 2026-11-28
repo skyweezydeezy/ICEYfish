@@ -867,12 +867,6 @@ select { max-width: 100%; text-overflow: ellipsis; }
   .speed-txt { min-width: 0; font-size: 12.5px; }
 }
 
-/* ---------- 🔍 in the corner of cards whose click picks them (Draw Odds picker, sample hands): opens the card viewer ---------- */
-#oddsPicker .mtg::after, .mini-hand .mtg::after { content: '🔍'; position: absolute; top: 4px; right: 4px; z-index: 5; width: 26px; height: 26px; border-radius: 50%;
-  display: grid; place-items: center; font-size: 13px; background: rgba(4,10,16,.78); box-shadow: 0 0 0 1px rgba(143,216,255,.5); opacity: 0; transition: opacity .15s; pointer-events: none; }
-#oddsPicker .mtg:hover::after, .mini-hand .mtg:hover::after { opacity: 1; }
-@media (hover: none) { #oddsPicker .mtg::after, .mini-hand .mtg::after { opacity: .92; } }
-.mini-hand .mtg::after { right: auto; left: 4px; }   /* sample-hand cards overlap from the right: keep the magnifier on the visible edge */
 
 /* ---------- Draw Odds: odds by category ---------- */
 #catOdds { margin-bottom: 14px; }

@@ -109,9 +109,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const p = await mk(big);
     await setup(p, { opts: { priority: true, autoPass: 'never' }, mana: true });
     await sheet(p); await sleep(400);
-    await p.click('.pr-opt >> text=Lightning Bolt');
+    await p.click('.pr-opt >> text=Lightning Bolt');          // T-134: the chip opens the card in the viewer; Cast is its button
+    await p.waitForSelector('#lightbox.show .lb-act', { timeout: 5000 }); await sleep(450); await p.click('#lightbox .lb-act:has-text("Cast Lightning Bolt")');
     await p.waitForFunction(() => !window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt'), null, { timeout: 20000 });
-    check('clicking the instant casts it (Lightning Bolt left the hand)', true);
+    check('clicking the instant opens it in the viewer, and its Cast button casts it (Lightning Bolt left the hand)', true);
     const before = (await stepsAsked(p)).length;
     await passAll(p, false);
     check('the game finished without errors', await p.evaluate(() => !!window.__t.done && !window.__t.err), await p.evaluate(() => window.__t.err));
@@ -148,12 +149,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(150);
     check('a tap on Pass in the first 350 ms is ignored', !!(await p.$('.ch-sheet.priority')));
     await sleep(400);
-    await p.tap('.pr-opt >> text=Lightning Bolt');
-    check('touch: a tap on the instant only selects it (nothing is cast), and Cast shows', await p.evaluate(() => window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt')) && await p.$eval('.pr-go', e => !e.hidden && /Cast Lightning Bolt/.test(e.textContent)) && await p.$eval('.pr-opt.sel', e => e.getAttribute('aria-pressed') === 'true'));
-    await p.tap('.pr-go');          // within 350 ms of selecting: ignored
+    await p.tap('.pr-opt >> text=Lightning Bolt'); await p.waitForSelector('#lightbox.show .lb-act', { timeout: 5000 });
+    check('touch: a tap on the instant only opens it in the viewer (nothing is cast), with Cast as its button', await p.evaluate(() => window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt')) && await p.$$eval('#lightbox .lb-act', xs => xs.length === 1 && /Cast Lightning Bolt/.test(xs[0].textContent)));
+    await p.evaluate(() => document.querySelector('#lightbox .lb-act').click());          // within 350 ms of opening: ignored
     await sleep(100);
-    check('...and a tap on Cast right after selecting is ignored too', await p.evaluate(() => window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt')));
-    await sleep(400); await p.tap('.pr-go');
+    check('...and a press on Cast right after it opens is ignored too', await p.evaluate(() => window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt')));
+    await sleep(400); await p.tap('#lightbox .lb-act');
     await p.waitForFunction(() => !window.__t.b.hand.some(i => i.card.name === 'Lightning Bolt'), null, { timeout: 20000 });
     check('Cast then plays it', true);
     await passAll(p, true);

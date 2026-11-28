@@ -133,6 +133,7 @@
         const b = h('button', 'ch-opt text pr-opt'); b.type = 'button'; b.dataset.i = i; b.dataset.k = it.o.k; b.setAttribute('aria-pressed', 'false');
         b.appendChild(h('span', 'ch-name', esc(it.o.name) + (it.n > 1 ? ` <i>×${it.n}</i>` : '')));
         if (it.o.note) b.appendChild(h('small', 'ch-note', esc(it.o.note.replace(/^in response: /, ''))));
+        if (it.o.card) b._acts = () => [[verbOf(it.o), () => finish(it.o.k), 'primary']];          // T-134: a tap opens the card in the viewer; casting or using it is the button there
         box.appendChild(b);
       });
       if (!items.length) box.remove();
@@ -148,6 +149,7 @@
         if (t.closest('.ch-i')) { const b = t.closest('.ch-i'), inf = $('.ch-info'); inf.hidden = !inf.hidden; b.setAttribute('aria-expanded', inf.hidden ? 'false' : 'true'); return; }
         if (ghost()) return;
         const b = t.closest('.pr-opt');
+        if (b && items[+b.dataset.i].o.card) { const w = [...box.querySelectorAll('.pr-opt')].filter(x => items[+x.dataset.i].o.card); return A.viewCard(items[+b.dataset.i].o.card, w.map(x => items[+x.dataset.i].o.card), w); }          // the chips of one sheet are one swipe group
         if (b) { const i = +b.dataset.i; if (!touchy()) return finish(items[i].o.k); sel = sel === i ? null : i; at = Date.now(); return paint(); }
         if (t.closest('.pr-go') && sel != null) return finish(items[sel].o.k);
         if (t.closest('.pr-pass')) return finish('none');

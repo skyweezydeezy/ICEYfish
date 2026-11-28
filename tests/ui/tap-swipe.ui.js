@@ -48,6 +48,28 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     i = await info(); check(`${name}: swiping left comes back, with that card's own viewer`, i.name === uniq[N - 1] && i.show, i.name);
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   };
+  // ---- the screens whose cards have no game action: Build, Mulligan (the hand and the sample hands), Odds. A tap opens the viewer, a swipe moves inside that group.
+  const group = async (name, sel) => {          // the last card of the group is the one that is not overlapped
+    await p.locator(sel).last().evaluate(e => e.scrollIntoView({ block: 'center' })); await p.waitForTimeout(200);
+    await p.locator(sel).last().tap(); await p.waitForSelector('#lightbox.show', { timeout: 10000 }); await p.waitForTimeout(500);
+    const a = await info(), [i0, n] = (a.count || '').split(' of ').map(Number);
+    check(`${name}: a tap opens the viewer, with where you are in the group ("${a.count}")`, a.show && n > 1 && !!a.name, JSON.stringify(a));
+    await swipe(i0 < n ? -120 : 120, 0);
+    const b2 = await info();
+    check(`${name}: a swipe moves to the neighbour in the group`, b2.count === `${i0 + (i0 < n ? 1 : -1)} of ${n}` && b2.name !== a.name, `${a.count} -> ${b2.count}`);
+    await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+    return n;
+  };
+  await p.click('[data-tab=deck]'); await p.waitForTimeout(500);
+  await group('Build: the curve', '#curveWall .mtg');
+  await group('Build: the lands', '#landWall .mtg');
+  await p.click('[data-tab=hands]'); await p.click('#drawHand'); await p.waitForTimeout(1500);
+  await group('Mulligan: the hand', '#handStage .mtg');
+  await p.click('#dealMany'); await p.waitForTimeout(1500);
+  const nHand = await group('Mulligan: a sample hand', '.mini-hand >> nth=0 >> .mtg');
+  check('Mulligan: a sample hand swipes only through its own seven cards', nHand <= 7, String(nHand));
+  await p.click('[data-tab=odds]'); await p.waitForTimeout(500); await p.evaluate(() => { document.querySelector('#oddsChoose').open = true; }); await p.waitForTimeout(200);
+  await group('Odds: the picker', '#oddsPicker .mtg');
   // ---- Practice
   await p.click('[data-tab=table]'); await p.click('#tNew'); await p.waitForTimeout(800);
   await screen('Practice', '#zHand .mtg', () => window.__isf.game.hand.map(i => i.card.name));

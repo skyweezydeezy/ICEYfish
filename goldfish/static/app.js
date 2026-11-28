@@ -1123,6 +1123,7 @@
       acts.appendChild(h('button', 'go primary', 'Goldfish ▶'));
       box.appendChild(acts);
       box.addEventListener('click', e => {
+        { const m = e.target.closest('.mtg'); if (m && cardOf(m)) { e.stopPropagation(); return showLightbox(cardOf(m), m); } }          // T-134: a tap on a card opens it; the hand's buttons are in the viewer too
         if (e.target.closest('.go')) { selectSample(box, false); $('#keepHand').click(); return; }
         selectSample(box, true);
       });
@@ -1686,7 +1687,7 @@
     ['cardkingdom', 'Card Kingdom', (c) => `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${enc(c.name)}`],
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
-  const LB_SCOPE = '.ch-stack-list, .ch-targets, .ch-opts, .ch-spell, .pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
+  const LB_SCOPE = '.mini-hand, .ch-stack-list, .ch-targets, .ch-opts, .ch-spell, .pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
   const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
@@ -1763,6 +1764,14 @@
     refreshArt(p);
     toast(`Now using the ${p.setName} printing`);
   }
+  // T-134: the Odds picker (a card adds itself to the odds, or leaves them) and the sample hands on the Mulligan tab (use this hand, goldfish it)
+  lbProviders.push((card, el) => {
+    const pk = el && el.closest && el.closest('#oddsPicker');
+    if (pk && card.uid != null) { const on = S.oddsSel.has(card.uid); return [[on ? 'Remove from the odds' : 'Add to the odds', () => { on ? S.oddsSel.delete(card.uid) : S.oddsSel.add(card.uid); el.classList.toggle('sel', !on); renderOdds(true); }, 'primary', true]]; }
+    const mh = el && el.closest && el.closest('.mini-hand');
+    if (mh && mh._g) return [['Use this hand', () => selectSample(mh, true), 'primary'], ['Goldfish ▶ with this hand', () => { selectSample(mh, false); $('#keepHand').click(); }, '']];
+    return null;
+  });
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
   function lbGo(d) { const n = lb.i + d; if (lb.list.length < 2 || n < 0 || n >= lb.list.length) return; lb.i = n;          // stops at the ends of the group, no wrap
@@ -1863,7 +1872,7 @@
     }
     lightbox.appendChild(wrap);
   }
-  function showLightbox(card, scopeEl) {
+  function showLightbox(card, scopeEl, els) {          // els: for an explicit list of cards, the element behind each one (so its choices can be offered)
     if (!card) return;
     let list = [card];
     const sc = scopeEl && scopeEl.closest ? scopeEl.closest(LB_SCOPE) : null;
@@ -1881,6 +1890,7 @@
     lb.list = list; lb.i = list.indexOf(card); lb.sel = null; lb.at = Date.now();
     lb.els = list.map(() => null);                                       // the card on the table behind each entry, so its choices can be offered
     if (sc && !Array.isArray(scopeEl)) { const seen = new Set(); sc.querySelectorAll('.mtg').forEach(e => { const c = cardOf(e); if (c && !e.closest('#lightbox') && !seen.has(c)) { seen.add(c); const k = list.indexOf(c); if (k >= 0) lb.els[k] = e; } }); }
+    if (Array.isArray(scopeEl) && els) lb.els = list.map(c => els[scopeEl.indexOf(c)] || null);
     if (scopeEl && scopeEl.nodeType === 1 && lb.i >= 0) lb.els[lb.i] = scopeEl;          // the very one you opened (not the first of a stack)
     paintLb(); lightbox.scrollTop = 0;
     lightbox.classList.add('show'); document.body.classList.add('modal-open');
@@ -1915,17 +1925,6 @@
   }));
   document.addEventListener('click', e => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('contextmenu', e => { if (e.target.closest('.mtg') && !canHover) e.preventDefault(); });
-  // where a click already means something else (picking cards for the odds, picking a sample hand), the 🔍 in the card's
-  // top-right corner opens the viewer instead; runs before the card's own click handler
-  const ZOOM_CORNER = '#oddsPicker .mtg, .mini-hand .mtg, .vs-hand .mtg';
-  document.addEventListener('click', e => {
-    const m = e.target.closest(ZOOM_CORNER); if (!m) return;
-    const r = m.getBoundingClientRect(), c = cardOf(m);
-    const left = !!m.closest('.mini-hand, .vs-hand');       // these cards overlap from the right, so their 🔍 sits top-left
-    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;     // a real click on the card, not a scripted one
-    const inX = left ? e.clientX <= r.left + 34 : e.clientX >= r.right - 34;
-    if (c && inside && inX && e.clientY <= r.top + 34) { e.stopPropagation(); e.preventDefault(); showLightbox(c, m); }
-  }, true);
   // right-click any card off the table (PC) opens the viewer
   document.addEventListener('contextmenu', e => {
     const m = e.target.closest('.mtg'); if (!m || m.closest('.table, #lightbox')) return;
@@ -3689,7 +3688,7 @@
       S.deck.unique.filter(c => !c.commander).sort((a, b) => (a.a.isLand - b.a.isLand) || a.a.mv - b.a.mv || a.name.localeCompare(b.name)).forEach(c => {
         const e = cardEl(c, { badge: c.qty > 1 ? '×' + c.qty : null });
         if (S.oddsSel.has(c.uid)) e.classList.add('sel');
-        e.addEventListener('click', () => { S.oddsSel.has(c.uid) ? S.oddsSel.delete(c.uid) : S.oddsSel.add(c.uid); e.classList.toggle('sel'); renderOdds(true); });
+        e.addEventListener('click', () => showLightbox(c, e));          // T-134: a tap opens the card; adding it to the odds is its button
         pk.appendChild(e);
       });
     }
