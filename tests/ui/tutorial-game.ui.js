@@ -104,7 +104,7 @@ async function practice(p, touch, stopAt) {
     const titles = []; let last = '', same = 0, beast = false;
     for (let k = 0; k < 2500; k++) {
       const a = await state(p); if (!a) break;
-      const key = a.step + a.title; if (key !== last) { titles.push(a.title); last = key; same = 0; } else if (++same > 900) { titles.push('STUCK at ' + a.title); break; }
+      const key = a.step + a.title; if (key !== last) { titles.push(a.title); if (process.env.TUT_DEBUG) console.log('DUEL step', a.title); last = key; same = 0; } else if (++same > 900) { titles.push('STUCK at ' + a.title); break; }
       if (a.busy) { await p.waitForTimeout(150); continue; }
       if (a.sheet) {          // answer as a person: Beast Within when asked about an instant, otherwise the autopilot's answer
         if (/cast an instant/.test(a.sheet)) { const ok = await p.evaluate(() => { const t = [...document.querySelectorAll('.ch-sheet .ch-opts > *')].find(x => /Beast Within/.test(x.textContent)); if (t) t.click(); return !!t; }); if (ok) { beast = true; await p.waitForTimeout(200); await q(p, '.ch-ok'); await p.waitForTimeout(300); continue; } }
