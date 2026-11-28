@@ -7823,7 +7823,15 @@
           else if (f.scope === 'upTo') { const k = /^(?:stun|-1\/-1)$/.test(kind) ? 0 : f.upTo === 'X' ? (g.xValue || 0) : f.upTo === 'MILLNL' ? (g._milledNL || 0) : f.upTo; targets = g.battlefield.filter(p => isCreaturePerm(p) && !((f.other || f.excl) && p === source) && hasSubtype(p.card, f.types)).sort((x, y) => creatureValue(g, y) - creatureValue(g, x)); const best = targets.slice(0, k); if (k && g.ask && !g.dry && targets.length) { const pk = decide(g, { kind: 'target', what: 'counters', options: targets, def: best, multi: true, pick: k, upTo: true, f, n, source }); targets = Array.isArray(pk) ? pk : best; } else targets = best; }          // the best N, as support does; a person picks up to N (stun and -1/-1 counters are for the other players' creatures)
           else if (f.scope === 'self') targets = source && (isCreaturePerm(source) || kind !== '+1/+1') ? [source] : [];
           else if (f.scope === 'lastToken') targets = g._lastTok && g.battlefield.includes(g._lastTok) ? [g._lastTok] : [];
-          else { let b = counterTarget(g, f, source); if (b && g.ask) b = decide(g, { kind: 'target', what: 'counters', options: g.battlefield.filter(p => isCreaturePerm(p) && !(f.excl && p === source) && hasSubtype(p.card, f.types)), def: b, f, n, source }); if (b) targets = [b]; }
+          else {
+            const L = lockRec ? null : tgtLock(g, f);          // T-143: the target was chosen as the ability went on the stack
+            if (L) { if (L.t && lockLegalCtr(g, L.t)) targets = [L.t]; else ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); }          // CR 608.2b
+            else {
+              let b = counterTarget(g, f, source); if (b && g.ask) b = decide(g, { kind: 'target', what: 'counters', options: g.battlefield.filter(p => isCreaturePerm(p) && !(f.excl && p === source) && hasSubtype(p.card, f.types)), def: b, f, n, source });
+              if (lockRec) { if (b) { lockRec.map.set(f, { t: b }); lockRec.taken.add(b); } break; }
+              if (b) targets = [b];
+            }
+          }
           for (const p of targets) addCounters(g, p, kind, n, ev, source);
           break;
         }
@@ -9098,13 +9106,16 @@
           break;
         }
         case 'distribute': {                                                                                  // Ajani: three +1/+1 counters among up to three creatures
-          const all = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased); let cs = all.slice().sort((x, y) => powerOf(g, y) - powerOf(g, x)).slice(0, f.max);
-          if (g.ask && !g.dry && all.length > 1) {          // a person chooses up to three target creatures, one at a time, and who gets the extra counters (each target gets at least one)
+          const L = lockRec ? null : tgtLock(g, f);          // T-143: the targets (and the split) were chosen as the ability went on the stack
+          const all = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased); let cs = all.slice().sort((x, y) => powerOf(g, y) - powerOf(g, x)).slice(0, f.max), cnt0 = null;
+          if (L) { const legal = (L.ts || []).filter(x => lockLegalCtr(g, x.q) && !x.q.phased); if (legal.length < (L.ts || []).length) ev.push({ type: 'note', text: `${(L.ts || []).filter(x => !legal.includes(x)).map(x => x.q.card.name).join(', ')} ${(L.ts || []).length - legal.length === 1 ? 'is' : 'are'} no longer a legal target`, source }); cs = legal.map(x => x.q); cnt0 = legal.map(x => x.c); }          // CR 608.2b: an illegal target gets nothing; no new target is chosen
+          else if (g.ask && !g.dry && all.length > 1) {          // a person chooses up to three target creatures, one at a time, and who gets the extra counters (each target gets at least one)
             const chosen = [], pool = all.slice();
             for (let k = 0; k < f.max && pool.length; k++) { const pick = decide(g, { kind: 'target', what: 'distribute', options: pool.slice(), def: cs.find(x => pool.includes(x)) || null, optional: true, source }); if (!pick || !pool.includes(pick)) break; chosen.push(pick); pool.splice(pool.indexOf(pick), 1); }
             cs = chosen;
           }
-          const cnt = cs.map(() => (cs.length ? 1 : 0)); for (let k = cs.length; k < f.n && cs.length; k++) { let t = k % cs.length; if (g.ask && !g.dry && cs.length > 1) { const pk = decide(g, { kind: 'target', what: 'distributeExtra', options: cs.slice(), def: cs[t], source }); if (pk && cs.includes(pk)) t = cs.indexOf(pk); } cnt[t]++; }
+          const cnt = cnt0 || cs.map(() => (cs.length ? 1 : 0)); if (!cnt0) for (let k = cs.length; k < f.n && cs.length; k++) { let t = k % cs.length; if (g.ask && !g.dry && cs.length > 1) { const pk = decide(g, { kind: 'target', what: 'distributeExtra', options: cs.slice(), def: cs[t], source }); if (pk && cs.includes(pk)) t = cs.indexOf(pk); } cnt[t]++; }
+          if (lockRec) { if (cs.length) { lockRec.map.set(f, { ts: cs.map((q, i) => ({ q, c: cnt[i] })) }); cs.forEach(q => lockRec.taken.add(q)); } break; }
           cs.forEach((c, i) => { if (cnt[i]) addCounters(g, c, '+1/+1', cnt[i], ev, source); });
           cs.forEach(c => { c.eotKw = c.eotKw || new Set(); (f.keywords || []).forEach(kw => c.eotKw.add(kw)); });
           break;
@@ -15088,7 +15099,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   // T-143: effect types whose target is chosen inline at resolution move into lock mode group by group; each group owns one predicate below (return true for the effects it can lock)
   const lockableA = f => (f.type === 'pumpOne' && !f.self) || f.type === 'attackerPump' || f.type === 'pumpAttacker' || (f.type === 'gainFire' && !!f.target);          // pumps: pumpOne (non-self), attackerPump, pumpAttacker, gainFire
   //
-  const lockableB = f => false;          // counters (target scope), distribute
+  const lockableB = f => (f.type === 'counters' && !/^(?:opp|each|tapped|subject|upTo|self|lastToken)$/.test(f.scope || '')) || f.type === 'distribute';          // counters (target scope), distribute
   //
   const lockableC = f => false;          // fight, flickerOne / flickerTwo / flickerAll / flickerwisp / flicker (oath)
   //
@@ -15107,6 +15118,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     const o = holderOf(g, t);
     return !!o && (f.noTarget || o === g || targetable(o, t)) && (f.what !== 'creature' || isCreaturePerm(t));
   }
+  const lockLegalCtr = (g, t) => !!t && g.battlefield.includes(t) && isCreaturePerm(t);          // T-143 (B): counters go on your own creature, which must still be there
   function lockTargets(g, inst) {
     const a = inst.card.a, fxs = inst.overloaded ? (a.overload && a.overload.fx) : a.spellFx;
     if (g.dry || !g.opp || !a.isInstantSorcery || !fxs || !fxs.length || a.jeska || lockRec || !fxs.some(lockableBase)) return null;
