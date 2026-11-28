@@ -61,8 +61,15 @@ body.tut-on .bg-ask { display: none; }          /* the music question waits unti
 .tut-tip-btns { display: flex; justify-content: flex-end; gap: 6px; }
 @keyframes tut-tip-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .tut-new { margin: 0 0 10px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-secondary, #b9d0e0); }
-.tut-new-v { display: inline-block; min-width: 38px; font-size: 12px; font-weight: 700; color: var(--ice-2, #d6f1ff); font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) { .tut-tip { animation: none; } }
 .tut-head-btns { display: flex; gap: 2px; align-items: center; }
 .tut.tut-pre .tut-bubble { visibility: hidden; }
 body.modal-open .tut-block { pointer-events: none; }          /* T-134: a card opened in the viewer during a tour: its action buttons are pressable */
+/* T-141: What's new, one card per version (swipe, Back/Next, "N of M") */
+.tut[data-step] .tut-bubble .tut-new { margin: 0 0 6px; }
+.tut-new li { list-style: none; line-height: 1.4; }
+.tut-bubble { touch-action: pan-y; }
+.tut-bubble .tut-text:has(.tut-new) { max-height: min(46vh, 320px); overflow-y: auto; overscroll-behavior: contain; }
+.tut-back:disabled { opacity: .35; cursor: default; }
+@media (max-height: 460px) { .tut-bubble .tut-text:has(.tut-new) { max-height: 38vh; } }

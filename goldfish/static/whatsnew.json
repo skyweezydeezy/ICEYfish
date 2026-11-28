@@ -2,6 +2,13 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 240,
+      "lines": [
+        "What's new now shows one card per update. Swipe, or use Back and Next, to read older ones.",
+        "Cards the simulator doesn't fully understand yet have one button: Request Cards to be added. It sends only the card names, never your list."
+      ]
+    },
+    {
       "v": 239,
       "lines": [
         "Triggered and activated abilities now choose their targets when they go on the stack, as the rules require. If a response removes the target, the ability does nothing to it; it never picks a new one."
