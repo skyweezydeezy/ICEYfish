@@ -1032,9 +1032,7 @@ details.fold > summary:hover b { color: var(--ice-2, #d6f1ff); }
 .teach-icon { font-size: 24px; }
 .teach-text { flex: 1 1 320px; }
 .teach-btn { display: inline-block; padding: 9px 18px; border-radius: 999px; background: #4cc2ff; color: #06121c; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.teach-folder { color: #4cc2ff; font-size: 13px; }
 .teach-btn:hover { filter: brightness(1.08); }
-button.teach-drive { border: 1px solid #4cc2ff; background: transparent; color: #4cc2ff; font: inherit; font-weight: 700; cursor: pointer; }
 .teach-how { flex-basis: 100%; margin: 0; }
 /* =====================================================================
    Practice table on an iPhone.
