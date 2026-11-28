@@ -12,4 +12,5 @@ Each area: its own task, behind an option until it passes, then on by default. G
 | 3 | Layer system for continuous effects, with timestamps and dependency | 613 | planned |
 | 4 | Replacement and prevention effects; the affected player chooses the order | 614-616 | planned |
 | 5 | Multiplayer APNAP order for triggers and choices (Pod) | 101.4, 603.3b | planned |
+| 5b | Honest coverage for triggers and instant/sorcery spells: a line reads ok only when every sentence is built (T-139 measured +320 trigger lines / 312 cards and +257 spell lines; needs a better sentence reader first). Loyalty and activated lines: T-139 | 603, 608 | planned (after T-139) |
 | 6 | Review pass: audit each CR section against the engine again (as T-122 did for timing) and add what's missing to this list | all | planned |
