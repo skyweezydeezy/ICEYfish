@@ -323,16 +323,37 @@
   // "Fastest possible" for a built-in deck that was checked: the earliest win turn seen and the share of games won by turns 2, 3 and 4 (T-093).
   // One compact line; what it means is behind the ⓘ.
   const pctS = x => (x < 1 && x > 0 ? x.toFixed(1) : Math.round(x * 10) / 10) + '%';
-  function showWatch(d) {          // T-137: one line under the speed line: "Fastest win vs <deck>: turn N ▶ Watch"
+  // The fastest win of the loaded deck: the stored one of a built-in deck (FASTEST), or one this browser found (Find fastest win), kept per deck in isf_fastest.
+  const deckKey = () => 'mine:' + [...(S.cards || [])].map(c => c.name + ':' + c.qty).sort().join('|').split('').reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0, 7);
+  const mineAll = () => { try { return JSON.parse(localStorage.getItem('isf_fastest') || '{}'); } catch (e) { return {}; } };
+  function showWatch(d) {          // T-137: one line under the speed line: "Fastest win vs <deck>: turn N ▶ Watch", and a button to find it for any deck
     const el = $('#deckWatch'); if (!el) return;
-    const f = d && FASTEST[d.file], opp = f && !f.none && builtinByValue('builtin:' + f.opp);
-    if (!f || f.none || !opp) { el.hidden = true; el.dataset.file = ''; return; }
-    el.querySelector('.dw-line').textContent = `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}`;
-    el.dataset.file = d.file; el.hidden = false;
+    if (!S.deck || !(S.cards || []).length) { el.hidden = true; return; }
+    const key = d ? d.file : deckKey(), mine = (m => m && m.v === (self.ISF_VERSION || 0) ? m : null)(mineAll()[key]), st = d && FASTEST[d.file] && !FASTEST[d.file].none ? FASTEST[d.file] : null;
+    const f = mine && (!st || mine.turn < st.turn) ? mine : st, opp = f && builtinByValue('builtin:' + f.opp);
+    el.dataset.file = d ? d.file : ''; el.dataset.key = key; el.dataset.name = d ? d.name : (S.deck.commanders[0] && S.deck.commanders[0].card.name) || 'Your deck';
+    el.querySelector('.dw-line').textContent = f && opp ? `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}` : f ? `Fastest win: turn ${f.turn}` : 'Fastest Duel win: not searched yet';
+    el.querySelector('.dw-go').hidden = !(f && opp);
+    el.querySelector('.dw-find').textContent = f ? '🔍 Again' : '🔍 Find';
+    el.dataset.spec = f && opp ? JSON.stringify(Object.assign({}, f, d ? { file: d.file } : { self: true, name: el.dataset.name })) : '';
+    el.hidden = false;
   }
   $('#deckWatch .dw-go').addEventListener('click', () => {
-    const f = FASTEST[$('#deckWatch').dataset.file];
-    if (f && window.__isfVersus && window.__isfVersus.watch) window.__isfVersus.watch({ file: $('#deckWatch').dataset.file, opp: f.opp, seed: f.seed, first: f.first, turn: f.turn, round: f.round });
+    const sp = $('#deckWatch').dataset.spec;
+    if (sp && window.__isfVersus && window.__isfVersus.watch) window.__isfVersus.watch(JSON.parse(sp));
+  });
+  $('#deckWatch .dw-find').addEventListener('click', async () => {
+    const el = $('#deckWatch'), btn = el.querySelector('.dw-find'), line = el.querySelector('.dw-line'), V = window.__isfVersus;
+    if (!V || !V.findFastest || btn.disabled) return;
+    const key = el.dataset.key, file = el.dataset.file, was = line.textContent;
+    btn.disabled = true; el.querySelector('.dw-go').hidden = true;
+    try {
+      const best = await V.findFastest({ file, name: el.dataset.name }, t => { line.textContent = t; });
+      if (best) { const all = mineAll(); all[key] = best; try { localStorage.setItem('isf_fastest', JSON.stringify(all)); } catch (e) { /* storage full: shown this time only */ } }
+      else line.textContent = 'No win found in the Duels played. Try again.';
+      if (best) { showWatch(file ? builtinByValue('builtin:' + file) : null); } else setTimeout(() => showWatch(file ? builtinByValue('builtin:' + file) : null), 2500);
+    } catch (e) { line.textContent = was; toast('Could not search: ' + (e.message || e)); }
+    btn.disabled = false;
   });
   { const t = $('#deckWatch .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckWatch .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }
   { const t = $('#deckSpeed .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckSpeed .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }

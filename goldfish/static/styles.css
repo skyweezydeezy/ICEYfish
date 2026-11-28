@@ -1525,6 +1525,6 @@ body.tfocus .vs-me .row:has(.vs-block-go), body.tfocus .vs-me > .row:last-child 
 .cov-card .lines .guessed { border-color: #fab219; background: rgba(250,178,25,.08); }
 .lb-cov .guessed { border-color: #fab219; }
 /* T-137: the Build tab's "Fastest win" line, and a replay on the Duel tab (both hands face up) */
-.deck-speed .dw-go { padding: 2px 10px; margin: 0 4px; font-size: .85rem; }
+.deck-speed .dw-go, .deck-speed .dw-find { padding: 2px 10px; margin: 0 4px; font-size: .85rem; }
 .vs-seat.opp .vs-hand { justify-content: center; margin: 0 0 4px; }
 .vs-bar .vs-jump { max-width: 8.5em; }

@@ -235,7 +235,7 @@
   const REPLAY_OPTS = { turns: 25, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40, startLife: 40, prioritizeCommander: true, idealLandRatio: 0.42, noMaxHand: false, turnTimer: false, bookCombos: [] };
   const shortName = n => String(n).replace(/\s*\([^)]*\)\s*$/, '');
   async function watchGame(mode, spec, ply, dice) {
-    const st = V[mode], q = st.q, ps = [await loadOpp('builtin:' + spec.file, t => info(mode, t)), await loadOpp('builtin:' + spec.opp, t => info(mode, t))];
+    const st = V[mode], q = st.q, ps = [spec.self ? mySeat(spec.name) : await loadOpp('builtin:' + spec.file, t => info(mode, t)), await loadOpp('builtin:' + spec.opp, t => info(mode, t))];
     info(mode, '');
     const names = ps.map(p => shortName(p.name)), decks = ps.map(p => G.buildDeck(p.cards, p.tokens, p.policy && p.policy.tribe));
     const optsList = ps.map(p => Object.assign({}, REPLAY_OPTS, { policy: p.policy || {} })), roll = rollFirst(2, spec.seed, spec.first);
@@ -263,9 +263,38 @@
     } else if (ply) { gm.fast = true; await advanceRun(mode, ply, false); gm.fast = false; }
     return gm;
   }
+  // The loaded deck as seat 0 of a replay (a deck that is not a built-in one). Its choices learned in the Policy lab are used, as in a Duel.
+  const mySeat = name => ({ cards: A.S.cards, tokens: A.S.tokens, name: name || 'Your deck', policy: A.currentPolicy() });
+  // Find fastest win (Build tab): the loaded deck plays Duels against a spread of built-in decks, both seats on the autopilot, in the same game as the replay
+  // (REPLAY_OPTS), and the quickest win is kept. self: { file (a built-in deck's file, or ''), name }. Resolves to { opp, seed, first, turn, round, v } or null.
+  // The search runs on the page in small steps (a Duel at a time) so the page stays usable; a new search stops the one before.
+  let findToken = 0;
+  async function findFastest(self, progress, games, nOpp) {
+    const token = ++findToken, say = t => progress && progress(t);
+    games = games || window.__isfFindGames || 144; nOpp = nOpp || window.__isfFindOpps || 12;
+    await window.Source.init();
+    const me = self.file ? await loadOpp('builtin:' + self.file, say) : mySeat(self.name);
+    const all = A.builtins().filter(b => b.file !== self.file), pick = [];
+    for (let i = 0; i < Math.min(nOpp, all.length); i++) pick.push(all[Math.floor(i * all.length / Math.min(nOpp, all.length))]);
+    const opps = [];
+    for (const b of pick) { say(`Loading ${opps.length + 1} of ${pick.length} opponents…`); opps.push(await loadOpp('builtin:' + b.file, () => {})); if (token !== findToken) throw new Error('stopped'); }
+    const build = p => ({ deck: G.buildDeck(p.cards, p.tokens, p.policy && p.policy.tribe), opts: Object.assign({}, REPLAY_OPTS, { policy: p.policy || {} }), name: shortName(p.name) });
+    const M = build(me), O = opps.map(build); let best = null, wins = 0;
+    for (let k = 0; k < games; k++) {
+      const j = k % O.length, first = Math.floor(k / O.length) % 2, seed = (20261128 + k * 7919) >>> 0;
+      try {
+        const pod = G.playPod([M.deck, O[j].deck], [M.opts, O[j].opts], seed, [M.name, O[j].name], first), m = pod.match;
+        if (m.winner === 0) { wins++; const turn = pod.games[0].turn; if (!best || turn < best.turn || (turn === best.turn && m.round < best.round)) best = { opp: pick[j].file, seed, first, turn, round: m.round }; }
+      } catch (e) { /* a Duel that stops on an engine error is not a candidate */ }
+      say(`Searching… ${k + 1} of ${games} Duels` + (best ? ` · best so far turn ${best.turn}` : ''));
+      await sleep(0); if (token !== findToken) throw new Error('stopped');
+    }
+    return best ? Object.assign(best, { v: window.ISF_VERSION || 0, games, wins }) : null;
+  }
+  V.findFastest = findFastest;
   async function watch(spec) {
     const mode = 'duel', st = V[mode];
-    if (!spec || !spec.file || !spec.opp) return;
+    if (!spec || !(spec.file || spec.self) || !spec.opp) return;
     if (!MODES[document.body.dataset.view]) from = document.body.dataset.view;          // Leave goes back to the Build tab
     window.__isfShowTab(mode);
     const dice = !(window.localStorage && localStorage.getItem('isf_dice') === '0');
