@@ -51,7 +51,11 @@ let pages = [];          // the two devices, for the message when a step times o
   const POLL = 200;
   const wait = (p, fn, arg, ms) => p.waitForFunction(fn, arg, { timeout: ms, polling: POLL });
   const tap = async (p, sel, ms) => {          // click a button once it is on the page, shown and enabled
-    await wait(p, s => { const e = document.querySelector(s); return !!e && !e.disabled && e.getClientRects().length > 0; }, sel, ms || 30000);
+    try { await wait(p, s => { const e = document.querySelector(s); return !!e && !e.disabled && e.getClientRects().length > 0; }, sel, ms || 30000); }
+    catch (err) {          // say what both devices were showing, so a rare failure can be told apart from a stuck game
+      const dump = async q => q.evaluate(() => { const gm = window.__isfVersus && window.__isfVersus.duel.game; return gm ? JSON.stringify({ phase: gm.phase, active: gm.active, over: !!gm.over, picking: !!gm.picking, choice: !!gm.choice, sheet: (document.querySelector('.ch-sheet') || {}).className || null, endBtn: (() => { const b = document.querySelector('#tab-duel .vs-end'); return b ? [b.disabled, b.getClientRects().length] : null; })(), bar: (document.querySelector('#tab-duel .vs-bar') || {}).textContent }) : 'no game'; }).catch(e => 'unreadable: ' + e.message);
+      throw new Error(err.message.split('\n')[0] + ' waiting for ' + sel + ' | A: ' + await dump(A) + ' | B: ' + await dump(B));
+    }
     await p.evaluate(s => document.querySelector(s).click(), sel);
   };
   await A.goto(BASE); await loadDeck(A, deckA); await noStun(A);
@@ -217,7 +221,11 @@ let pages = [];          // the two devices, for the message when a step times o
   await same('the game goes on after the rejoin: the same table after the next turn begins');
 
   // ---- a set table for the interactions (the same edit on both devices, so they stay the same game)
-  await until((a, c) => myMain(a, 0) && myMain(c, 0), 90000).catch(async () => { await endTurn((await st(A)).active); await until((a, c) => myMain(a, 0) && myMain(c, 0), 90000); });
+  // Alex needs the turn. When it is Sam's, end it at once: waiting out the turn clock (90 s for the first turns) instead raced with the app
+  // ending Sam's turn by itself, and the End turn tap then went to the wrong seat.
+  await until((a, c) => a.active === c.active && myMain(a, a.active) && myMain(c, c.active), 90000);
+  if ((await st(A)).active !== 0) await endTurn(1);
+  await until((a, c) => myMain(a, 0) && myMain(c, 0), 90000);
   const setTable = () => {
     const gm = window.__isfVersus.duel.game, G = window.Goldfish, [a, b] = gm.games;
     const card = (g, re) => g.deck.unique.find(c => re.test(c.name));

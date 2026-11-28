@@ -133,6 +133,8 @@ const shot = process.env.VERSUS_SHOTS;
   check('autopilot game: +1 turn plays one turn', await p.evaluate(() => window.__isfVersus.duel.game.games.reduce((t, g) => t + g.turn, 0)) === 1);
   // the table itself: card pictures for everything in play, stacks, piles in order, card backs for hidden hands
   for (let i = 0; i < 11; i++) { await p.click('#tab-duel .vs-next'); await p.waitForTimeout(40); }
+  // the +1 turn clicks above start turns that play on their own: read the table once they are done and every seat is drawn (a half-drawn seat has no piles yet)
+  await p.waitForFunction(() => { const gm = window.__isfVersus.duel.game; return !gm.busy && !gm.acting && [...document.querySelectorAll('#tab-duel .vs-seat')].length === gm.games.length && [...document.querySelectorAll('#tab-duel .vs-seat')].every(s => s.querySelector('.vs-pile.lib b') && s.querySelector('.vs-pile.grave b')); }, null, { timeout: 30000, polling: 200 });
   const tbl = await p.evaluate(() => {
     const gm = window.__isfVersus.duel.game, root = document.querySelector('#tab-duel');
     const seats = [...root.querySelectorAll('.vs-seat')];

@@ -30,10 +30,10 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.check('#tFast');
   await p.fill('#tAutoToN', '4');
   // play until there is a creature on the battlefield
-  await p.click('#tAutoTo');
+  await p.click('#tAutoTo', { position: { x: 12, y: 12 } });
   await p.waitForTimeout(9000);
   let creature = await p.$('#zCreatures .mtg');
-  for (let i = 0; i < 4 && !creature; i++) { await p.fill('#tAutoToN', String(5 + i)); await p.click('#tAutoTo'); await p.waitForTimeout(5000); creature = await p.$('#zCreatures .mtg'); }
+  for (let i = 0; i < 4 && !creature; i++) { await p.fill('#tAutoToN', String(5 + i)); await p.click('#tAutoTo', { position: { x: 12, y: 12 } }); await p.waitForTimeout(5000); creature = await p.$('#zCreatures .mtg'); }
   check('there is a creature to carry the Ring', !!creature);
   const hud0 = await p.textContent('#hRing'); const n0 = (hud0.match(/(\d+)×/) || [0, 0])[1] | 0;   // the engine now tempts the Ring by itself during autopilot (Frodo, Boromir), so count from there
   check('the HUD shows the Ring state before the manual temptations', hud0 === '—' || /💍/.test(hud0), hud0);

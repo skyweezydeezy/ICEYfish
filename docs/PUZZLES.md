@@ -24,7 +24,7 @@ A wrong play plays out. The game ends when the deadline turn is over, when you a
 
 | id | type / level | title | mechanic | cards |
 |---|---|---|---|---|
-| fast-1 | fast / easy | Rocks before the dragon | mana sequencing | Sol Ring, Chrome Mox (imprint the right card), Goldspan Dragon's Treasure for a Bolt after combat |
+| fast-1 | fast / easy | Rocks before the dragon | mana sequencing, choosing how to pay | Sol Ring, Chrome Mox (imprint the Bolt), Lotus Petal: six mana sources for the five-mana Goldspan Dragon, so the pay sheet asks (opponent at 4) |
 | fast-2 | fast / easy | Dorks and colours | summoning sickness, coloured mana | Llanowar Elves, Elvish Mystic, Goldspan Dragon |
 | fast-3 | fast / medium | Feed the counterspell | baiting a counterspell, ordering a combo | Demonic Consultation then Thassa's Oracle (library of 5), hidden Force of Will, Ornithopter as the bait |
 | fast-4 | fast / medium | Nothing left to draw | winning by drawing from an empty library | Jace, Wielder of Mysteries +1 with 2 cards left, on the draw, hidden Counterspell, Ornithopter as the bait |
@@ -55,3 +55,9 @@ Every card is `full` in the engine's coverage (the test checks it) and almost al
 3. **Mana Tithe (sim.js, not changed):** when the person can pay the {1}, the opponent's Tithe is neither cast nor spent: it stays in its hand and its Plains stays untapped (a one-spell run: Sol Ring with a spare land). So tax counters are not used as the hidden piece.
 4. Blightsteel Colossus (twelve mana) fills the libraries, so draws are dead cards and never change a puzzle.
 5. Multi-turn endgames are chaotic (the opponent steals a lifelinker with Hellkite Tyrant and so on); the endgames here are one turn.
+
+## Paying and the phone layout (T-119)
+
+- **The pay sheet is never skipped.** The page used to answer every payment question with the engine's default (`'auto'`), so a person could not choose sources or colours. Now any payment with more than one way (the engine only asks then) opens T-099's pay sheet, even if the Display setting "Choose how I pay mana" is off (puzzle.js turns it on for the question only). Rocks before the dragon was changed so that the intended line really asks: Lotus Petal gives six sources for Goldspan's five mana, and the person taps which five.
+- **Proof that a person can follow each line** (`tests/engine/puzzles.test.js`): every intended line is replayed with the payment a person gets by pressing Confirm (the sheet's starting payment), and with every other way of paying at each question (one at a time, the rest on the default); the numbers are printed. The UI test pays for Goldspan Dragon by tapping the sheet.
+- **Layout** (`tests/ui/puzzles.ui.js`): 320, 360, 375, 390, 414 and 430 px wide in portrait and landscape, and an iPad both ways: no sideways scroll, nothing clipped (text, buttons, hand, hint and lesson boxes), every tab visible. Two fixes outside the Puzzle files, in `styles.css`: up to 430 px the eight tabs are two rows of four (the Puzzle tab was off the screen at 320 and cut off at 390); between 901 and 1100 px (a phone sideways) the tab bar takes its own row. The played tables (Duel, Pod, Practice) keep their one-line bar, which scrolls sideways there, because their one-screen layout has no room for a second row.

@@ -6,8 +6,8 @@
    "type": "fast",
    "level": "easy",
    "title": "Rocks before the dragon",
-   "mechanic": "Mana sequencing",
-   "premise": "You are on the play. The opponent is at 7 life with an empty board and no cards in hand. Win by the end of your turn 2.",
+   "mechanic": "Mana sequencing and choosing how to pay",
+   "premise": "You are on the play. The opponent is at 4 life with an empty board and no cards in hand. Win by the end of your turn 2.",
    "onPlay": true,
    "seed": 11,
    "deadline": 2,
@@ -22,11 +22,11 @@
      "Chrome Mox",
      "Goldspan Dragon",
      "Lightning Bolt",
-     "Blossoming Defense"
+     "Lotus Petal"
     ]
    },
    "opp": {
-    "life": 7,
+    "life": 4,
     "land": "Island",
     "lands": 0,
     "hand": []
@@ -51,26 +51,33 @@
       "do": "cast",
       "card": "Chrome Mox",
       "picks": [
-       "Blossoming Defense"
+       "Lightning Bolt"
       ]
      },
      {
       "do": "cast",
-      "card": "Goldspan Dragon"
+      "card": "Lotus Petal"
+     },
+     {
+      "do": "cast",
+      "card": "Goldspan Dragon",
+      "pay": [
+       "Mountain",
+       "Mountain",
+       "Sol Ring",
+       "Sol Ring",
+       "Chrome Mox"
+      ]
      },
      {
       "do": "attack",
       "who": "all"
-     },
-     {
-      "do": "cast",
-      "card": "Lightning Bolt"
      }
     ]
    ],
    "wrong": [
     {
-     "name": "Chrome Mox eats the Bolt",
+     "name": "Chrome Mox eats the dragon",
      "moves": [
       [
        {
@@ -80,6 +87,42 @@
        {
         "do": "cast",
         "card": "Sol Ring"
+       }
+      ],
+      [
+       {
+        "do": "land",
+        "card": "Mountain"
+       },
+       {
+        "do": "cast",
+        "card": "Chrome Mox",
+        "picks": [
+         "Goldspan Dragon"
+        ]
+       },
+       {
+        "do": "cast",
+        "card": "Lotus Petal"
+       },
+       {
+        "do": "cast",
+        "card": "Lightning Bolt"
+       },
+       {
+        "do": "attack",
+        "who": "all"
+       }
+      ]
+     ]
+    },
+    {
+     "name": "The rocks stay in hand",
+     "moves": [
+      [
+       {
+        "do": "land",
+        "card": "Mountain"
        }
       ],
       [
@@ -104,52 +147,16 @@
        }
       ]
      ]
-    },
-    {
-     "name": "No Sol Ring on turn 1",
-     "moves": [
-      [
-       {
-        "do": "land",
-        "card": "Mountain"
-       }
-      ],
-      [
-       {
-        "do": "land",
-        "card": "Mountain"
-       },
-       {
-        "do": "cast",
-        "card": "Chrome Mox",
-        "picks": [
-         "Blossoming Defense"
-        ]
-       },
-       {
-        "do": "cast",
-        "card": "Sol Ring"
-       },
-       {
-        "do": "cast",
-        "card": "Goldspan Dragon"
-       },
-       {
-        "do": "attack",
-        "who": "all"
-       }
-      ]
-     ]
     }
    ],
    "hints": [
     "Count the mana you will have on turn 2, and when each source has to come down to be ready.",
-    "Goldspan Dragon costs five. What else can you afford on turn 1, and what does your turn-1 mana pay for?",
-    "Look again at what Goldspan does when it attacks, and at which card in hand the Chrome Mox could swallow without hurting you."
+    "Goldspan Dragon costs five and needs red mana. Which of your cards make red, and which turn does each have to arrive?",
+    "Chrome Mox exiles a card from your hand as it comes in. Which card can you spare?"
    ],
    "lesson": {
-    "mechanic": "Mana sequencing",
-    "rules": "Mana rocks and Moxen are worth the most when they come down early: a permanent cast on turn 1 taps for mana on turn 2, while one cast on turn 2 only helps the spells after it. Chrome Mox exiles a card from your hand as it enters (imprint), so pick one you will not cast. Goldspan Dragon has haste, and its Treasure (which taps for two mana while Goldspan is in play) pays for a spell after combat."
+    "mechanic": "Mana sequencing and choosing how to pay",
+    "rules": "Mana rocks and Moxen are worth the most when they come down early: a permanent cast on turn 1 taps for mana on turn 2, while one cast on turn 2 only helps the spells after it. Chrome Mox exiles a card from your hand as it enters (imprint) and then makes mana of that card's colours, so pick one you will not cast. When a cost can be paid several ways, you choose the sources and the colours: here five of your six mana pay for Goldspan Dragon, which has haste and wins on the spot."
    }
   },
   {

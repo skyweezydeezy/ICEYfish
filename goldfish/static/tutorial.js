@@ -476,7 +476,7 @@
       { el: ['#simTiles:not(:empty)', '#tab-sim .two-col'], title: 'The key numbers', text: 'Kill turn, mana and land drops at a glance.' },
       { el: '#simSuggest', optional: true, title: 'Suggestions', text: 'Cards to add or cut, from this run.' },
       { el: '#mirrorBox', title: 'Mirror match', text: 'Your deck against another, both on autopilot.' },
-      { el: ['#sampleButtons:not(:empty)', () => { const e = $('#sampleButtons'); return e && e.closest('.card-box'); }], title: 'Sample games', text: 'Replay one game turn by turn.' },
+      { el: ['#sampleButtons:not(:empty)', () => { const e = $('#sampleButtons'); return e && e.closest('.card-box'); }], title: 'Sample games', text: 'Replay one game on the Practice table.' },
     ],
     odds: [
       { el: '#catOdds', title: 'Odds by category', text: 'The chance you have seen a land, ramp or draw.' },
@@ -594,7 +594,7 @@
       { el: ['#faceBox:not([hidden])'], title: 'Two-faced cards', text: 'Which face the autopilot casts.' },
       { el: '#labBox', title: 'Policy lab', text: 'Trial and error: the engine tries each option and keeps the better one for this deck.' },
       { el: '#abBox', title: 'A/B test', text: 'Diagnose each card, cut one, try a replacement, and compare.' },
-      { el: box('#sampleButtons'), title: 'Sample games', text: 'Replay a fast, typical or slow game turn by turn.' },
+      { el: box('#sampleButtons'), title: 'Sample games', text: 'Replay a fast, typical or slow game on the Practice table.' },
       { el: box('#heatmap'), title: 'When cards get played', text: 'The chance each card is played by each turn. Sort any column.' },
     ],
     odds: [

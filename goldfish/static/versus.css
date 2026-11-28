@@ -210,6 +210,14 @@
 .vs-top > .speed-bar { flex: 1 1 240px; margin: 0; }
 .vs-bar .vs-play { min-width: 5.6em; }
 @media (max-width: 600px), (max-height: 500px) { .vs-bar .hint[data-status] { flex: none; width: 11.5em; } }          /* the status words change; the items beside them stay put */          /* ▶ Play and ⏸ Pause are one width */
+/* T-133: on a phone the bar must fit 375 px with nothing to scroll to (the step strip made it wider): a narrower status box (the words still change in place, long ones end in …) and the connection shows as its dot (the words stay in the title) */
+@media (max-width: 600px) {
+  .vs-bar .hint[data-status] { width: 7.4em; }
+  .vs-bar .vs-conn { font-size: 0; }
+  .vs-bar .vs-conn::before { font-size: 15px; line-height: 1; content: '●'; }
+  .vs-bar .vs-conn.off::before { content: '○'; }
+}
+@media (max-width: 380px) { .vs-bar .hint[data-status] { width: 6.4em; } .vs-bar button { padding: 8px 6px; } .vs-bar .vs-round { font-size: 12px; } }
 .vs-bar .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vs-foot { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .vs-stack { min-width: calc(var(--vc) * .16); }
@@ -418,3 +426,7 @@
 .vs-ps.hot, #hPoison.hot { color: #fff; background: #c0392b; }
 #hPoison.hot { padding: 0 6px; border-radius: 6px; }
 .vs-arena.pod .vs-opps .vs-ps { order: 4; font-size: 10px; padding: 1px 5px; }
+
+/* T-121: the Loop toggle on the table's bar (table focus hides the setup row's checkbox): lit when on, a 44 px tap target on touch */
+.vs-bar .vs-loopbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (pointer: coarse), (max-width: 600px), (max-height: 500px) { .vs-bar .vs-loopbtn { min-height: 44px; min-width: 44px; } }

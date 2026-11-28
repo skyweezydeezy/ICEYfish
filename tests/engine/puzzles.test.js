@@ -41,6 +41,27 @@ for (const p of P) {
 check('nobody is given the combo for free: no move plays a whole combo for you (no autopilot move)', P.every(p => p.solution.flat().every(m => ['land', 'cast', 'ability', 'attack', 'loyalty'].includes(m.do)) && p.wrong.every(w => w.moves.flat().every(m => ['land', 'cast', 'ability', 'attack', 'loyalty'].includes(m.do)))));
 check('the medium and hard fast wins start the opponent at 40 and the easy ones lower', P.filter(p => p.type === 'fast' && p.level !== 'easy').every(p => p.opp.life === 40) && P.filter(p => p.type === 'fast' && p.level === 'easy').every(p => p.opp.life < 40));
 check('the four medium and hard fast wins end four different ways (Oracle, Jace, Laboratory Maniac, a drain loop)', (() => { const f = P.filter(p => p.type === 'fast' && p.level !== 'easy').map(p => p.me.hand.find(n => /Thassa|Jace|Maniac|Vito/.test(n))); return new Set(f).size === 4; })());
+// T-119: a person pays through the pay sheet, not through the solver's moves. Every intended line is replayed with the person's own payment choices:
+// pressing Confirm on the sheet's starting payment ('smart', the one that wastes no mana) wins, and so does the engine's own default; and every other way
+// of paying at each question is tried one at a time (the rest on the default): at least the default wins, and the number of questions and alternatives is reported.
+function payAlternatives(q) { const U = q.pay.units.map(u => u.u), n = q.pay.n, out = []; const rec = (i, cur) => { if (cur.length === n) { const ks = q.pay.solve(cur.map(u => ({ u, force: null }))); if (ks) out.push(ks); return; } if (i >= U.length || U.length - i < n - cur.length) return; rec(i + 1, cur.concat([U[i]])); rec(i + 1, cur); }; rec(0, []); return out; }
+const bare = line => JSON.parse(JSON.stringify(line)).map(t => t.map(m => { delete m.pay; return m; }));          // without the solver's own choice of sources
+let askedTotal = 0, altsTotal = 0, altWins = 0, altLosses = 0;
+for (const p of P) {
+  const smart = Core.playScenario(cardOf, p, bare(p.solution), true, false, 'smart');
+  check(p.id + ': the intended line wins when the person presses Confirm on every payment sheet', smart.result === 'win' && !smart.invalid, smart.result);
+  const asked = [];
+  Core.playScenario(cardOf, p, bare(p.solution), true, false, q => { asked.push(q); return 'smart'; });
+  askedTotal += asked.length;
+  asked.forEach((q0, i) => {
+    for (const ks of payAlternatives(q0)) {
+      let n = 0; const r = Core.playScenario(cardOf, p, bare(p.solution), true, false, q => (n++ === i ? ks : 'smart'));
+      altsTotal++; if (r.result === 'win') altWins++; else altLosses++;
+    }
+  });
+}
+check('payment sheets are asked in the intended lines (a person chooses how to pay), and the alternatives were tried', askedTotal > 0 && altsTotal > 0, `${askedTotal} questions, ${altsTotal} other payments tried: ${altWins} still win, ${altLosses} do not`);
+check('Rocks before the dragon asks how to pay Goldspan Dragon (six mana for five)', (() => { const p = P.find(x => x.id === 'fast-1'), asked = []; Core.playScenario(cardOf, p, bare(p.solution), true, false, q => { asked.push(q); return 'smart'; }); return asked.some(q => /Goldspan/.test(q.title)); })());
 // the opponent's hand is hidden: what the puzzle shows of it is a count, never the names (the data keeps them for the engine)
 check('easy puzzles hold nothing, medium one piece of interaction, hard a fuller hand', P.filter(p => p.level === 'easy').every(p => !(p.opp.hand || []).length) && P.filter(p => p.level === 'medium').every(p => (p.opp.hand || []).length >= 1) && P.filter(p => p.level === 'hard').every(p => (p.opp.hand || []).length >= 3));
 // the search tool and the rules module agree: the searcher finds the intended line's first turn among its winning prefixes (bounded, endgames only)

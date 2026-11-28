@@ -261,20 +261,21 @@ const other = q => q.options.findIndex(o => !o.def);
   answer(p, run, [qq => named(/Force of Will/)(qq)]);
   check('...and it is: the blue card is exiled, 1 life is paid, the spell is countered', a.exile.includes(blue) && a.life === 39 && b.graveyard.includes(gt)); }
 
+const PR = process.env.ISF_PRIORITY === '1';          // T-127: the whole suite also runs with the priority rules on
 // ---- 3. responses: an opponent declares attackers (the engine's instant window asks a person first)
 { const mk = seat => { const p = pod(['frodo', 'zul-ashur'], 5); p.games.forEach(g => { g.turn = 6; g.hand = []; g.battlefield = []; g.command = []; }); if (seat) D.seat(p.games[0]); const [a, b] = p.games;
     lands(a, 1, /^Plains$/); const sw = toHand(a, /^Swords to Plowshares$/); const gt = putOn(b, card(b, /Grave Titan/)); b.battlefield.filter(q => q.token).forEach(q => { q.sick = true; }); G.podFocus(b, a); b.forceAttackers = [gt.iid]; return { p, a, b, sw, gt }; };
   const run = gs => G.combat(gs[1]);
   let s = mk(true); const { q, still } = open(s.p, run);
-  check('when an opponent attacks, a person is asked whether to cast an instant now (the autopilot\'s pick is the default)', !!q && q.kind === 'instant' && /attacks: cast an instant/.test(q.title) && q.options.some(o => o.name === 'Swords to Plowshares') && q.none === 'Not now' && q.def.length === 1 && still, q && q.title);
-  answer(s.p, run, [() => 'none']);
+  check('when an opponent attacks, a person is asked whether to cast an instant now (the autopilot\'s pick is the default)', !!q && (PR ? q.kind === 'priority' : q.kind === 'instant' && /attacks: cast an instant/.test(q.title)) && q.options.some(o => o.name === 'Swords to Plowshares') && q.none === (PR ? 'Pass' : 'Not now') && (PR || q.def.length === 1) && still, q && q.title);
+  answer(s.p, run, PR ? [1, 2, 3, 4, 5, 6].map(() => () => 'none') : [() => 'none']);          // with the priority rules on (ISF_PRIORITY=1) the beginning of combat asks first, then the attack
   check('..."Not now": the instant stays in hand and the attack goes on', s.a.hand.includes(s.sw) && s.a.life < 40, s.a.life);
   s = mk(true); answer(s.p, run, [qq => qq.options.findIndex(o => o.name === 'Swords to Plowshares')]);
   check('...cast it: the attacker is exiled before damage', s.a.graveyard.includes(s.sw) && !s.b.battlefield.includes(s.gt) && s.a.life === 40, s.a.life);
   const A = mk(false), B = mk(false); D.seat(A.p.games[0]); RS(A.p.games, 0, run, () => 'auto'); run(B.p.games);
   check('..."the autopilot decides" casts what the autopilot casts', D.dump(A.p.games) === D.dump(B.p.games));
   s = mk(true); const q2 = open(s.p, gs => G.instantWindow(gs[0], [], 'end')).q;
-  check('at the opponent\'s end step the same question is asked ("End of ...\'s turn")', !!q2 && q2.kind === 'instant' && /^End of .*'s turn: cast an instant\?/.test(q2.title), q2 && q2.title); }
+  check('at the opponent\'s end step the same question is asked ("End of ...\'s turn")', !!q2 && (PR ? q2.kind === 'priority' && /^End step/.test(q2.title) : q2.kind === 'instant' && /^End of .*'s turn: cast an instant\?/.test(q2.title)), q2 && q2.title); }
 
 // ---- 3. responses: the end of another player's turn
 { const p = table(['frodo', 'zul-ashur']), [a, b] = p.games; lands(a, 1, /^Plains$/); const sw = toHand(a, /^Swords to Plowshares$/), sorc = toHand(a, /^Diabolic Intent$/), big = toHand(a, /^Anguished Unmaking$/); const tb = putOn(b, card(b, /Grave Titan/));

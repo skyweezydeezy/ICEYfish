@@ -1,0 +1,32 @@
+// T-122 timing audit, fix 3: CR 510.4 / 704.3: the first-strike damage step ends before the regular one, so a creature that dies in it has its "dies" trigger put on the stack and resolved before regular damage is dealt.
+const fs = require('fs'), path = require('path');
+const ROOT = path.join(__dirname, '..', '..');
+const G = require(path.join(ROOT, 'goldfish', 'static', 'sim.js'));
+const DS = path.join(ROOT, 'goldfish', 'static', 'data', 'sets');
+const idx = JSON.parse(fs.readFileSync(path.join(DS, 'index.json'), 'utf8')), store = {};
+idx.sets.forEach(s => { store[s.code] = JSON.parse(fs.readFileSync(path.join(DS, (/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(s.code) ? s.code + '_' : s.code) + '.json'), 'utf8')); });
+const find = n => { for (const f of Object.values(store)) { const c = f.cards.find(x => x.name === n && !x.ref); if (c) return Object.assign({}, c, { qty: 1 }); } throw new Error('no card ' + n); };
+let pass = 0, fail = 0;
+const check = (n, ok, d) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '   [' + d + ']' : '')); };
+const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'red-rum-raiders-loaded.json'), 'utf8'));
+const NAMES = ['Dockside Extortionist', 'Llanowar Elves', 'Solemn Simulacrum', 'Forest'];
+const cards = base.cards.filter(c => !NAMES.includes(c.name)).slice(0, 30).concat(NAMES.map(find));
+const deck = G.buildDeck(cards, base.tokens);
+const O = { turns: 20, onPlay: false, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40, prioritizeCommander: true };
+const by = n => deck.unique.find(c => c.name === n);
+const bare = seed => { const g = G.newGame(deck, O, seed); g.turn = 6; g.hand = []; g.battlefield = []; g.graveyard = []; g.exile = []; g.command = []; g.library = g.library.slice(0, 40); return g; };
+const put = (g, n) => { const p = G.enterWithTriggers(g, { iid: g.nextIid++, card: by(n) }, {}, []); p.sick = false; p.tapped = false; p.enteredTurn = 1; return p; };
+const a = bare(3), b = bare(4); G.linkMatch(a, b);
+const atk = put(a, 'Dockside Extortionist'); atk.eotKw = new Set(['double strike']); atk.eotP = 1;          // a 2/2 with double strike
+const sol = put(b, 'Solemn Simulacrum'), bear = put(b, 'Llanowar Elves');
+b.forcedBlocks = { [atk.iid]: [sol.iid, bear.iid] };
+const lib0 = b.library.length;
+const ev = G.combat(a);
+const at = f => ev.findIndex(f);
+const iSol = at(e => e.type === 'note' && /Solemn Simulacrum dies in combat/.test(e.text));
+const iBear = at(e => e.type === 'note' && /Llanowar Elves dies in combat/.test(e.text));
+const iTrig = at(e => e.type === 'trigger' && /dies, you may draw/.test(e.text || ''));
+check('Solemn Simulacrum dies in the first-strike step, the Elves in the regular one', iSol >= 0 && iBear > iSol, `solemn ${iSol}, elves ${iBear}`);
+check('CR 510.4, 704.3: the dies trigger resolves (a card is drawn) before the regular damage step', iTrig > iSol && iTrig < iBear, `trigger ${iTrig}`);
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

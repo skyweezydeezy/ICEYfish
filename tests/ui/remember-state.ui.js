@@ -37,7 +37,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   // a Practice game, played to turn 3
   await p.click('[data-tab=table]'); await p.waitForFunction(() => window.__isf.game && !window.__isf.busy, null, { timeout: 30000 });
   await p.fill('#tAutoToN', '3'); await p.check('#tFast');
-  await p.click('#tAutoTo');
+  await p.click('#tAutoTo', { position: { x: 12, y: 12 } });
   await p.waitForFunction(() => { const g = window.__isf.game; return g && g.turn === 3 && g.turnDone && !window.__isf.busy; }, null, { timeout: 90000 });
   const before = await p.evaluate(() => ({ dump: window.Decide.dump([window.__isf.game]), log: document.querySelector('#gameLog').children.length, turn: window.__isf.game.turn, life: window.__isf.game.damage }));
   const size = await p.evaluate(() => ['isf_state', 'isf_state_game', 'isf_state_hand'].reduce((n, k) => n + (localStorage.getItem(k) || '').length, 0));

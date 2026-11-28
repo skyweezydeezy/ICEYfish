@@ -2,6 +2,60 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 227,
+      "lines": [
+        "Duel on an upright phone: the whole top bar fits on the screen again, with no sideways scrolling to reach the playmat, sound and help buttons.",
+        "New, off by default: Settings → Display → Guess unknown rules. A rules line ICEYfish can't read yet is played like the closest line it knows, marked \"guessed N%\" with the card it was matched to. Guesses can be wrong, so the card stays on the Teach list."
+      ]
+    },
+    {
+      "v": 226,
+      "lines": [
+        "Puzzles: tap a card to open it large, with its actions (Cast, Play, abilities, Attack) as buttons inside, next to its prices and printings.",
+        "New built-in deck: Rules Lawyers (Winota, Joiner of Forces), checked as Bracket 4."
+      ]
+    },
+    {
+      "v": 225,
+      "lines": [
+        "ICEYfish now carries its copyright notice (SWD Marketing, all rights reserved), and the app's own tests run more reliably."
+      ]
+    },
+    {
+      "v": 224,
+      "lines": [
+        "More groundwork for full priority: activated abilities now pay their cost and wait on the stack, so there is a chance to respond, and the autopilot can respond during blocks and damage. Still switched off, so games play as before."
+      ]
+    },
+    {
+      "v": 223,
+      "lines": [
+        "More groundwork for full priority: triggered abilities now wait on the stack with a chance to respond between each one. Still switched off, so games play as before."
+      ]
+    },
+    {
+      "v": 222,
+      "lines": [
+        "Groundwork for full priority and a real stack (the Comprehensive Rules' way of responding to spells and triggers). It stays switched off for now, so games play as before."
+      ]
+    },
+    {
+      "v": 221,
+      "lines": [
+        "Proliferate lets you choose: pick which permanents and players get one more of each counter they have.",
+        "Timing follows the rules more closely: extra turns are no longer capped, beginning-of-combat triggers fire in every combat, deaths and lifelink resolve between first-strike and regular damage, and \"next end step\" effects wait for the next end step.",
+        "The speed bar and table controls should look sharp on iPhone and iPad."
+      ]
+    },
+    {
+      "v": 220,
+      "lines": [
+        "Puzzles: you choose how each cost is paid (Rocks before the dragon can be won by hand now), and the Puzzle tab fits phones: two rows of tabs up to 430 px wide.",
+        "Duel on phones: a 🔁 Loop button on the game bar. Simulate's sample games replay on the real Practice table, where you can take over at any turn.",
+        "Entrancing Melody: choose X, then a creature with mana value X to take."
+      ]
+    },
+    {
       "v": 219,
       "lines": [
         "Taught on request: Cemetery Gatekeeper, Cori Mountain Monastery, Shadow Alley Denizen and Vampire Nocturnus. Intimidate now limits blockers as it should."

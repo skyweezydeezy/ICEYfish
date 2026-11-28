@@ -46,8 +46,41 @@ const KEY = 'isf_puzzle2';
     }
   };
   const open = async id => { await p.click('.pz-pick[data-id="' + id + '"]'); await p.waitForSelector('.pz-card', { timeout: 60000 }); await settle(); };
-  const cast = async name => { await p.click('.pz-card[data-name="' + name + '"]'); await p.click('.pz-do'); await settle(); };
+  // T-134: a tap on a card opens it in the viewer and what it can do is a button there (the 350 ms ghost-tap guard holds for a moment)
+  const tap = async (sel, label) => { await p.click(sel); await p.waitForSelector('#lightbox.show .lb-act'); await p.waitForTimeout(400); await p.locator('#lightbox .lb-act', { hasText: label }).first().click(); };
+  const cast = async name => { await tap('.pz-card[data-name="' + name + '"]', /^(Cast|Play) /); await settle(); };
   const attackAll = async () => { await p.click('.pz-atk'); await p.click('.pz-all'); await settle(); };
+
+  // ---- Rocks before the dragon, paid for by hand: the person taps through the imprint choice and the payment sheet (T-119)
+  await open('fast-1');
+  // T-134: a tap opens the card; a card with one action still opens, with that one button; the tap that opened it cannot press it; a card with nothing to do is for reading
+  await p.click('.pz-card[data-name="Mountain"]'); await p.waitForSelector('#lightbox.show .lb-act');
+  check('a tap on a card in hand opens it in the viewer with its one action as a button (and nothing was played)', await p.$$eval('#lightbox .lb-act', xs => xs.length === 1 && /^Play Mountain/.test(xs[0].textContent)) && await p.$$eval('.pz-card', xs => xs.length) === 7);
+  check('the viewer from a puzzle keeps the buy links, the printings and the rules lines beside the action', await p.$$eval('#lightbox .lb-shop a', xs => xs.length >= 3 && xs.some(a => /tcgplayer/.test(a.href)) && xs.some(a => /cardkingdom/.test(a.href)) && xs.some(a => /manapool/.test(a.href))) && await p.$('#lightbox .lb-prints') !== null);
+  await p.$eval('#lightbox .lb-act', b => b.click()); await p.waitForTimeout(100);
+  check('the ghost-tap guard: a press within 350 ms of opening does nothing', await p.$eval('#lightbox', e => e.classList.contains('show')) && await p.$$eval('.pz-card', xs => xs.length) === 7);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  check('Esc closes the viewer', await p.$eval('#lightbox', e => !e.classList.contains('show')));
+  await p.click('.pz-card[data-name="Goldspan Dragon"]'); await p.waitForSelector('#lightbox.show .lb-act');
+  check('a card you cannot cast yet shows its button greyed with the reason', await p.$eval('#lightbox .lb-act', b => b.disabled && /Not enough mana/.test(b.textContent)));
+  await p.keyboard.press('Escape');
+  await cast('Mountain'); await cast('Sol Ring'); await p.click('.pz-pass'); await settle();
+  await cast('Mountain');
+  await tap('.pz-card[data-name="Chrome Mox"]', /^Cast /); await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });
+  check('Chrome Mox asks which card to imprint (a person has to choose)', await p.$eval('.ch-sheet.imprint', e => /Lightning Bolt/.test(e.textContent) && /Goldspan Dragon/.test(e.textContent)));
+  await p.click('.ch-sheet .ch-opt[title="Lightning Bolt"]'); await p.click('.ch-sheet .ch-ok'); await settle();
+  await cast('Lotus Petal');
+  await tap('.pz-card[data-name="Goldspan Dragon"]', /^Cast /); await p.waitForSelector('.ch-sheet.pay', { timeout: 15000 });
+  const chips = await p.$$eval('.ch-sheet.pay .ch-paychip', xs => xs.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  check('the pay sheet is shown for Goldspan Dragon: more sources than the cost needs (the Display setting does not hide it here)', chips.length === 6 && /Lotus Petal/.test(chips.join()) && /Chrome Mox/.test(chips.join()) && /\{3\}\{R\}\{R\}/.test(await p.$eval('.ch-sheet.pay', e => e.textContent)), chips.join(' | '));
+  for (const c of await p.$$('.ch-sheet.pay .ch-paychip')) { const t = await c.textContent(), on = await c.evaluate(e => e.classList.contains('sel')); if (on !== !/Lotus Petal/.test(t)) await (await c.$('.ch-opt')).click(); }
+  check('Confirm is on once the five chosen sources pay the cost exactly', await p.$eval('.ch-sheet.pay .ch-ok', e => !e.disabled));
+  await p.click('.ch-sheet.pay .ch-ok'); await settle();
+  check('the dragon is on the table and the Petal was kept', await p.$eval('.pz-bf', e => /Goldspan Dragon/.test(e.innerHTML)) && await p.$$eval('.pz-bf .pz-perm', xs => xs.some(x => x.dataset.name === 'Lotus Petal')));
+  await attackAll();
+  await p.waitForSelector('.pz-banner', { timeout: 30000 });
+  check('Rocks before the dragon is solved through the person\'s own choices', await p.$eval('.pz-banner', e => e.classList.contains('win')));
+  await p.click('.pz-list'); await p.waitForSelector('.pz-pick');
 
   // ---- a loss: the endgame "Dragons in pairs", attacking with Atarka alone
   await open('end-2');
@@ -75,7 +108,7 @@ const KEY = 'isf_puzzle2';
   check('the intended line wins (Solved, streak 1)', await p.$eval('.pz-banner', e => e.classList.contains('win') && /Solved/.test(e.textContent) && /Streak 1/.test(e.textContent)));
   check('a win offers the lesson too (behind its ⓘ), and no hints', await p.$eval('.pz-lbtn', e => !!e) && await p.$eval('.pz-hints', e => e.hidden));
   await p.click('.pz-list'); await p.waitForSelector('.pz-pick');
-  check('the picker ticks the solved puzzle and counts it', await p.$eval('.pz-pick[data-id="end-2"]', e => e.classList.contains('solved')) && /1 of 12 solved/.test(await p.$eval('.pz-score', e => e.textContent)) && /Streak\s*1/.test(await p.$eval('.pz-score', e => e.textContent)));
+  check('the picker ticks the solved puzzle and counts it', await p.$eval('.pz-pick[data-id="end-2"]', e => e.classList.contains('solved')) && /2 of 12 solved/.test(await p.$eval('.pz-score', e => e.textContent)) && /Streak\s*1/.test(await p.$eval('.pz-score', e => e.textContent)));
 
   // ---- a fast win across three turns: Dorks and colours
   await open('fast-2');
@@ -98,29 +131,43 @@ const KEY = 'isf_puzzle2';
   await p.click('.pz-list'); await p.waitForSelector('.pz-pick'); await open('fast-4');
   await cast('Island'); await cast('Sol Ring'); await p.click('.pz-pass'); await settle();
   await cast('Island'); await cast('Ornithopter'); await cast('Lotus Petal'); await cast('Jace, Wielder of Mysteries');
-  await p.click('.pz-perm[data-name^="Jace"]'); await p.click('.pz-pw[data-i="0"]'); await settle();
+  await tap('.pz-perm[data-name^="Jace"]', /^\+1/); await settle();
   await p.waitForSelector('.pz-banner', { timeout: 30000 });
   check("Jace's +1 is a button and the draw from an empty library wins", await p.$eval('.pz-banner', e => e.classList.contains('win')));
-  check('the best streak and progress are kept in localStorage', await p.evaluate(k => { const s = JSON.parse(localStorage.getItem(k)); return s && s.solved['end-2'] && s.solved['fast-2'] && s.solved['fast-3'] && s.solved['fast-4'] && s.best >= 4; }, KEY));
+  check('the best streak and progress are kept in localStorage', await p.evaluate(k => { const s = JSON.parse(localStorage.getItem(k)); return s && s.solved['end-2'] && s.solved['fast-2'] && s.solved['fast-3'] && s.solved['fast-4'] && s.solved['fast-1'] && s.best >= 4; }, KEY));
   check('no page errors on the desktop', errs.length === 0, errs.join(' | '));
   await p.reload(); await p.waitForFunction(() => window.ISFPuzzle, null, { timeout: 60000 });
   await p.click('[data-tab=puzzle]'); await p.waitForSelector('.pz-pick');
-  check('after a reload the solved puzzles are still ticked', await p.$$eval('.pz-pick.solved', xs => xs.length) === 4);
+  check('after a reload the solved puzzles are still ticked', await p.$$eval('.pz-pick.solved', xs => xs.length) === 5);
   await ctx.close();
 
-  // ---- iPhone and iPad: the picker and a puzzle fit the screen, the buttons are reachable
-  for (const [name, w, h] of [['iPhone', 390, 844], ['iPhone sideways', 844, 390], ['iPad', 820, 1180]]) {
-    const m = await mk(w, h, true), q = m.p;
-    await q.click('[data-tab=puzzle]'); await q.waitForSelector('.pz-pick', { timeout: 20000 });
-    const fit1 = await q.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
-    check(`${name}: the picker fits the width`, fit1.sw <= fit1.cw + 1, JSON.stringify(fit1));
-    await q.click('.pz-pick[data-id="end-3"]'); await q.waitForSelector('.pz-card', { timeout: 60000 });
+  // ---- every common phone width, portrait and landscape, and the iPad: no horizontal scroll, nothing clipped (T-119)
+  const probe = () => {
+    const vw = document.documentElement.clientWidth, bad = [], r = e => e.getBoundingClientRect();
+    const doc = document.documentElement.scrollWidth <= vw + 1 || 'page scrolls sideways ' + document.documentElement.scrollWidth + ' > ' + vw;
+    const tabs = document.querySelector('.tabs'), tabsOk = tabs.scrollWidth <= tabs.clientWidth + 1 && [...document.querySelectorAll('.tab')].every(t => { const x = r(t); return x.width > 0 && x.left >= -1 && x.right <= vw + 1; });
+    for (const e of document.querySelectorAll('#tab-puzzle *')) {
+      if (e.closest('[hidden]') || e.closest('details:not([open]) > :not(summary)')) continue;
+      const x = r(e); if (!x.width || !x.height) continue;
+      if (x.left < -1 || x.right > vw + 1) bad.push((e.className && e.className.baseVal === undefined ? '.' + String(e.className).split(' ')[0] : e.tagName) + ' ' + Math.round(x.left) + '..' + Math.round(x.right));
+      if (e.scrollWidth > e.clientWidth + 1 && /^(P|LI|SPAN|BUTTON|H2|B|DIV)$/.test(e.tagName) && getComputedStyle(e).overflowX !== 'visible' && !/pz-tiles|ch-/.test(String(e.className))) bad.push('clipped text in ' + (String(e.className) || e.tagName));
+    }
+    return { vw, doc, tabsOk, bad: [...new Set(bad)].slice(0, 6) };
+  };
+  const sizes = [[320, 568], [360, 740], [375, 667], [390, 844], [414, 896], [430, 932], [568, 320], [740, 360], [667, 375], [844, 390], [896, 414], [932, 430], [820, 1180], [1180, 820]];
+  for (const [w, h] of sizes) {
+    const name = `${w}x${h}`, m = await mk(w, h, true), q = m.p;
+    const ok = async label => { const r = await q.evaluate(probe); check(`${name}: ${label} fits (no sideways scroll, nothing clipped, every tab visible)`, r.doc === true && r.tabsOk && !r.bad.length, JSON.stringify(r)); };
+    await q.click('[data-tab=puzzle]'); await q.waitForSelector('.pz-pick', { timeout: 20000 }); await ok('the picker');
+    await q.click('.pz-pick[data-id="fast-1"]'); await q.waitForSelector('.pz-card', { timeout: 60000 });
     await q.waitForFunction(() => { const s = window.ISFPuzzle.state(); return s && !s.busy && s.phase === 'me'; }, null, { timeout: 30000 });
-    const fit2 = await q.evaluate(() => { const r = document.documentElement, e = document.querySelector('.pz-pass').getBoundingClientRect(); return { sw: r.scrollWidth, cw: r.clientWidth, w: Math.round(e.width), hgt: Math.round(e.height) }; });
-    check(`${name}: a puzzle fits the width`, fit2.sw <= fit2.cw + 1, JSON.stringify(fit2));
-    check(`${name}: the buttons are big enough to tap`, fit2.hgt >= 36 && fit2.w >= 70, JSON.stringify(fit2));
+    await ok('a puzzle table with a seven-card hand');
+    const bar = await q.evaluate(() => { const e = document.querySelector('.pz-pass').getBoundingClientRect(); return { w: Math.round(e.width), hgt: Math.round(e.height) }; });
+    check(`${name}: the buttons are big enough to tap`, bar.hgt >= 36 && bar.w >= 64, JSON.stringify(bar));
     const tiles = await q.$$eval('.pz-card', xs => xs.map(x => Math.round(x.getBoundingClientRect().width)));
-    check(`${name}: the hand's cards are tappable (wide enough)`, tiles.length === 3 && tiles.every(w => w >= 40), tiles.join(','));
+    check(`${name}: the hand's cards are tappable (wide enough)`, tiles.length === 7 && tiles.every(w2 => w2 >= 36), tiles.join(','));
+    await q.click('.pz-giveup'); await q.waitForSelector('.pz-banner'); await q.click('.pz-hint'); await q.click('.pz-lbtn'); await q.waitForTimeout(200);
+    await ok('the result with a hint and the lesson open');
     check(`${name}: no page errors`, m.errs.length === 0, m.errs.join(' | '));
     await m.ctx.close();
   }

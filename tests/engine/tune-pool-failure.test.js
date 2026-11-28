@@ -6,7 +6,7 @@ let pass = 0, fail = 0;
 const check = (n, ok, d) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '   [' + d + ']' : '')); };
 const STATIC = path.join(__dirname, '..', '..', 'goldfish', 'static');
 const rr = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'red-rum-raiders-loaded.json'), 'utf8'));
-const O = { turns: 10, oppLife: 40, minLands: 2, maxLands: 5, freeMulligan: true, prioritizeCommander: true, minHandSize: 5, idealLandRatio: 0.42, policy: {} };
+const O = { turns: 10, oppLife: 40, minLands: 2, maxLands: 5, freeMulligan: true, prioritizeCommander: true, minHandSize: 5, idealLandRatio: 0.42, policy: {}, priority: false };          // priority: false: the worker runs in a vm context that cannot see ISF_PRIORITY, so both sides must agree
 const src = fs.readFileSync(path.join(STATIC, 'worker.js'), 'utf8'), clone = x => structuredClone(x);
 // a worker.js running in its own context; `modes` says how each sub-worker it starts behaves: ok | error (an error event on its first part) | silent (never answers) | beat-then-silent
 function context(modes, watchdog, out) {

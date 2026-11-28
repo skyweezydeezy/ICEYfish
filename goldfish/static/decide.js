@@ -164,7 +164,7 @@
     return: ['return a creature to your hand', 'Choose a creature you control to return to its owner\'s hand.'],          // Whitemane Lion, Shrieking Drake
     skate: ['double the counters', 'Choose any number of your permanents with counters: each kind of counter on them is doubled.'],
     flickerwisp: ['exile another permanent', 'Choose a permanent to exile. A card of yours returns at the beginning of the next end step; a token is gone for good.'],
-    proliferate: ['proliferate', 'Choose any number of your permanents with counters: each gets another counter of each kind already there.'],
+    proliferate: ['proliferate', 'Choose any number of permanents and players with counters (none is fine): each gets another counter of each kind already there. The kinds on one permanent or player can\'t be split: all of them grow.'],
     untap: ['untap what?', 'Choose the permanent to untap.'],
     tap: ['tap what?', 'Choose the permanent to tap.'],
     fiendhunter: ['exile which creature?', 'Choose the creature to exile until Fiend Hunter leaves the battlefield.'],
@@ -209,7 +209,7 @@
       else if (d.kind === 'mode' && o.text) { item.name = o.text; }
       else if (d.kind === 'mode') { item.name = fxLabel(o.mode); const same = opts.filter(x => fxLabel(x.mode) === item.name); if (same.length > 1) item.name += ` (mode ${(d.f && d.f.modes ? d.f.modes.indexOf(o.mode) : k) + 1} on the card)`; }
       else if (d.kind === 'explore') { item.name = o ? 'Put it into your graveyard' : 'Keep it on top of your library'; item.note = o ? 'mill it: you draw something else next' : 'you draw it next'; }
-      else if (o && o.ability) { item.name = `${o.card.name}: ${o.label}`; item.card = o.card; item.iid = o.iid; item.note = 'in response: activate' + (o.cost ? ` (${o.cost})` : ''); }          // one of your permanents' abilities, used in response
+      else if (o && o.ability) { item.name = `${o.card.name}: ${o.label}`; item.card = o.card; item.iid = o.iid; item.note = 'in response: activate' + (o.cost ? ` (${o.cost})` : ''); item.ability = true; }          // one of your permanents' abilities, used in response
       else if (d.kind === 'counter') { item.name = o.c.card.name; item.card = o.c.card; item.iid = o.c.iid; item.note = o.how === 'pitchX' ? `counter it (X is its mana value): exile ${o.pitch.card.name}` : o.how === 'pitch' ? `counter it: exile ${o.pitch.card.name}${o.c.card.a.pitch.life ? ' and pay ' + o.c.card.a.pitch.life + ' life' : ''}` : (HOW[o.how] || '') + (o.free && o.how === 'respond' ? ' (free: you control a commander)' : ''); }
       else if (d.kind === 'resolve') { item.name = o.card.name; item.card = o.card; item.iid = o.iid; item.note = HOW.respond; }
       else if (d.kind === 'protect') { item.name = o; }
@@ -223,8 +223,11 @@
       else if (d.kind === 'x' && d.what === 'prelate') { item.name = 'Number ' + o; item.note = 'noncreature spells with mana value ' + o + ' can\'t be cast'; }
       else if (d.kind === 'x') { item.name = 'X = ' + o; item.note = o === opts[opts.length - 1] ? 'all the mana you can pay' : ''; }
       else if (d.kind === 'tribe') { item.name = o; const n = (d.counts || {})[o] || 0; item.note = (o === d.learned ? (d.spellAsk ? 'the autopilot\'s pick · ' : 'learned · ') : '') + (n ? `${n} creature card${n === 1 ? '' : 's'}${d.spellAsk ? ' in your graveyard' : ''}` : 'named by your cards'); }
+      else if (d.what === 'proliferate' && o && o.prolPlayer) { item.name = o.o === g ? 'You' : o.o && m && m.names ? m.names[o.o.pid] : 'Opponent'; item.note = o.kinds.map(([k, n]) => k + ' ×' + n).join(' · '); item.owner = o.o && o.o !== g ? o.o.pid : null; }          // T-128: a player's counters
       else {
         item.name = o.card.name; item.card = o.card; item.iid = o.iid;
+        if (d.what === 'proliferate') { const w = owner(o), cl = []; if (o.counters) cl.push((o.counters > 0 ? '+1/+1' : '-1/-1') + ' ×' + Math.abs(o.counters)); if (o.loyalty > 0) cl.push('loyalty ×' + o.loyalty); for (const k of Object.keys(o.other || {})) if (o.other[k]) cl.push(k + ' ×' + o.other[k]); item.owner = w.pid; item.note = [w !== g && m && m.names ? m.names[w.pid] : '', cl.join(' · ')].filter(Boolean).join(' · '); }
+        else
         if (d.what === 'graveyard') { item.note = [d.theirs && d.theirs.has(o) ? "in another player's graveyard" : '', (o.card.type_line || '').split(' — ')[0]].filter(Boolean).join(' · '); }
         else if (d.kind === 'target' || d.kind === 'sacrifice' || d.kind === 'legend') { const w = owner(o); item.owner = w.pid; item.note = [w !== g && m && m.names ? m.names[w.pid] : '', ptOf(w, o), o.counters ? (o.counters > 0 ? '+' : '') + o.counters + ' counters' : '', o.token ? 'token' : ''].filter(Boolean).join(' · '); }
       }
@@ -300,6 +303,16 @@
       q.title = d.step === 'end' ? `End of ${who}'s turn: cast an instant?` : `${who} attacks: cast an instant?`;
       q.text = d.step === 'end' ? 'You may cast an instant or a card with flash now with the mana you left untapped (only the ones you can pay for are listed).' : 'Attackers are declared. You may cast an instant or a card with flash now (only the ones you can pay for are listed); then combat goes on.';
       q.none = 'Not now';
+    } else if (d.kind === 'priority') {                                                                    // T-127 stage 1 (docs/PRIORITY-DESIGN.md): you hold priority at a step; the default is to pass
+      const lab = { stack: 'Ability on the stack', upkeep: 'Upkeep', draw: 'Draw step', main: 'Main phase', beginCombat: 'Beginning of combat', blockers: 'Blockers declared', damage: 'Combat damage', endCombat: 'End of combat', combat: 'Attackers declared', end: 'End step' }[d.step] || d.step;
+      const own = d.active && d.active === g;
+      q.step = d.step; q.stepName = lab; q.turnOf = own ? 'You' : (m && m.names && d.active ? m.names[d.active.pid] : 'Opponent');          // T-130: the priority sheet (choices.js) writes its own one-line context from these
+      if (d.step === 'stack') { q.title = `${d.topCard ? d.topCard.name : 'An ability'} is on the stack: respond?`; q.text = (d.top ? d.top + ' ' : '') + 'You have priority before it resolves. Cast an instant or a card with flash, or use an ability, or pass.'; q.none = 'Pass'; }
+      else {
+        q.title = `${lab}${own ? '' : ' (' + (m && m.names && d.active ? m.names[d.active.pid] : 'their') + ' turn)'}: cast an instant or use an ability?`;
+        q.text = 'You have priority. Cast an instant or a card with flash, or use an ability, or pass (only what you can pay for is listed).';
+        q.none = 'Pass';
+      }
     } else if (d.kind === 'ringbearer') {
       const lv = Math.min(4, d.n || 1), ord = ['', 'first', 'second', 'third', 'fourth'][d.n] || d.n + 'th';
       q.title = `💍 The Ring tempts you (${ord} time): choose your Ring-bearer`;

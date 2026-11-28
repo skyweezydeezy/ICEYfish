@@ -117,7 +117,7 @@ const lands = (g, n, b) => { for (let k = 0; k < n; k++) putOn(g, card(g, b || '
 { const p = duel(true), [a] = p.games; putOn(a, card(a, 'Leyline of Anticipation')); lands(a, 3, 'Forest'); const w = toHand(a, 'Eternal Witness');
   const run = gs => { const ev = []; G.instantWindow(gs[0], ev, 'end'); return ev; };
   const r = AT(p.games, 0, run, []);
-  check("a person is asked at the other player's end step, and the flashed creature is offered (Leyline of Anticipation, Eternal Witness)", !r.done && r.ask.kind === 'instant' && r.ask.options.some(o => o.iid === w.iid), r.ask && r.ask.options.map(o => o.name).join(', '));
+  check("a person is asked at the other player's end step, and the flashed creature is offered (Leyline of Anticipation, Eternal Witness)", !r.done && (r.ask.kind === 'instant' || r.ask.kind === 'priority') && r.ask.options.some(o => o.iid === w.iid), r.ask && r.ask.options.map(o => o.name).join(', '));
   AT(p.games, 0, run, [{ sig: r.ask.sig, pick: r.ask.options.findIndex(o => o.iid === w.iid) }]);
   check('...choosing it casts it', !a.hand.includes(w) && a.battlefield.some(q => q.card.name === 'Eternal Witness')); }
 { const r = G.podMonteCarlo([{ cards, tokens: SF.tokens, name: 'a' }, { cards: ZA.cards, tokens: ZA.tokens, name: 'b' }], O, 30, 7);

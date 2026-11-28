@@ -105,7 +105,7 @@
     const v = num(running) || latest || (self.ISF_VERSION ? String(self.ISF_VERSION) : null);
     versionOk(v);
     if (!v || !el) return;
-    el.hidden = false; el.textContent = 'v' + v; el.title = 'ICEYfish version ' + v;
+    el.hidden = false; el.textContent = 'v' + v; el.title = 'ICEYfish version ' + v + ' · © 2026 SWD Marketing, all rights reserved. Licensed to SWD Marketing';
     if (latest && +latest > +v) { el.classList.add('update'); el.title = 'Version ' + latest + ' is out. Tap to update.'; }          // the pill keeps showing only the version you run; a thin outline says a newer one is ready
     else el.title += '. Tap to check for a newer one.';
     // A tap loads the newest version for certain. Asking the service worker to update and reloading straight away is not enough: the reload
@@ -132,6 +132,8 @@
       minHandSize: +$('#optMullTo').value || 5, idealLandRatio: fmt === 'commander' ? 0.42 : 0.4, n: +$('#optN').value || 2000,
       policy: currentPolicy(),                                // choices learned in the Policy lab for this deck
       bookCombos: S.bookCombos || [],                         // the Commander Spellbook combos the goldfish counts for this deck (renderComboBook)
+      ...(window.__isfPriority ? { priority: true } : {}),          // T-130: the priority loop (off unless the hidden test toggle is on)
+      ...(window.__isfAutoPass && window.__isfAutoPass !== 'smart' ? { autoPass: window.__isfAutoPass } : {}),          // 'never' asks at every step, 'always' never asks (Settings → Display → Stop to respond)
     };
   }
   $('#optFormat').addEventListener('change', () => {
@@ -172,14 +174,28 @@
       const ord = $('#dispDeckOrder').value; if (ord !== deckOrder) { deckOrder = ord; if (decksListed) refillDeckMenus(); }
       document.documentElement.style.setProperty('--mode-fade', FADE[fade] || FADE.smooth);
       window.__isfPayChoose = $('#dispPayChoose').checked;          // T-089: read by the question sheet (choices.js)
+      window.__isfAutoPass = $('#dispStop').value;          // T-130: "Stop to respond": Smart = 'smart', At every step = 'never', Never = 'always' (opts.autoPass, read by opts())
     };
     if (d.fade && FADE[d.fade]) $('#dispFade').value = d.fade;
     { const o = LEGACY_ORDER[d.deckOrder] || d.deckOrder; if (o && DECK_ORDERS.includes(o)) $('#dispDeckOrder').value = o; }
     $('#dispPayChoose').checked = d.payChoose !== false;          // T-099: on unless the person switched it off
+    if (['smart', 'never', 'always'].includes(d.stop)) $('#dispStop').value = d.stop;
+    $('#dispFuzzy').checked = d.fuzzy === true;          // T-131: off unless the person turned it on
+    window.__isfPriority = d.priority === true;          // T-130: a hidden test toggle (no control): { priority: true } in isf_display turns opts.priority on. The engine session makes it the default at stage 6.
+    // T-131 "Guess unknown rules": the lines the engine can read are loaded the first time it is switched on; the deck is read again with it on or off.
+    // Only this page's own reading changes. Simulations (worker.js), the rankings and the bracket checks never guess.
+    let fuzzyIdx = null;
+    const applyFuzzy = async () => {
+      let on = $('#dispFuzzy').checked;
+      if (on) { try { if (!fuzzyIdx) { const r = await fetch('data/fuzzy-index.json'); if (!r.ok) throw new Error(r.status); fuzzyIdx = await r.json(); } G.setFuzzy(fuzzyIdx); } catch (e) { on = false; $('#dispFuzzy').checked = false; toast('Could not load the rules to guess from: guessing stays off.'); } }
+      if (!on) G.setFuzzy(null);
+      if (typeof S !== 'undefined' && S.deck) { S.deck = G.buildDeck(S.cards, S.tokens, currentPolicy().tribe); S.byUid = S.deck.unique; if (typeof renderCoverage === 'function') renderCoverage(); }
+    };
+    if (d.fuzzy === true) setTimeout(applyFuzzy, 0);
     apply();
-    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose']) $(id).addEventListener('change', () => {
-      apply();
-      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked })); } catch (e) { /* storage blocked */ }
+    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop', '#dispFuzzy']) $(id).addEventListener('change', () => {
+      apply(); if (id === '#dispFuzzy') applyFuzzy();
+      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, priority: d.priority === true, fuzzy: $('#dispFuzzy').checked })); } catch (e) { /* storage blocked */ }
     });
   })();
 
@@ -264,6 +280,7 @@
   function pillHtml(x) {
     const side = x.back ? '<span class="pill back" title="A rule on the back face of this double-faced card">Back</span> ' : '';
     if (x.mirror) return side + '<span class="pill opp" title="Does nothing against a goldfish. It is used in a Mirror match (Simulation tab).">Mirror matches only</span> ';
+    if (x.status === 'guessed' && x.fuzzy) return side + `<span class="pill guess" title="${esc('Guessed, not understood: this line is played like "' + x.fuzzy.as + '" (from ' + x.fuzzy.from + '). The guess can be wrong. The card stays on the Teach list.')}">guessed ${Math.round(x.fuzzy.score * 100)}%</span><span class="guess-from">like ${esc(x.fuzzy.from)}</span> `;          // T-131
     if (x.status === 'ok' || !x.tag) return side;
     return side + `<span class="pill ${x.tag}" title="${esc(TAG_HELP[x.tag] || '')}">${TAG_LABEL[x.tag] || ''}</span> `;
   }
@@ -542,7 +559,7 @@
   // ---- Teach these cards: cards whose rules text the engine does not fully read become a pre-filled GitHub request (one click in
   // the app, then Create on GitHub). Only the card names, the unread lines and the app version are sent, never the decklist.
   const TEACH_REPO = 'https://github.com/skyweezydeezy/ICEYfish';
-  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial').map(r => r.text);
+  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial' || r.status === 'guessed').map(r => r.text);          // T-131: a guessed line is not a lesson
   function teachUrl(cards) {
     const list = cards.slice(0, 8);
     const block = c => `${c.name}\nhttps://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}\n` + unreadLines(c).slice(0, 4).map(t => '- ' + t.slice(0, 240)).join('\n');
@@ -1666,7 +1683,7 @@
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
   const LB_SCOPE = '.table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
-  const lb = { list: [], i: 0, sel: null, els: [] };
+  const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
   const viewerActions = (card, el) => { for (const f of lbProviders) { const a = el && f(card, el); if (a && a.length) return a; } return null; };
@@ -1744,7 +1761,7 @@
   }
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
-  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; paintLb(); lightbox.scrollTop = 0; }
+  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
   function paintLb() {
     const card = lb.list[lb.i]; if (!card) return;
     const sel = lb.sel;
@@ -1774,9 +1791,11 @@
       if (acts) {
         const box = h('div', 'lb-acts'); box.appendChild(h('div', 'lb-sec', 'In this game'));
         const btns = h('div', 'lb-acts-row'); box.appendChild(btns);
-        acts.forEach(([label, run, style, stay]) => {
-          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label));
+        acts.forEach(([label, run, style, stay, off]) => {          // off: why it cannot be done now (greyed, with the reason) - T-134
+          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label) + (off ? `<small class="lb-off">${esc(off)}</small>` : ''));
+          if (off) { b.disabled = true; b.title = off; }
           b.addEventListener('click', () => {
+            if (Date.now() - lb.at < 350) return;          // T-102/T-134 ghost-tap guard: the tap that opened the viewer cannot press a button in it
             if (stay) { const sc = lightbox.scrollTop; run(); paintLb(); lightbox.scrollTop = sc; }          // tap, counters: the viewer stays and updates
             else { lbClose(); run(); }                                                                         // anything else: close it so the table shows the result
           });
@@ -1851,7 +1870,7 @@
       if (l.indexOf(card) >= 0) list = l;
     }
     zoom.classList.remove('show');   // the hover preview would sit on top of the viewer
-    lb.list = list; lb.i = list.indexOf(card); lb.sel = null;
+    lb.list = list; lb.i = list.indexOf(card); lb.sel = null; lb.at = Date.now();
     lb.els = list.map(() => null);                                       // the card on the table behind each entry, so its choices can be offered
     if (sc && !Array.isArray(scopeEl)) { const seen = new Set(); sc.querySelectorAll('.mtg').forEach(e => { const c = cardOf(e); if (c && !e.closest('#lightbox') && !seen.has(c)) { seen.add(c); const k = list.indexOf(c); if (k >= 0) lb.els[k] = e; } }); }
     if (scopeEl && scopeEl.nodeType === 1 && lb.i >= 0) lb.els[lb.i] = scopeEl;          // the very one you opened (not the first of a stack)
@@ -3170,52 +3189,47 @@
       sb.appendChild(b);
     });
     const rb = h('button', 'ghost', '🎲 Random game'); rb.addEventListener('click', () => { $$('.sample-btn').forEach(x => x.classList.remove('active')); replay(rseed(), o); }); sb.appendChild(rb);
-    const tb = h('button', 'ghost', 'Play this game on the table →'); tb.addEventListener('click', () => { if (S.lastReplaySeed == null) return toast('Pick a sample game first'); const g = G.newGame(S.deck, o, S.lastReplaySeed); G.mulligan(g); startTableGame(g); showTab('table'); }); sb.appendChild(tb);
-    if (!S.lastReplaySeed) { sb.children[2].classList.add('active'); replay(r.samples.median.seed, o); }
+     if (!S.lastReplaySeed) { sb.children[2].classList.add('active'); replay(r.samples.median.seed, o); }
     renderHeatmap();
   }
 
+  // T-123: a sample game opens on the real Practice table. The same seed, deck and mulligans, and the same engine turns the simulation played
+  // (G.playTurn), so the table holds exactly the simulation's own state after turn N; you take over from there with Next turn.
+  function gameAtTurn(seed, o, turns) {
+    const g = G.newGame(S.deck, o, seed); G.mulligan(g);
+    for (let t = 0; t < turns && g.killTurn == null && !G.matchOver(g); t++) G.playTurn(g);
+    return g;
+  }
+  function replayOnTable(seed, o, turns) {
+    const g = gameAtTurn(seed, o, turns);
+    if (!turns) startTableGame(g);
+    else {
+      g.turnDone = true;                                              // the turn is over (playTurn ended it): Next turn begins the next one
+      resumeTableGame(g, `<li class="turn">Sample game</li><li>Replayed from its seed to the end of turn ${g.turn}${g.killTurn != null ? ' (goldfish dead)' : ''}: play on from here.</li>`);
+      stepP('end');
+    }
+    showTab('table');
+    return g;
+  }
   function replay(seed, o) {
     S.lastReplaySeed = seed;
-    const g = G.newGame(S.deck, o, seed); G.mulligan(g);
+    const g0 = gameAtTurn(seed, o, 0), end = gameAtTurn(seed, o, o.turns);
+    const last = end.killTurn != null ? end.killTurn : o.turns;
+    let n = last;
     const box = $('#replay'); box.innerHTML = '';
     const row0 = h('div', 'turnrow');
-    row0.innerHTML = `<div class="tlabel">Opening<small>${g.mulligans ? g.mulligans + ' mulligan' + (g.mulligans > 1 ? 's' : '') : 'kept 7'}</small></div>`;
-    const c0 = h('div', 'tcards'); g.hand.forEach(i => c0.appendChild(cardEl(i.card))); row0.appendChild(c0); row0.appendChild(h('div', 'tstats', `${G.landCount(g.hand)} lands`));
+    row0.innerHTML = `<div class="tlabel">Opening<small>${g0.mulligans ? g0.mulligans + ' mulligan' + (g0.mulligans > 1 ? 's' : '') : 'kept 7'}</small></div>`;
+    const c0 = h('div', 'tcards'); g0.hand.forEach(i => c0.appendChild(cardEl(i.card))); row0.appendChild(c0);
+    row0.appendChild(h('div', 'tstats', end.killTurn != null ? `☠ <b>Goldfish dead on turn ${end.killTurn}</b>` : `No kill in ${o.turns} turns`));
     box.appendChild(row0);
-    for (let t = 0; t < o.turns; t++) {
-      const ev = G.playTurn(g), tr = g.turns[t];
-      const row = h('div', 'turnrow'); row.style.animationDelay = (t + 1) * 70 + 'ms';
-      row.appendChild(h('div', 'tlabel', `Turn ${t + 1}<small>${tr.manaAvail} mana · spent ${tr.spent}</small>`));
-      const cc = h('div', 'tcards');
-      const firstDraw = ev.find(e => e.type === 'draw');
-      if (firstDraw && !(t === 0 && o.onPlay)) cc.appendChild(h('span', 'drawn', 'drew ' + esc(firstDraw.inst.card.name) + ' ·'));
-      let pendingTokens = null;
-      const flushTokens = () => {
-        if (!pendingTokens) return;
-        for (const [, v] of pendingTokens) { const x = cardEl(v.card); x.classList.add('tokenmini'); if (v.n > 1) x.appendChild(h('span', 'badge', '×' + v.n)); cc.appendChild(x); }
-        pendingTokens = null;
-      };
-      let burn = 0;
-      ev.forEach(e => {
-        if (e.type === 'token') { pendingTokens = pendingTokens || new Map(); const k = e.inst.card.uid; const v = pendingTokens.get(k) || { card: e.inst.card, n: 0 }; v.n++; pendingTokens.set(k, v); return; }
-        flushTokens();
-        if (e.type === 'damage') burn += e.n;
-        if (e.type === 'land' || e.type === 'rampLand') { const x = cardEl(e.inst.card, { face: e.mdfc ? 1 : 0 }); x.classList.add('landplay'); if (e.type === 'rampLand') x.title = 'ramped'; cc.appendChild(x); }
-        if (e.type === 'cast') cc.appendChild(cardEl(e.inst.card));
-        if (e.type === 'tempt') cc.appendChild(h('span', 'burst', `💍 Ring tempts (${e.n})${e.bearer ? ' · ' + esc(e.bearer.card.name.split(',')[0]) : ''}`));
-        if (e.type === 'pw') cc.appendChild(h('span', 'burst', `◆ ${esc(e.perm.card.name.split(',')[0])} ${e.cost > 0 ? '+' : ''}${e.cost}`));
-        if (e.type === 'attack') cc.appendChild(h('span', 'burst', `⚔ ${e.dmg}`));
-      });
-      flushTokens();
-      if (burn) cc.appendChild(h('span', 'burst', `⚡ ${burn} from triggers & spells`));
-      if (tr.missedDrop) cc.appendChild(h('span', 'drawn', '(no land drop)'));
-      row.appendChild(cc);
-      const killed = g.killTurn === t + 1;
-      row.appendChild(h('div', 'tstats', `${killed ? '☠ <b>Goldfish dead</b>' : `dmg ${tr.damage}/${o.oppLife}`}<br><small>board power ${tr.power}</small><div class="dmgbar"><div style="width:${Math.min(100, tr.damage / o.oppLife * 100)}%"></div></div>`));
-      box.appendChild(row);
-      if (killed) break;
-    }
+    const ctl = h('div', 'row wrap replay-ctl'), lbl = h('span', 'replay-turn');
+    const show = () => { lbl.textContent = n ? 'Turn ' + n : 'Opening hand'; };
+    const step = d => { n = Math.max(0, Math.min(last, n + d)); show(); };
+    const prev = h('button', 'ghost', '‹'), next = h('button', 'ghost', '›'), go = h('button', 'primary', 'Replay on the table →');
+    prev.title = 'One turn earlier'; next.title = 'One turn later'; prev.id = 'replayPrev'; next.id = 'replayNext'; go.id = 'replayGo';
+    prev.addEventListener('click', () => step(-1)); next.addEventListener('click', () => step(1));
+    go.addEventListener('click', () => replayOnTable(seed, o, n));
+    ctl.append(prev, lbl, next, go); box.appendChild(ctl); show();
   }
 
   let heatSort = { col: 'avg', dir: 1 };
@@ -3687,7 +3701,7 @@
 
   window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { if (S.sim && $('#tab-sim').classList.contains('active')) renderSim(); }, 200); });
   // handle for versus.js (the 1v1 and Pod tabs): the loaded deck and the deck-list helpers
-  window.__isfApi = { attackSum, noteLoadedSel, startedWithLink, runningVersion, ready: builtinsListed, loadDeck, showTab, toast, resumeTable: resumeTableGame, hand: { get: () => H, set: x => { H = x; dealHand(true); } }, S, h, esc, tile, opts, imgFor, cardEl, flipCardEl, hasTwoFaces, viewCard: showLightbox, isPhoneTouch, selectCard, cardOf, addViewerActions: f => lbProviders.push(f), addPrintOwner: f => printOwners.push(f), addPrintHook: f => printHooks.push(f), refreshArt, applyPrinting, abCut, slow, speedBar, imprintOf, noteImprints, getDecks, markCommander, currentPolicy, builtinOptions, builtinByValue, builtinText, builtins: () => BUILTIN ,
+  window.__isfApi = { attackSum, noteLoadedSel, startedWithLink, runningVersion, ready: builtinsListed, loadDeck, showTab, toast, resumeTable: resumeTableGame, replayOnTable, gameAtTurn, hand: { get: () => H, set: x => { H = x; dealHand(true); } }, S, h, esc, tile, opts, imgFor, cardEl, flipCardEl, hasTwoFaces, viewCard: showLightbox, isPhoneTouch, selectCard, cardOf, addViewerActions: f => lbProviders.push(f), addPrintOwner: f => printOwners.push(f), addPrintHook: f => printHooks.push(f), refreshArt, applyPrinting, abCut, slow, speedBar, imprintOf, noteImprints, getDecks, markCommander, currentPolicy, builtinOptions, builtinByValue, builtinText, builtins: () => BUILTIN ,
     // the tutorial's sample game: load a decklist without touching the decklist box, the saved decks or "Save every deck I load"; setDeck(r) puts a deck back
     useDeck: async text => { await Source.init(); const r = await Source.loadDeck(text); r.specialty = SPECIALTY_RE.test(text); if (r.cards.length) setDeck(r); return r; }, setDeck };
 })();

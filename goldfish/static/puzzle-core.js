@@ -58,9 +58,10 @@
   // Every engine call is a function of the games; run(fn) makes it with both seats seated. answer(q, view) gives the pick for a question; the
   // default answers the opponent's with greedy() and the person's with the autopilot's choice, paying every "unless you pay" it can.
   function defaultAnswer(q) {
+    if (q.kind === 'priority') return q.seat === 1 && (q.step === 'combat' || q.step === 'end') ? greedy(q) : 'none';          // T-127: only the old windows (the attack, the end step) ask the hidden opponent to act
     if (q.seat === 1) return greedy(q);
     if (q.kind === 'tax') return Math.max(0, q.options.findIndex(o => /pay/i.test(o.name)));
-    if (q.kind === 'resolve' || q.kind === 'counter' || q.kind === 'instant') return 'none';
+    if (q.kind === 'resolve' || q.kind === 'counter' || q.kind === 'instant' || q.kind === 'priority') return 'none';
     if (q.kind === 'target' && q.options.length) return 0;
     return 'auto';
   }
@@ -176,7 +177,7 @@
     const onPlay = pz.onPlay !== false, seed = pz.seed || 1;
     const g = makeSeat(cardOf, pz.me, onPlay, seed), b = makeSeat(cardOf, pz.opp, !onPlay, (seed ^ 0x9e3779b9) >>> 0);
     G.linkMatch(g, b);
-    return { g, b, games: [g, b], pz, mine: 0, over: null, log: [], order: onPlay ? 'me' : 'opp', started: false };
+    return { g, b, games: [g, b], pz, payMode: 'auto', mine: 0, over: null, log: [], order: onPlay ? 'me' : 'opp', started: false };
   }
   const myPool = x => x.hand.concat(x.command || []);
   function permNamed(g, name, pred) { return g.battlefield.find(p => p.card.name === name && (!pred || pred(p))); }
@@ -197,11 +198,14 @@
     }
   }
   // the answers for a person's question: from the move's picks, else the autopilot's
-  function answerFor(mv) {
+  function answerFor(mv, payMode) {
     const picks = (mv.picks || []).slice(), resp = (mv.resp || []).slice(), pays = (mv.pay || []).slice();
     return (q, view) => {
+      if (q.kind === 'priority') return q.seat === 1 && (q.step === 'combat' || q.step === 'end') ? greedy(q) : 'none';          // T-127: the priority question is never part of a puzzle's scripted answers; the hidden opponent acts only in the old windows (the attack, the end step)
       if (q.seat === 1) return greedy(q);
       if (q.kind === 'resolve') return 'none';
+      if (q.kind === 'pay' && !pays.length && typeof payMode === 'function') return payMode(q);          // a person-model: a function from the question to a pick
+      if (q.kind === 'pay' && !pays.length && payMode && payMode !== 'auto') return payMode;          // 'smart': the payment a person gets by pressing Confirm (the one that wastes no mana)
       if (q.kind === 'pay' && pays.length) { const t = String(pays.shift()).toLowerCase(), k = q.options.findIndex(o => (o.name || '').toLowerCase().includes(t)); if (k >= 0) return k; }          // pay: which sources pay (the first option whose name contains the text); the autopilot's choice otherwise
       if (q.kind === 'counter' && q.options && q.options.length) {          // a window to respond to the opponent's spell: resp lists, in order, the instants this move casts in response (the first option whose name contains the text); none otherwise
         const t = resp[0], k = t == null ? -1 : q.options.findIndex(o => (o.name || '').toLowerCase().includes(String(t).toLowerCase()));
@@ -245,13 +249,13 @@
   function doMove(sc, mv) {
     const f = moveCall(sc, mv); if (!f) return { ok: false };
     const had = mv.do === 'cast' || mv.do === 'land' ? myPool(sc.g).filter(x => x.card.name === mv.card).length : 0;
-    const r = runSync(sc, f, answerFor(mv));
+    const r = runSync(sc, f, answerFor(mv, sc.payMode));
     const gone = had && myPool(sc.g).filter(x => x.card.name === mv.card).length < had;          // a spell that was countered or fizzled still left the hand: the move was made
     return { ok: !!r || gone, ev: r, countered: !r && gone, verdict: (sc.over = verdict(sc)) };
   }
   // play a line: [[moves of my turn 1], [moves of turn 2]...]; a turn's moves end with an implicit end of turn. Returns { result, invalid, sc }
-  function playScenario(cardOf, pz, line, strict, partial) {
-    const sc = newScenario(cardOf, pz); let invalid = false;
+  function playScenario(cardOf, pz, line, strict, partial, payMode) {
+    const sc = newScenario(cardOf, pz); if (payMode) sc.payMode = payMode; let invalid = false;
     for (let t = 0; t < (partial ? line.length : (pz.deadline || 1)); t++) {
       if (toMyTurn(sc)) break;
       for (const mv of line[t] || []) { if (sc.over) break; const r = doMove(sc, mv); if (!r.ok && strict) invalid = true; if (!r.ok) break; }

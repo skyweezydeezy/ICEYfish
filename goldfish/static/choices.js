@@ -96,7 +96,70 @@
     });
   }
 
+  // T-130: the priority sheet (T-127; docs/PRIORITY-DESIGN.md section 6). You hold priority at a step: one line says what is happening
+  // (the top of the stack, else whose turn it is), a big Pass is the default, and what you can use now sits below it as options.
+  // Touch: a tap selects an option and "Cast"/"Use" confirms it (T-102: nothing is played by one stray tap). Mouse: a click plays it.
+  // Every button ignores taps in the first 350 ms after the sheet opens or the selection changes (the ghost tap of the tap that opened it).
+  const GHOST_MS = 350;
+  function priorityLine(q) {
+    const top = q.stack && q.stack[0];
+    if (top) {
+      const verb = top.kind === 'spell' ? (top.who === 'You' ? 'cast' : 'casts') : top.kind === 'ability' ? (top.who === 'You' ? 'activated' : 'activates') : 'trigger:';
+      return `${top.who} ${verb} ${top.name}${top.text ? ' · ' + top.text : ''}${q.stack.length > 1 ? ` (+${q.stack.length - 1} more)` : ''}`;
+    }
+    return q.turnOf === 'You' || !q.turnOf ? 'Your turn · nothing is on the stack' : `${q.turnOf}'s turn · nothing is on the stack`;
+  }
+  function askPriority(q) {
+    close();
+    return new Promise((resolve, reject) => {
+      const el = h('div', 'ch-sheet priority');
+      el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', (q.stepName || 'You have priority') + ': you have priority');
+      const seen = new Map(), items = [];          // identical options (two Lightning Bolts) share one chip; it plays the first
+      for (const o of q.options) { const key = o.name + '|' + o.note; const it = seen.get(key); if (it) it.n++; else { const x = { o, n: 1 }; seen.set(key, x); items.push(x); } }
+      el.innerHTML = `
+        <div class="ch-head"><b class="ch-title">${esc(q.stepName || 'You have priority')}</b><button class="ghost ch-i" type="button" aria-expanded="false" title="What is this?" aria-label="What is this?">ⓘ</button><button class="ghost ch-peek" title="Fold this away to look at the table">Look at the table</button></div>
+        <div class="ch-body">
+          <div class="pr-ctx" role="status">${esc(priorityLine(q))}</div>
+          <div class="ch-info hint" hidden>${esc(q.text || '')} Passing moves the game on; if everyone passes with something on the stack, it resolves. You can change when you are stopped in Settings → Display → Stop to respond.</div>
+          <div class="row ch-btns pr-btns"><button class="primary pr-pass ch-none ch-auto" type="button">Pass</button><button class="pr-go" type="button" hidden></button></div>
+          <div class="ch-opts pr-opts" role="group" aria-label="What you can use now"></div>
+        </div>`;
+      const $ = s => el.querySelector(s), box = $('.pr-opts'), go = $('.pr-go');
+      let sel = null, at = Date.now(), lastType = '';
+      const ghost = () => Date.now() - at < GHOST_MS;
+      const touchy = () => lastType ? lastType === 'touch' : !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      const verbOf = o => (o.ability ? 'Use ' : 'Cast ') + o.name;
+      items.forEach((it, i) => {
+        const b = h('button', 'ch-opt text pr-opt'); b.type = 'button'; b.dataset.i = i; b.dataset.k = it.o.k; b.setAttribute('aria-pressed', 'false');
+        b.appendChild(h('span', 'ch-name', esc(it.o.name) + (it.n > 1 ? ` <i>×${it.n}</i>` : '')));
+        if (it.o.note) b.appendChild(h('small', 'ch-note', esc(it.o.note.replace(/^in response: /, ''))));
+        box.appendChild(b);
+      });
+      if (!items.length) box.remove();
+      const paint = () => {
+        box.querySelectorAll('.pr-opt').forEach(b => { const on = sel === +b.dataset.i; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+        go.hidden = sel == null; if (sel != null) go.textContent = verbOf(items[sel].o);
+      };
+      el.addEventListener('pointerdown', e => { lastType = e.pointerType || ''; }, true);
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        const t = e.target;
+        if (t.closest('.ch-peek')) { const f = el.classList.toggle('peek'); t.closest('.ch-peek').textContent = f ? 'Show the choice' : 'Look at the table'; return; }
+        if (t.closest('.ch-i')) { const b = t.closest('.ch-i'), inf = $('.ch-info'); inf.hidden = !inf.hidden; b.setAttribute('aria-expanded', inf.hidden ? 'false' : 'true'); return; }
+        if (ghost()) return;
+        const b = t.closest('.pr-opt');
+        if (b) { const i = +b.dataset.i; if (!touchy()) return finish(items[i].o.k); sel = sel === i ? null : i; at = Date.now(); return paint(); }
+        if (t.closest('.pr-go') && sel != null) return finish(items[sel].o.k);
+        if (t.closest('.pr-pass')) return finish('none');
+      });
+      open = { q, el, resolve, reject };
+      document.body.appendChild(el);
+      paint();
+    });
+  }
+
   function ask(q) {
+    if (q.kind === 'priority') return askPriority(q);
     if (q.pay) return window.__isfPayChoose ? askPay(q) : Promise.resolve('smart');          // the Display setting "Choose how I pay mana" (off: nothing is shown, and the payment that wastes no mana is made)
     close();
     return new Promise((resolve, reject) => {
@@ -112,7 +175,7 @@
         <div class="ch-body">
           <div class="ch-text hint">${esc(q.text)}${q.multi ? ` <b class="ch-count"></b>` : ''}</div>
           ${q.combo ? `<div class="ch-combo" role="status"><b>Combo assembled</b><span class="ch-combo-name">${esc(q.combo.name)}</span>${q.combo.cards.length ? `<small>${esc(q.combo.cards.join(' + '))}</small>` : ''}</div>` : ''}
-          ${q.combo && q.combo.outcome === 'mana' ? `<div class="ch-mana row"><label>How much mana? <input class="ch-mana-n" type="number" min="1" step="1" placeholder="number" aria-label="How much mana"></label><button class="ch-mana-go" type="button" disabled>Take that much</button><button class="ch-mana-inf" type="button" title="As much as you like">∞</button></div>` : ''}
+          ${q.combo && q.combo.outcome === 'mana' ? `<div class="ch-mana row"><label>How much mana? <input class="ch-mana-n" type="number" min="1" step="1" placeholder="number" aria-label="How much mana"></label><button class="ch-mana-go" type="button" disabled>Take that much</button><button class="ch-mana-inf" type="button" title="As much as you like" aria-label="Infinite mana: as much as you like">∞<span class="ch-inf-w"> Infinite</span></button></div>` : ''}
           ${q.dest ? `<div class="ch-dest"><span>Goes to</span> <b>${esc(q.dest)}</b></div>` : ''}
           ${ts.length > 12 ? '<input class="ch-filter" type="search" placeholder="Filter by name or type…" aria-label="Filter the cards">' : ''}
           ${q.stack && q.stack.length ? `<details class="ch-stack"><summary>On the stack · ${q.stack.length} <small>(top: ${esc(q.stack[0].name)})</small></summary><div class="ch-stack-list"></div></details>` : ''}

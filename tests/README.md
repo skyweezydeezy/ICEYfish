@@ -15,6 +15,12 @@ Test files run side by side: one per processor core for the engine tests, 3 at a
 every pull request and every push to a work branch (`.github/workflows/tests.yml`), so before asking for a merge a session only needs to
 run the tests for what it changed and wait for the green check.
 
+Browser tests (T-110): `run.js --ui` preloads `tests/ui-fetch-cache.js` into every test. The tests answer the page's Scryfall requests with Node's
+fetch; the preload keeps each successful Scryfall answer on disk (`$TMPDIR/isf-scryfall-cache`, or `ISF_SCRY_CACHE`) and retries errors, 429 and 5xx,
+so a cold cache or a busy proxy no longer times out the later tests of a long run (`ISF_NO_SCRY_CACHE=1` turns it off). Running a test file by hand
+(`node tests/ui/x.ui.js`) with the server on :8800 does not use the cache unless you add `NODE_OPTIONS="--require ./tests/ui-fetch-cache.js"`.
+Click `#tAutoTo` at `{ position: { x: 12, y: 12 } }`: its middle is the turn number box, which does nothing.
+
 The played 1v1 and Pod games have their own two files: `engine/decisions.test.js` (one scenario per decision point, and the proof that a
 played game with every default taken is the autopilot's game) and `ui/decisions.ui.js` (the same decision points in the browser).
 
@@ -23,6 +29,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 
 | File | Covers |
 |---|---|
+| fuzzy-rules | "Guess unknown rules" (T-131), engine side: scoring and slots with a small index, the real index (close unknown lines become `guessed`, far ones stay `ignored`, words that change how much, where or who must match), off restores every reading. **If it prints `WARN fuzzy-index.json is older than the set data`, that is only fewer templates, not a failure: rebuild with `node tools/build-fuzzy-index.js` (about 30 s) when merging data changes.** |
 | bridge-casting | A Bridge commander waits for WUBRG, continues casting ramp, respects explicit Esika/Bridge choices, and pays commander tax when recast; Esika in the ninety-nine retains automatic face selection. |
 | ring | The Ring tempts you, Ring-bearer, Frodo's conditions, counters engine |
 | tutors | Tutors and which card they fetch |
@@ -219,6 +226,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | phyrexian-mana | T-091: Phyrexian mana (CR 107.4f: the color or 2 life, life only at 2 or more) and {2/W} (CR 107.4e: {W} or {2}) in costs; Gitaxian Probe, Dismember, Mental Misstep, Beseech the Queen, a Spectral Procession-style card, Birthing Pod's ability cost; mana value; a person chooses per symbol (a 'may' question); the autopilot's life policy |
 | sylvan-library | T-090: Sylvan Library exactly per its text: at the beginning of the draw step (before the turn's draw; also on the play's first turn) you may draw two additional cards; choose two cards in hand drawn this turn (an upkeep draw counts); for each pay 4 life (only at 4 or more life) or put it on top; the person orders cards going back; the autopilot's policy; the log; person = autopilot on defaults |
 | end-step-proliferate | T-087: Atraxa, Praetors' Voice for a person: the end-step trigger goes off, the sheet lists every permanent with a counter (an opponent's too, CR 701.34a), choosing none/one works, the log names what was proliferated; the autopilot proliferates its own counters and an opponent's -1/-1 counters only; another end-step trigger (Brightcap Badger) fires for a person |
+| proliferate-choice | T-128: the proliferate sheet lists permanents and players with their counters ("+1/+1 ×2", "poison ×4", loyalty, other kinds), says the kinds can't be split; a chosen subset (opponent's +1/+1 and your -1/-1 creature skipped, the opponent's poison added), none, a player alone, planeswalker loyalty, experience / energy / rad; defaults equal the autopilot's pick; the autopilot unchanged |
 | free-counters | T-080: Fierce Guardianship (free with a commander out, even tapped out; {2}{U} without; never a creature spell; a person is offered it "free"), a commander-free response (Flawless Maneuver, Obscuring Haze) is offered free, and the rest of the alternative-cost family is offered to a person: Force of Will / Force of Negation (pitch), Pact of Negation, Mindbreak Trap |
 | tax-choice | T-080: "unless that player pays {N}" (Rhystic Study, Smothering Tithe, Mystic Remora, Esper Sentinel, Mana Leak): the player it is aimed at chooses; a seated person gets a `tax` question ("Rhystic Study: pay {1}, or <name> draws a card?"), offered only when they can pay; the autopilot pays with spare mana; Mystic Remora reads {4} and noncreature spells only |
 | t101-pool-empties | T-101 (CR 106.4): unspent mana empties at the end of each step and phase (upkeep, draw, main 1, combat, main 2, end); exceptions: until-end-of-combat (firebending) and until-end-of-turn (Savage Ventmaw) mana, colors a permanent keeps (Leyline Tyrant, Omnath), Ozai (lost mana becomes red); floatingLoss says 'the end of the step' |
@@ -236,11 +244,23 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | remote-ice | The servers Play a friend connects through, read from `remote.js`: public STUN servers with valid `stun:` URIs and no login, and no relay (TURN, login, relay host or service) left in the file. |
 | qr | QR codes made in the page (`goldfish/static/qr.js`, for Play a friend): the QR version size for the text, the three finder patterns, a white quiet zone, too-long text refused; where `zbarimg` is installed, every code (1 to 950 characters, and an invite link) scans back to exactly its text. |
 | puzzles | T-115: the 12 hand-built puzzles (`goldfish/static/puzzles.json`, rules in `puzzle-core.js`): two of each type (fast win, endgame) and difficulty; the intended line wins against the real hidden hand with every move legal, every listed tempting wrong line does not, a replay is the same game, every card is read exactly (coverage full), the hints never give the line away, each puzzle has its lesson; the search tool (`tools/lib/puzzle-search.js`) finds the intended line of a one-turn puzzle |
+| timing-extra-turns | T-122: every extra turn is taken, not three per turn (CR 500.7) |
+| timing-combat-phases | T-122: an additional combat phase has its own beginning of combat (CR 506.1, 507.1) |
+| timing-first-strike-step | T-122: the first-strike damage step ends before the regular one: dies triggers resolve between them (CR 510.4, 704.3) |
+| timing-next-end-step | T-122: a "next end step" return set up during the end step waits for the next turn's (CR 603.7) |
+| timing-cleanup | T-122: a trigger in the cleanup step gets resolved and the hand is discarded down again (CR 514.3a) |
+| priority-stage1 | T-127 stages 0+1: one stack per table, the priority round (opts.priority, opts.autoPass, question kind 'priority'): off by default, smart/never/always, a response at the beginning of combat, defaults change nothing |
+| priority-seats | T-130: two seated people and the `priority` question: each question carries the seat it is for, the active player is asked first, the signatures match on a second copy (the two devices compare them), passing changes nothing. UI test `tests/ui/priority.ui.js`: the priority sheet (Pass, the instant as an option, ⓘ), Settings → Display → Stop to respond (Smart / At every step / Never → opts.autoPass, kept in isf_display), the hidden `isf_display.priority` toggle, touch select-first with the 350 ms ghost-tap guard, phone/iPad fit |
+| priority-stage2 | T-127 stage 2 (opts.priority on): cast triggers resolve before the spell (CR 603.3), the end-step window is the priority question, auto-pass. The whole suite also runs with `ISF_PRIORITY=1 node tests/run.js` (the priority rules on for every game) |
+| priority-stage3 | T-127 stage 3 (opts.priority on): a priority round before each trigger resolves (CR 117.4, 405.5): a seated person is asked, a response resolves first, auto-pass |
+| priority-stage4 | T-127 stage 4 (opts.priority on): an activated ability goes on the stack (CR 602.2): the cost is paid at activation, a seated opponent is asked and may respond, the response resolves first (405.5); rule off = one piece; `G.ABIL_STATS` counts stacked vs legacy |
+| priority-stage5 | T-127 stage 5 (opts.priority on): the `endCombat` trigger kind ("At end of combat, ...", CR 511.2; fires only with the rule on), the person's priority at blockers/damage defaults to the autopilot's own pick, the first-strike damage step has its own priority round |
 | ui/versus-fit | 1v1 and Pod on a PC, an iPad and an iPhone: the whole table fits the screen; every permanent and pile of every player, your hand and your buttons are inside it |
 | ui/ticket-endpoint | T-120: tickets to the public Apps Script endpoint (mocked with Playwright routing): not configured = GitHub link as before; configured = Teach and Send deck POST text/plain (no preflight, no credentials) with every card, line, deck file/text, version and source; Sent / Send failed states; a failure falls back to GitHub or the file share; iPhone and desktop |
 | ui/imprint | The imprinted card is shown with its permanent: Isochron Scepter and Chrome Mox on the Goldfish Table (real casts), Isochron Scepter on the 1v1 table; clicking it opens the card |
 | ui/sylvan-library | T-090: Duel, a person with Sylvan Library at their draw step: "draw two additional cards?", "pay 4 life to keep <card>?" for each (Pay 4 life / Put it on top), the life is paid, and the draw-step log line says what was drawn, the life paid and what went back |
 | ui/atraxa-end | T-087: Duel, a person ends the turn with Atraxa, Praetors' Voice out: the proliferate sheet lists your and the opponent's permanents with counters, the autopilot's pick is marked, confirming adds the counter, and the end-step log line says what was proliferated |
+| ui/proliferate-choice | T-128, on a phone (390 px): the proliferate sheet lists the permanents and the opponent's poison with their counters, fits the screen, and unticking a creature leaves its counter alone while the rest grow |
 | ui/counter-targets | T-072: the counter question sheet shows what the other player's spell targets ("Targeting your Serra Angel.") with the target card's tile and name |
 | ui/land-drop | Goldfish Table: one land a turn; a second land from the hand is refused with a note, and allowed with an extra land drop |
 | ui/mana-sources | T-098, Goldfish Table (Practice): a land, a rock, a dork, a Treasure on the table give mana, show untapped, and are tapped by paying |
@@ -259,6 +279,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | ui/tags-panel | Deck tab Tags panel: folding groups, even grid, Show all, tap a tag to search (PC and iPhone) |
 | ui/combos | Build tab "Combos and win conditions" (combos folded to their names, cards that win outright, finishers) and Simulate tab "How games end" (share won by combo, a card that wins, damage; PC and iPhone) |
 | ui/category-odds | Draw Odds "Odds by category": odds match exact math, − / +, tapping a row picks its cards (PC and iPhone) |
+| ui/sample-on-table | A Simulate sample game replays on the real Practice table: after turn N the table equals the simulation's own state (hand, battlefield, graveyard, life), then Next turn plays on (browser test) |
 | ui/viewer-everywhere | Every card on every tab opens in the card viewer: click, 🔍 corner or right-click (browser test) |
 | ui/desktop-viewer | PC: clicking a card opens the viewer (price, previous / next); the autopilot speed slider (browser test) |
 | ui/cardview | Phone tap menu (bottom sheet) and card viewer: next/previous, printings, shop links (browser test) |
@@ -326,3 +347,4 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | ui/tune-next | "Tune to the next bracket" (T-055): run, the answer in plain words, Stop, Apply one, Apply all; a reload keeps the deck |
 | ui/tune | The Policy lab's "Tune toward a goal": picker, target, folded report, changes to the A/B test, saved choices |
 | ui/version | The version pill in the top bar on a PC, an iPad and an iPhone; a newer deployed version shows outlined and one tap opens it |
+| ui/fuzzy-setting | "Guess unknown rules" (T-131): off by default, a guessed line shows a "guessed N%" pill and the card it is like, the card stays on the Teach list, the setting persists across a reload, off puts the line back |

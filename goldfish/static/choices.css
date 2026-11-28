@@ -128,6 +128,15 @@
 .ch-mana { gap: 8px; align-items: center; flex-wrap: wrap; }
 .ch-mana .ch-mana-n { width: 90px; }
 .ch-mana .ch-mana-inf { font-size: 20px; line-height: 1; padding: 2px 12px; }
+.ch-mana .ch-inf-w { display: none; font-size: 14px; }
+/* T-121: on a touch screen the loop controls are real tap targets: the ∞ button is 44 px tall and says what it is, and the option
+   cards of a combo sheet are wide enough to read */
+@media (pointer: coarse), (max-width: 600px), (max-height: 500px) {
+  .ch-mana .ch-mana-inf { min-height: 44px; min-width: 56px; padding: 6px 14px; }
+  .ch-mana .ch-inf-w { display: inline; }
+  .ch-mana .ch-mana-go { min-height: 44px; }
+  .ch-sheet.combo .ch-opts { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
 
 /* T-089: paying a cost: the cost on top, the sources as chips, a colour picker only where a source can make more than one colour */
 .ch-sheet.pay .ch-opts { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
@@ -140,3 +149,20 @@
 .ch-paycol { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
 .ch-col { min-width: 34px; min-height: 34px; padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(143,216,255,.35); background: var(--surface-2, #172a3a); color: inherit; font-size: 14px; cursor: pointer; }
 .ch-col.on { border-color: #7fdc7f; box-shadow: 0 0 8px rgba(12,163,12,.6); }
+
+/* T-130: the priority sheet. Compact: one line of context, a big Pass, then what you can use now as chips. */
+.ch-sheet.priority { width: min(560px, calc(100vw - 16px)); max-height: min(70vh, 460px); max-height: min(70dvh, 460px); gap: 6px; padding: 10px 12px; }
+.ch-sheet.priority .ch-title { font-size: 14px; }
+.ch-sheet.priority .ch-body { overflow: auto; }
+.ch-i { flex: none; padding: 2px 9px; font-size: 14px; line-height: 1.4; border-radius: 99px; min-width: 32px; min-height: 32px; }
+.pr-ctx { font-size: 13px; color: var(--ice-2, #d6f1ff); overflow-wrap: anywhere; }
+.ch-sheet.priority .ch-info { font-size: 12px; margin: 0; }
+.pr-btns { display: flex; gap: 8px; flex-wrap: nowrap; }
+.pr-btns button { min-height: 48px; font-size: 16px; }
+.pr-pass { flex: 2 1 0; font-weight: 700; }
+.pr-go { flex: 3 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-opts { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; min-height: 0; max-height: 30vh; grid-template-columns: none; }
+.pr-opt { flex: 1 1 150px; min-width: 0; min-height: 44px; text-align: left; justify-content: flex-start; align-items: flex-start; }
+.pr-opt.sel { outline: 2px solid #7fdc7f; }
+@media (max-width: 600px) { .ch-sheet.priority { padding: 8px 10px; } .pr-opt { flex-basis: 100%; } }
+@media (max-height: 460px) { .ch-sheet.priority { bottom: 2px; max-height: 94dvh; padding: 6px 10px; gap: 4px; } .pr-btns button { min-height: 44px; } .pr-opts { max-height: 22dvh; } }
