@@ -1776,6 +1776,8 @@
         if (/^exile all attacking creatures target player controls\. that player may search their library for that many basic land cards/i.test(line)) { a.combatAnswer = 'exile'; MIRW(); continue; }          // Settle the Wreckage
         if (/^whenever ~ deals combat damage to a player, it deals that much damage to each creature that player controls\.?$/i.test(line)) { a.balefire = true; MIRW(); continue; }          // Balefire Dragon
         if (/^−x: exile each permanent with mana value x or less that's one or more colors\.?$/i.test(line)) { a.pwAbilities.push({ cost: 0, x: true, fx: [{ type: 'uginWipe' }], text: raw }); rec.status = 'ok'; continue; }          // Ugin, the Spirit Dragon: yours too
+        if (/^[−-]x: return target creature card with mana value x from your graveyard to the battlefield\. that creature is a vampire in addition to its other types\.?$/i.test(line)) { a.pwAbilities.push({ cost: 0, x: true, fx: [{ type: 'reanimateX', addType: 'Vampire' }], text: raw }); rec.status = 'ok'; continue; }          // Sorin, Vengeful Bloodlord
+        if (/^during your turn, creatures and planeswalkers you control have lifelink\.?$/i.test(line)) { a.statics.sorinLife = true; rec.status = 'ok'; continue; }
         if ((wm = line.match(/^((?:\{[^}]+\})+): each opponent sacrifices a permanent of their choice\. transform ~\. activate only as a sorcery/i))) { a.activated.push({ cost: parseCost(wm[1]), tap: false, fx: [{ type: 'edictPerm' }, { type: 'transform', same: true }], text: raw, gate: 'transformOk' }); rec.status = 'ok'; continue; }          // Kefka, Court Mage: the back face is the point
       }
       // ---- land and mana denial (see landKillUse, landWipe, moonOf, oppEntersTapped, Vorinclex, Rishadan Port, Mana Vortex). The symmetric ones
@@ -4281,7 +4283,7 @@
     if (st.monolith) info.monolith = true;
     if (st.allyMana) info.allyMana = true; if (a.warpedSpace && q.unlocked) info.warpedSpace = true; if (st.ownDouble) info.ownDouble = (info.ownDouble || 0) + 1;
     if (st.yardLess) info.yardLess = (info.yardLess || 0) + st.yardLess; if (st.allIslands) info.allIslands = true; if (st.virtueStrength) info.virtueStrength = true; if (a.tenLandsAnthem) info.tenLands = a.tenLandsAnthem;
-    if (st.assault) info.assault = true; if (st.defendersAttack) info.defendersAttack = true; if (a.defenderAttack) info.defenderAttack = a.defenderAttack; if (st.ingaEsika) info.ingaEsika = true; if (st.lifeEnch) info.lifeEnch = (info.lifeEnch || 0) + st.lifeEnch; if (st.docAurlock) info.docAurlock = (info.docAurlock || 0) + st.docAurlock; if (st.offHandLess) info.offHandLess = (info.offHandLess || 0) + st.offHandLess; if (st.splitSecond) info.splitSecond = true; if (st.plotLess) info.plotLess = (info.plotLess || 0) + st.plotLess; if (st.loadingZone) info.loadingZone = (info.loadingZone || 0) + 1; if (a.porcelain && q.unlocked) info.porcelain = true; if (a.worldOoze) info.worldOoze = true; if (a.tevalScale) (info.tevalScale = info.tevalScale || []).push(q);
+    if (st.assault) info.assault = true; if (st.defendersAttack) info.defendersAttack = true; if (a.defenderAttack) info.defenderAttack = a.defenderAttack; if (st.ingaEsika) info.ingaEsika = true; if (st.sorinLife) info.sorinLife = true; if (st.lifeEnch) info.lifeEnch = (info.lifeEnch || 0) + st.lifeEnch; if (st.docAurlock) info.docAurlock = (info.docAurlock || 0) + st.docAurlock; if (st.offHandLess) info.offHandLess = (info.offHandLess || 0) + st.offHandLess; if (st.splitSecond) info.splitSecond = true; if (st.plotLess) info.plotLess = (info.plotLess || 0) + st.plotLess; if (st.loadingZone) info.loadingZone = (info.loadingZone || 0) + 1; if (a.porcelain && q.unlocked) info.porcelain = true; if (a.worldOoze) info.worldOoze = true; if (a.tevalScale) (info.tevalScale = info.tevalScale || []).push(q);
     if (st.lute) info.lute = true; if (st.behemoth) info.behemoth = (info.behemoth || 0) + st.behemoth; if (st.manaFlare) info.manaFlare = (info.manaFlare || 0) + st.manaFlare; if (a.landAnyColor) info.landAnyAura = true; if (a.halvar) info.halvar = true;
     if (a.perEquip) info.perEquip = { p: (info.perEquip ? info.perEquip.p : 0) + a.perEquip.p, t: (info.perEquip ? info.perEquip.t : 0) + a.perEquip.t };          // Bruenor Battlehammer
     if (st.millLands) info.millLands = true;
@@ -4495,6 +4497,7 @@
     if (k === 'flying' && p.card.a.jumpFly && g.activeTurn !== false) return true;          // Cid: jump
     if (k === 'flying' && bfInfo(g).nocturnus && isCreaturePerm(p) && matchesFilter(p.card, 'vampire') && g.library[0] && colorsOf(g, g.library[0].card).includes('B')) return true;          // Vampire Nocturnus
     if ((k === 'first strike' || k === 'vigilance' || k === 'lifelink') && bfInfo(g).greymonds && isCreaturePerm(p) && matchesFilter(p.card, 'human') && bfInfo(g).greymonds.some(q => q.greyChosen && q.greyChosen.includes(k))) return true;          // Greymond, Avacyn's Stalwart
+    if (k === 'lifelink' && bfInfo(g).sorinLife && g.activeTurn !== false && (isCreaturePerm(p) || p.card.a.isPlaneswalker) && g.battlefield.includes(p)) return true;          // Sorin, Vengeful Bloodlord: during your turn, your creatures and planeswalkers
     if (k === 'vigilance' && bfInfo(g).ingaEsika && isCreaturePerm(p) && g.battlefield.includes(p)) return true;          // Inga and Esika
     if (k === 'swampwalk' && !p.card.a.zombieWalk && isCreaturePerm(p) && g.battlefield.includes(p) && matchesFilter(p.card, 'zombie') && (tableHas(g, 'zombieWalk') && g.battlefield.some(q => q.card.a.zombieWalk))) return true;          // Zombie Master
     if ((k === 'trample' || k === 'double strike') && bfInfo(g).jetmir && isCreaturePerm(p) && g.battlefield.includes(p)) { const n = g.battlefield.filter(isCreaturePerm).length; if (k === 'trample' ? n >= 6 : n >= 9) return true; }          // Jetmir
@@ -5619,6 +5622,7 @@
     else if (a.isLand) perm.tapped = o.tapped ? true : landEntersTapped(g, a, inst);          // put onto the battlefield tapped: a shock land pays no life
     else { perm.sick = a.isCreature; if (a.etbTapped) perm.tapped = true; }
     perm.enteredSeq = turnSeq(g);          // the shared turn sequence (a match's turns, not only this player's): Neriv's "entered this turn"
+    if (o.addType) perm.card = Object.assign({}, inst.card, { type_line: /—/.test(inst.card.type_line || '') ? inst.card.type_line + ' ' + o.addType : (inst.card.type_line || '') + ' — ' + o.addType });          // Sorin, Vengeful Bloodlord: a Vampire in addition to its other types
     if (o.noCreature) perm.noCreature = true;          // Enduring creatures return as enchantments: not a creature as it enters (so -X/-X from Elesh Norn cannot kill it, again and again)
     if (o.flyCounter) perm.flyCounter = true;          // the counters a returning creature comes back with are on it as it enters (Luminous Broodmoth, persist, undying,
     if (o.counters) perm.counters = (perm.counters || 0) + o.counters;          // Undying Malice), so dying at once (Elesh Norn's -X/-X) does not bring it back again and again
@@ -6667,8 +6671,10 @@
     if (!(n > 0)) return;
     if (!loss && !g.dry) n += plusBonus(g, source && source.card ? source : g.lastCast);          // Torbran (a spell's damage has no source permanent: the spell being cast)
     if (!loss && source && source.card && !g.dry) n *= infernoMult(g, source);          // Collective Inferno
+    const llSrc = source && source.card && source.card.a.isPlaneswalker && !loss && !g.dry && hasKw(g, source, 'lifelink');          // lifelink on a planeswalker's damage (Sorin, Vengeful Bloodlord)
     n = dealToOpp(g, n, !!one, loss); if (!(n > 0)) { ev.push({ type: 'note', text: 'The damage is prevented', source }); return; }
     ev.push({ type: 'damage', n, source, total: g.damage });
+    if (llSrc) gainLife(g, n, ev, source);
     checkKill(g, ev);
     oppLostLife(g, n, ev);
     if (!g.dry && g.emetTurn !== g.turn && (tableHas(g, 'emetSelch') && g.battlefield.some(q => q.card.a.emetSelch))) { const t = g.graveyard.filter(i => i.card.a.isInstantSorcery && i.card.a.spellFx.length && i.yardCastTurn !== g.turn).sort((x, y) => fxValue(g, y.card.a.spellFx) - fxValue(g, x.card.a.spellFx))[0]; if (t) { g.emetTurn = g.turn; t.yardCastTurn = g.turn; t.exileInstead = true; } }          // Emet-Selch: castable from your graveyard this turn
@@ -8038,6 +8044,19 @@
         } if (!g.opp && !g.dry) { g.oppHand = 0; } break;
         case 'exileYards': if (f.mode && !otherPlayers(g).some(o => o.graveyard.length > g.graveyard.length)) break; for (const x of [g].concat(otherPlayers(g))) x.exile.push(...x.graveyard.splice(0)); ev.push({ type: 'note', text: 'Every graveyard is exiled', source }); break;          // Farewell
         case 'edictPerm': for (const o of otherPlayers(g)) { const v = o.battlefield.filter(q => !q.card.commander).sort((x, y) => (threat(o, g, x) + (x.asLand ? landWorth(o, x) : 0)) - (threat(o, g, y) + (y.asLand ? landWorth(o, y) : 0)))[0]; if (v) { ev.push({ type: 'note', text: `The other player sacrifices ${v.card.name}`, source }); leavePerm(o, v, ev); flushLeaves(o, ev); } } break;          // Kefka: each opponent, a permanent of their choice
+        case 'reanimateX': {          // Sorin, Vengeful Bloodlord -X: the target is the card, X is its mana value
+          if (!source) break;
+          if (entryBlocked(g, { a: { isCreature: true } }, 'gy')) { ev.push({ type: 'note', text: 'Nothing returns: creature cards cannot enter the battlefield from a graveyard (Grafdigger\'s Cage, Containment Priest)', source }); break; }
+          const cands = xReanimateCands(g, source); let b = xReanimateBest(g, source);
+          if (g.ask && !g.dry && cands.length) b = gyAsk(g, b, cands, 'battlefield', source);
+          if (!b || !cands.includes(b)) break;
+          const X = b.card.a.mv || 0; source.loyalty -= X;
+          g.graveyard.splice(g.graveyard.indexOf(b), 1);
+          const np = enterWithTriggers(g, b, { addType: f.addType }, ev);
+          ev.push({ type: 'note', text: `${source.card.name}: -${X}, ${b.card.name} returns from your graveyard to the battlefield as a ${f.addType} too`, source });
+          ev.push({ type: 'rampLand', inst: b, perm: np, source });
+          break;
+        }
         case 'uginWipe': {          // Ugin, the Spirit Dragon -X: the X that takes the most from them and the least from you (colorless things stay)
           const lose = (x, X) => x.battlefield.filter(q => !q.asLand && colorsOf(x, q.card).length && (q.card.a.mv || 0) <= X).reduce((t, q) => t + Math.max(1, threat(x, g, q)), 0);
           let bx = 0, bv = 0; const L = source ? Math.max(0, (source.loyalty || 0) - 1) : 0;
@@ -8784,6 +8803,13 @@
     if (a.isLand) return g.battlefield.filter(p => p.asLand).length < 7 ? 2.5 : 0.3;
     if (a.produce) return 3;
     return 1.5 + a.triggers.length * 1.5 + (a.altar || a.sacScry || a.sacOutlet ? 2 : 0) + (a.statics.anthems.length ? 2 : 0);
+  }
+  // Sorin, Vengeful Bloodlord -X: the creature cards whose mana value the loyalty can pay, and the autopilot's pick (X is the mana value of the card)
+  function xReanimateCands(g, p) { const L = Math.max(0, (p && p.loyalty) || 0); return g.graveyard.filter(i => i.card.a.isCreature && !i.card.commander && (i.card.a.mv || 0) <= L); }
+  function xReanimateBest(g, p) {
+    let b = null, bs = 0;
+    for (const i of xReanimateCands(g, p)) { const mv = i.card.a.mv || 0, v = reanimateValue(g, i); if (v <= 0) continue; const sc = v - 0.4 * mv - (mv >= p.loyalty ? 6 : 0); if (sc > bs) { bs = sc; b = i; } }
+    return b;
   }
   function reanimateCandidates(g, f) {
     const out = [];
@@ -10700,6 +10726,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (f.type === 'poisonWin') v += Math.max(0, 9 - (g.poisonDealt || 0)) * poisonWorth(g) + 4;          // nine counters: the next proliferate or toxic hit wins
       if (f.type === 'poison') { const k = typeof n === 'number' ? n : 1; v += (g.poisonDealt || 0) + k >= 10 ? 1000 : k * poisonWorth(g); }
       if (f.type === 'ajaniEmblem') v += 6;
+      if (f.type === 'reanimateX') { const sp = g.battlefield.find(q => (q.card.a.pwAbilities || []).some(ab => ab.fx.includes(f))), b = sp ? xReanimateBest(g, sp) : null; v += b ? reanimateValue(g, b) : -30; }          // Sorin, Vengeful Bloodlord: the best creature card the loyalty can pay for
       if (f.type === 'tapOpp') v += g.opp && !g.combatDone && g.battlefield.some(q => canAttack(g, q)) ? (f.what === 'all' ? 2 * g.opp.battlefield.filter(q => isCreaturePerm(q) && !q.tapped).length : 2) : 0.2;
       if (f.type === 'landWipe') v += g.opp && landWipeWorth(g, f) ? 12 : -20;          // only when it hurts them more
       if (f.type === 'wrath') { const hitW = (gg, p) => wrathHit(gg, p, f); v += otherPlayers(g).reduce((t, o) => t + o.battlefield.filter(p => hitW(o, p)).reduce((u, p) => u + creatureValue(o, p), 0), 0) - g.battlefield.filter(p => hitW(g, p)).reduce((t, p) => t + creatureValue(g, p), 0); }
@@ -11821,6 +11848,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       let no = null;
       if (!ab.x && p.loyalty + ab.cost < 0) no = `needs ${-ab.cost} loyalty (it has ${p.loyalty})`;
       else if (!ab.fx.length) no = 'the engine does not play this ability yet';
+      else if (ab.fx.some(f => f.type === 'reanimateX') && !xReanimateCands(g, p).length) no = 'no creature card in your graveyard that its loyalty can pay for';
       return { i, ab, label, text: String(ab.text || '').replace(/^[+−-]?(?:\d+|x|X):\s*/, ''), x: !!ab.x, ok: !no && !out.why, why: no || out.why, own: p.card.a.pwAbilities.includes(ab) };
     });
     out.auto = out.why ? null : autoLoyalty(g, p);
