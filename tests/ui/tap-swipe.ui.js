@@ -21,6 +21,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.goto('http://127.0.0.1:8800/');
   await p.fill('#deckText', fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'frodo.txt'), 'utf8')); await p.click('#loadDeck');
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 }); await p.waitForTimeout(1500);
+  await require('../ui-seed').pin(p);          // the same games on every run
   const cdp = await ctx.newCDPSession(p);
   const swipe = async (dx, dy) => {
     const r = await p.evaluate(() => { const f = document.querySelector('#lightbox .lb-faces').getBoundingClientRect(); return { x: f.left + f.width / 2, y: f.top + f.height / 2 }; });
@@ -31,15 +32,12 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   };
   const info = () => p.evaluate(() => ({ show: document.getElementById('lightbox').classList.contains('show'), name: (document.querySelector('#lightbox .lb-name') || {}).textContent, count: (document.querySelector('#lightbox .lb-count') || {}).textContent, acts: [...document.querySelectorAll('#lightbox .lb-act')].map(x => x.textContent) }));
   // the same checks on every screen: tap the last card of the hand, swipe to the one before it, right again, then back to the end
-  const screen = async (name, handSel, namesOf, arg, viaMenu) => {
+  const screen = async (name, handSel, namesOf, arg) => {
     const names = await p.evaluate(namesOf, arg);
     const uniq = [...new Set(names)], N = uniq.length;
-    const els = await p.$$(handSel);
-    if (viaMenu) { await els[els.length - 1].tap(); await p.waitForTimeout(600); await p.tap('#ctxMenu button:has-text("View card")'); }          // Practice: the card's menu, then View card
-    else await els[els.length - 1].evaluate(e => e.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 50, clientY: 50 })));          // Duel, Pod: a long press
-    await p.waitForSelector('#lightbox.show', { timeout: 10000 }); await p.waitForTimeout(500);
+    const els = await p.$$(handSel); await els[els.length - 1].tap(); await p.waitForSelector('#lightbox.show', { timeout: 10000 }); await p.waitForTimeout(500);
     let i = await info();
-    check(`${name}: the viewer opened from the last hand card shows "${N} of ${N}" and the card`, i.show && i.count === `${N} of ${N}` && i.name === uniq[N - 1], JSON.stringify(i));
+    check(`${name}: a tap on the last hand card opens the viewer at "${N} of ${N}" with the card shown`, i.show && i.count === `${N} of ${N}` && i.name === uniq[N - 1], JSON.stringify(i));
     await swipe(-120, 0);
     i = await info(); check(`${name}: swiping left at the last card stays (no wrap)`, i.name === uniq[N - 1] && i.count === `${N} of ${N}`, i.count);
     await swipe(120, 0);
@@ -52,7 +50,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   };
   // ---- Practice
   await p.click('[data-tab=table]'); await p.click('#tNew'); await p.waitForTimeout(800);
-  await screen('Practice', '#zHand .mtg', () => window.__isf.game.hand.map(i => i.card.name), undefined, true);
+  await screen('Practice', '#zHand .mtg', () => window.__isf.game.hand.map(i => i.card.name));
   // ---- Duel and Pod: keep the seven, then the table
   for (const [mode, tab] of [['duel', '#tab-duel'], ['pod', '#tab-pod']]) {
     await p.click(`[data-tab=${mode}]`);
@@ -61,11 +59,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     await p.waitForFunction(m => { const g = window.__isfVersus[m].game; return g && g.phase === 'mull'; }, mode, { timeout: 60000 });
     await screen(`${mode === 'duel' ? 'Duel' : 'Pod'} mulligan hand`, `${tab} .vs-hand .vs-card`, m => { const g = window.__isfVersus[m].game; return g.games[g.human].hand.map(i => i.card.name); }, mode);
     await p.evaluate(t => document.querySelector(t + ' .vs-keep').click(), tab);
-    for (let k = 0; k < 120; k++) {          // to your main phase, answering any question the game asks on the way with the autopilot's choice
-      if (await p.evaluate(m => { const g = window.__isfVersus[m].game; return !!g && (g.phase === 'main' || !!g.over); }, mode)) break;
-      const auto = await p.$('.ch-sheet .ch-auto'); if (auto) await auto.click().catch(() => {});
-      await p.waitForTimeout(500);
-    }
+    await p.waitForFunction(m => { const g = window.__isfVersus[m].game; return g && (g.phase === 'main' || g.over); }, mode, { timeout: 60000 });
     await p.waitForTimeout(800);
     await screen(`${mode === 'duel' ? 'Duel' : 'Pod'} game hand`, `${tab} .vs-hand .vs-card`, m => { const g = window.__isfVersus[m].game; return g.games[g.human].hand.map(i => i.card.name); }, mode);
   }

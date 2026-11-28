@@ -225,7 +225,7 @@
   async function waitFor(cond, ms) { const t0 = Date.now(); while (Date.now() - t0 < (ms || 20000)) { try { if (cond()) return true; } catch (e) { /* not yet */ } await sleep(100); } return false; }
   const idle = () => { const st = S(); return st && !st.busy && !document.querySelector('.ch-sheet'); };
   const inHand = name => () => { const g = S().game; const c = g && g.hand.find(x => x.card.name === name); return c ? document.querySelector(`#zHand .mtg[data-iid="${c.iid}"]`) : null; };
-  const menuBtn = re => () => [...document.querySelectorAll('#ctxMenu button')].find(b => re.test(b.textContent) && b.offsetParent) || null;
+  const menuBtn = re => () => [...document.querySelectorAll('#lightbox.show .lb-act')].find(b => re.test(b.textContent) && b.offsetParent) || null;          // T-134: a tapped card opens in the viewer; its actions are the buttons there
   const onBoard = () => document.querySelector('#zCreatures .mtg[data-iid]');
   let sample = null;          // { prev: the person's own deck (put back afterwards), view }
   async function useSampleDeck(file) {
@@ -308,7 +308,7 @@
     { el: '#keepHand', tap: true, title: 'Keep', text: 'Tap Keep. The hand goes to the Practice table.' },
     { before: () => waitFor(() => document.body.dataset.view === 'table' && S().game && idle() && inHand('Forest')()),
       el: inHand('Forest'), tap: true, back: false, title: 'Play a land', text: 'Turn 1. Tap a Forest.' },
-    { el: menuBtn(/Play land/), tap: true, lost: -1, back: false, title: 'Its menu', text: 'Every card has a menu. Tap Play land.' },
+    { el: menuBtn(/Play land/), tap: true, lost: -1, back: false, title: 'Its actions', text: 'Every card opens large, with its actions. Tap Play land.' },
     { before: () => waitFor(idle), el: inHand('Fyndhorn Elves'), tap: true, back: false, title: 'Cast a spell', text: 'Tap Fyndhorn Elves. Your Forest pays for it.' },
     { el: menuBtn(/^▶ Cast/), tap: true, lost: -1, back: false, title: 'Cast', text: 'Tap Cast.' },
     { before: () => waitFor(idle), el: '#tNext', tap: true, back: false, title: 'Next turn', text: 'Attack, then untap and draw.' },
@@ -330,7 +330,6 @@
     { el: () => idle() ? null : document.querySelector('.table-main'), optional: true, until: idle, back: false, title: 'Almost there',          // only while the autopilot is still playing
       text: () => `The autopilot is finishing turn ${autoTo}. The tour goes on when it stops.` },
     { before: () => waitFor(idle), el: onBoard, tap: true, back: false, title: 'A closer look', text: 'Tap a creature.' },
-    { el: menuBtn(/View card/), tap: true, lost: -1, back: false, title: 'View card', text: 'Tap View card.' },
     { before: () => waitFor(() => document.querySelector('#lightbox.show'), 4000), el: '#lightbox.show', through: true, esc: false, dock: 'bottom', until: () => !document.querySelector('#lightbox.show'), back: false,
       title: 'Card viewer', text: 'A large view, prices and printings. Close it to go on.' },
     { back: false, title: 'That is Practice', text: () => (sample && sample.prev ? 'Your own deck is back. ' : 'The sample deck stays loaded: play on. ') + 'Duel has attacks, blocks and instants: find it under ?.' },
@@ -465,7 +464,7 @@
     ],
     table: [
       { el: '.table', title: 'Practice table', text: 'Play your deck against a goldfish: an opponent that never fights back.' },
-      { el: ['#zHand:not(:empty)', '#zHand', '.table-main'], title: 'Tap a card', text: 'Its menu plays it, taps it, or shows it large.' },
+      { el: ['#zHand:not(:empty)', '#zHand', '.table-main'], title: 'Tap a card', text: 'It opens large; its buttons play it, tap it, add counters or move it.' },
       { el: '#tAuto', title: 'Autopilot', text: 'The autopilot plays this turn for you. Watch what it picks.' },
       { el: '.speed-bar', title: 'Speed', text: 'Slide toward the turtle to follow each play.' },
       { el: '#tAutoTo', title: 'Autopilot to turn', text: 'Skip ahead to the turn in the box.' },
@@ -576,7 +575,7 @@
       { el: '#zGrave', title: 'Graveyard', text: 'Tap to look through it.' },
       { el: '#zExile', title: 'Exile', text: 'Cards removed from the game.' },
       { el: '#zCreatures', title: 'Battlefield', text: 'Creatures, then artifacts and enchantments, then lands.' },
-      { el: '#zHand', title: 'Your hand', text: 'Tap a card for its menu: play it, View card, counters, move it. Ctrl/⌘-click plays at once.' },
+      { el: '#zHand', title: 'Your hand', text: 'Tap a card: it opens large with its buttons (play it, counters, move it). Ctrl/⌘-click plays at once.' },
       { el: () => { const e = document.querySelector('.table-log'); return e && e.getBoundingClientRect().width ? e : null; }, optional: true, title: 'Game log', text: 'Every play, step by step, and why.' },
     ],
     sim: [

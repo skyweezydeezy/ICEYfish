@@ -65,3 +65,4 @@ body.tut-on .bg-ask { display: none; }          /* the music question waits unti
 @media (prefers-reduced-motion: reduce) { .tut-tip { animation: none; } }
 .tut-head-btns { display: flex; gap: 2px; align-items: center; }
 .tut.tut-pre .tut-bubble { visibility: hidden; }
+body.modal-open .tut-block { pointer-events: none; }          /* T-134: a card opened in the viewer during a tour: its action buttons are pressable */

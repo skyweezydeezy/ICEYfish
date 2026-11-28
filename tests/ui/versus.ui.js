@@ -1,5 +1,6 @@
 // Browser test for the 1v1 and Pod tabs (needs playwright, a static server on :8800 and internet access to Scryfall).
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 const UA = 'goldfish-calc-test/0.1';
 let pass = 0, fail = 0;
@@ -64,8 +65,8 @@ const shot = process.env.VERSUS_SHOTS;
   check('Mulligan deals seven new cards', m1.n === 7 && m1.mull === 1 && m1.hand !== h1 && /keep 6/.test(await p.$eval('#tab-duel .vs-mull', b => b.textContent)));
   await p.click('#tab-duel .vs-mull');
   check('after a second mulligan Keep waits until you pick a card for the bottom', await p.$eval('#tab-duel .vs-keep', b => b.disabled));
-  await p.evaluate(() => document.querySelector('#tab-duel .vs-hand .vs-card').click());
-  check('...clicking a card marks it', (await p.$$('#tab-duel .vs-card.pick')).length === 1 && !(await p.$eval('#tab-duel .vs-keep', b => b.disabled)));
+  await p.evaluate(() => document.querySelector('#tab-duel .vs-hand .vs-card').click()); await viewerPick(p);          // T-134: the card opens in the viewer; "Put it on the bottom" is its button
+  check('...choosing a card for the bottom marks it', (await p.$$('#tab-duel .vs-card.pick')).length === 1 && !(await p.$eval('#tab-duel .vs-keep', b => b.disabled)));
   await p.click('#tab-duel .vs-keep');
   await until('duel', () => { const g = window.__isfVersus.duel.game; return g.phase === 'main'; });
   check('...and you keep six', await p.evaluate(() => { const g = window.__isfVersus.duel.game.games[0]; return g.openingHand.length === 6 && g.bottomed.length === 1; }));
@@ -79,10 +80,11 @@ const shot = process.env.VERSUS_SHOTS;
   check('your hand is shown as card pictures, with the playable ones glowing', hand0 >= 5 && (await p.$$('#tab-duel .vs-hand .mtg img')).length >= 1 && (await p.$$('#tab-duel .vs-card.can')).length >= 1, hand0);
   const lands0 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].battlefield.filter(x => x.asLand).length);
   await p.evaluate(() => { const g = window.__isfVersus.duel.game.games[0]; const l = g.hand.find(i => i.card.a.isLand); if (l) document.querySelector('#tab-duel .vs-card[data-iid="' + l.iid + '"]').click(); });
+  await viewerPick(p);          // T-134: the card opens in the viewer; "Play land" is its button
   // a land may ask first (a shock land: pay 2 life?) and enter only once answered: take the autopilot's answer, as everywhere here
   await until('duel', n => { const g = window.__isfVersus.duel.game; return !g.choice && g.games[0].battlefield.filter(x => x.asLand).length > n; }, lands0, 15000).catch(() => {});
   const lands1 = await p.evaluate(() => window.__isfVersus.duel.game.games[0].battlefield.filter(x => x.asLand).length);
-  check('clicking a land in your hand plays it', lands1 === lands0 + 1, lands0 + ' -> ' + lands1);
+  check('tapping a land in your hand opens it, and its Play land button plays it', lands1 === lands0 + 1, lands0 + ' -> ' + lands1);
   await p.click('#tab-duel .vs-attack');
   check('Attack… opens the attacker chooser', !!(await p.$('#tab-duel .vs-attack-go')));
   await p.click('#tab-duel .vs-attack-go');

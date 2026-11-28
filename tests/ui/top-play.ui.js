@@ -34,8 +34,8 @@ const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 
     const put = n => p.evaluate(n => { const g = window.__isf.game, G = window.Goldfish; const k = g.library.findIndex(i => i.card.name === n), i = k >= 0 ? g.library.splice(k, 1)[0] : g.hand.find(x => x.card.name === n); const pm = G.enterWithTriggers(g, i, {}, []); pm.sick = false; return !!pm; }, n);
     const setTop = n => p.evaluate(n => { const g = window.__isf.game, u = x => g.deck.unique.find(c => c.name === x); const k = g.library.findIndex(i => i.card.name === n); const c = k >= 0 ? g.library.splice(k, 1)[0] : { iid: g.nextIid++, card: u(n) }; g.library.unshift(c); g.library.unshift({ iid: g.nextIid++, card: u('Swamp') }); }, n);
     const redraw = async () => { await p.click('#zLibrary .card-back'); await p.waitForTimeout(500); };
-    const menu = async () => { await p.evaluate(() => document.querySelector('#zLibrary .lib-top .mtg').click()); await p.waitForSelector('#ctxMenu', { state: 'visible' }); await p.waitForTimeout(450); return p.$$eval('#ctxMenu button', bs => bs.map(b => b.textContent.trim())); };
-    const clickItem = async re => { await p.evaluate(src => { const b = [...document.querySelectorAll('#ctxMenu button')].find(x => new RegExp(src).test(x.textContent)); b.click(); }, re); await p.waitForTimeout(700); };
+    const menu = async () => { await p.evaluate(() => document.querySelector('#zLibrary .lib-top .mtg').click()); await p.waitForSelector('#lightbox.show .lb-act', { state: 'visible' }); await p.waitForTimeout(450); return p.$$eval('#lightbox .lb-act', bs => bs.map(b => b.textContent.trim())); };          // T-134: a tap opens the card in the viewer; its actions are the buttons
+    const clickItem = async re => { await p.evaluate(src => { const b = [...document.querySelectorAll('#lightbox .lb-act')].find(x => new RegExp(src).test(x.textContent)); b.click(); }, re); await p.waitForTimeout(700); };
     const logText = () => p.$eval('#gameLog', e => e.textContent);
     const state = () => p.evaluate(() => { const g = window.__isf.game; return { life: g.life, bf: g.battlefield.map(x => x.card.name), lib: g.library.length, top: g.library[0] && g.library[0].card.name, lands: g.landsPlayedThisTurn }; });
     // ---- Practice ----
@@ -43,13 +43,12 @@ const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 
     check(`${name} Practice: no source in play, the pile stays face down`, await p.$eval('#zLibrary .lib-top', e => e.hidden));
     await put("Bolas's Citadel"); await setTop('Gravecrawler'); await redraw();
     let items = await menu();
-    check(`${name} Practice: Bolas's Citadel: tapping the top card offers "Cast for 1 life" (and View card)`, items.some(t => /Cast for 1 life/.test(t)) && items.some(t => /View card/.test(t)), items.join(' | '));
+    check(`${name} Practice: Bolas's Citadel: tapping the top card opens it with "Cast for 1 life" as a button`, items.some(t => /Cast for 1 life/.test(t)), items.join(' | '));
     let s0 = await state(); await clickItem('Cast for 1 life'); let s1 = await state();
     check(`${name} Practice: it is cast: on the battlefield, 1 life paid, no mana`, s1.bf.includes('Gravecrawler') && s1.life === s0.life - 1, JSON.stringify([s0.life, s1.life]));
     check(`${name} Practice: the log says where it came from`, /Gravecrawler cast from the top of the library \(Bolas's Citadel, 1 life\)/.test(await logText()), (await logText()).slice(-200));
     await setTop('Sun Titan'); await p.evaluate(() => { window.__isf.game.life = 5; }); await redraw();
     items = await menu(); check(`${name} Practice: not enough life: the item says why`, items.some(t => /Cast for 6 life.*Not enough life/.test(t)), items.join(' | '));
-    await clickItem('View card'); await p.waitForSelector('#lightbox', { state: 'visible' });
     const off = await p.$$eval('#lightbox .lb-act', bs => bs.map(b => ({ t: b.textContent, dis: b.disabled })));
     check(`${name} Practice: in the viewer it is greyed with the reason`, off.some(o => o.dis && /Cast for 6 life/.test(o.t) && /Not enough life/.test(o.t)), JSON.stringify(off));
     await p.keyboard.press('Escape'); await p.waitForTimeout(300);
@@ -74,8 +73,8 @@ const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 
     await put('Experimental Frenzy');
     await p.evaluate(() => { const g = window.__isf.game; g.hand.push({ iid: g.nextIid++, card: g.deck.unique.find(c => c.name === 'Sol Ring') }); });
     await redraw();
-    await p.evaluate(() => { const hs = [...document.querySelectorAll('#zHand .mtg')]; hs[hs.length - 1].click(); }); await p.waitForSelector('#ctxMenu', { state: 'visible' }); await p.waitForTimeout(450);
-    items = await p.$$eval('#ctxMenu button', bs => bs.map(b => b.textContent.trim()));
+    await p.evaluate(() => { const hs = [...document.querySelectorAll('#zHand .mtg')]; hs[hs.length - 1].click(); }); await p.waitForSelector('#lightbox.show .lb-act', { state: 'visible' }); await p.waitForTimeout(450);
+    items = await p.$$eval('#lightbox .lb-act', bs => bs.map(b => b.textContent.trim()));
     check(`${name} Practice: Experimental Frenzy: a hand card shows Cast greyed with the reason`, items.some(t => /Cast.*Experimental Frenzy: you can't play cards from your hand/.test(t)), items.join(' | '));
     await p.keyboard.press('Escape');
     check(`${name} Practice: no page errors so far`, errs.length === 0, errs.join(' | '));
@@ -83,6 +82,7 @@ const DECK = ["1 Bolas's Citadel", '1 Mystic Forge', '1 Courser of Kruphix', '1 
       // ---- Duel ----
       await p.click('[data-tab=duel]');
       await p.selectOption('#tab-duel .vs-opp', '');
+      await require('../ui-seed').pin(p);          // the same Duel opening on every run
       await p.click('#tab-duel .vs-new');
       await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.phase === 'mull'; }, null, { timeout: 60000 });
       await p.click('#tab-duel .vs-keep');

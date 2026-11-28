@@ -199,11 +199,12 @@
         if (t.o.disabled) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); }          // shown, with the reason in its note, but it cannot be picked
         b.type = 'button'; b.dataset.t = t.i; b.dataset.k = t.ks[0]; b.title = t.o.name + (t.ks.length > 1 ? ` (${t.ks.length} in your library)` : '');
         b.dataset.find = (t.o.name + ' ' + (t.o.card ? t.o.card.type_line || '' : '')).toLowerCase();
-        if (t.o.card) { const c = A.cardEl(t.o.card, { face: t.o.face || 0 }); b.appendChild(c); const z = h('span', 'ch-zoom', '🔍'); z.title = 'Read this card'; b.appendChild(z); }
+        if (t.o.card) { const c = A.cardEl(t.o.card, { face: t.o.face || 0 }); b.appendChild(c); }
         b.appendChild(h('span', 'ch-name', esc(t.o.name) + (t.ks.length > 1 ? ` <i>×${t.ks.length}</i>` : '')));
         if (t.o.note) b.appendChild(h('small', 'ch-note', esc(t.o.note)));
         if (t.def && !q.noAuto) b.appendChild(h('span', 'ch-star', '★ autopilot'));
         b.appendChild(h('span', 'ch-took'));
+        b._acts = () => viewerActs(t);          // T-134: a tap on its picture opens the viewer; picking it is the button there
         box.appendChild(b);
       }
       // the fan: a few cards spread in an arc; a long library is one overlapping row that scrolls sideways
@@ -233,20 +234,27 @@
         const pk = $('.ch-picked');
         if (pk && q.kind === 'search') pk.textContent = n ? 'Selected: ' + picks().map(k => q.options[k].name).join(', ') : 'Nothing selected yet.'; else if (pk) pk.remove();
       };
+      const pickTile = tile => {
+        const has = take.get(tile) || 0;
+        if (!q.multi) { const was = has; take.clear(); if (!was || !fan) take.set(tile, 1); }
+        else if (has < tile.ks.length && count() < q.max) take.set(tile, has + 1);
+        else if (has < tile.ks.length && q.max === 1) { take.clear(); take.set(tile, 1); }
+        else take.delete(tile);
+        refresh();
+      };
+      // what the viewer offers for one option of the sheet: choosing (or un-choosing) it. A single pick closes the viewer; picking several stays open to swipe on.
+      const viewerActs = t => {
+        const on = (take.get(t) || 0) > 0, name = t.o.name.split(' // ')[0], note = t.o.note || '';
+        const label = on ? 'Un-choose ' + name : /^counter it/i.test(note) ? note : q.kind === 'target' ? 'Target ' + name : 'Choose ' + name;
+        return [[label, () => pickTile(t), 'primary', !!q.multi, t.o.disabled ? (note || 'Cannot be chosen') : '']];
+      };
       el.addEventListener('click', e => {
-        e.stopPropagation();                                  // nothing under the sheet reacts, and a click on a picture does not open the viewer
+        e.stopPropagation();                                  // nothing under the sheet reacts: a tap on a card opens the viewer, below
         const t = e.target;
         if (t.closest('.ch-peek')) { const f = el.classList.toggle('peek'); t.closest('.ch-peek').textContent = f ? 'Show the choice' : 'Look at the table'; return; }
-        if (t.closest('.ch-zoom')) { const b = t.closest('.ch-opt'), o = ts[+b.dataset.t].o; if (o && o.card) A.viewCard(o.card, ts.filter(x => x.o.card).map(x => x.o.card)); return; }
         const b = t.closest('.ch-opt');
-        if (b) {
-          const tile = ts[+b.dataset.t], has = take.get(tile) || 0;
-          if (!q.multi) { const was = has; take.clear(); if (!was || !fan) take.set(tile, 1); }
-          else if (has < tile.ks.length && count() < q.max) take.set(tile, has + 1);
-          else if (has < tile.ks.length && q.max === 1) { take.clear(); take.set(tile, 1); }
-          else take.delete(tile);
-          return refresh();
-        }
+        { const m = b ? b.querySelector('.mtg') : !t.closest('button') && t.closest('.mtg'); if (m && A.cardOf(m)) return A.viewCard(A.cardOf(m), m); }          // any card of the sheet: the stack, the spell, its targets, the options
+        if (b) return pickTile(ts[+b.dataset.t]);
         if (t.closest('.ch-mana-go') && !t.closest('.ch-mana-go').disabled) return finish({ mana: Math.floor(+$('.ch-mana-n').value) });
         if (t.closest('.ch-mana-inf')) { const k = q.options.findIndex(o => o.id === 'mana:inf'); if (k >= 0) return finish(k); }
         if (t.closest('.ch-auto')) return finish('auto');
@@ -283,5 +291,6 @@
     strip.querySelectorAll('i').forEach(i => i.classList.toggle('on', i.dataset.step === step));
   }
 
+  A.addViewerActions((card, el) => { const b = el && el.closest && el.closest('.ch-opt'); return b && b._acts ? b._acts() : null; });
   window.__isfChoices = { ask, close, answer: finish, CANCELLED, stepsHtml, lightStep, current: () => (open ? open.q : null) };
 })();
