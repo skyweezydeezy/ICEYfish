@@ -2,6 +2,56 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 236,
+      "lines": [
+        "Taught in full: Nahiri the Harbinger, Nahiri the Lithomancer, Ob Nixilis of the Black Oath (+2), Lord Windgrace, Minsc & Boo (\u22122), Sorin Imperious Bloodlord (+1), Tevesh Szat (+1), Tezzeret Cruel Captain (0), Tyvar Kell (+1), Kaito Cunning Infiltrator (+1) and Professor Onyx.",
+        "Chandra, Awakened Inferno's \u2212X can now hit a planeswalker as well as a creature."
+      ]
+    },
+    {
+      "v": 235,
+      "lines": [
+        "Planeswalker abilities with \u2212X that deal damage now really remove X loyalty. You pick X; the autopilot pays the smallest X that does the job.",
+        "Taught in full: Chandra, Awakened Inferno; Chandra, Flamecaller; Commodore Guff; Dihada; Domri; Jace, Mirror Mage; Kaito, Bane of Nightmares; Narset of the Ancient Way; and Jaya Ballard's +1. Mana that can only be spent on certain spells is now tracked."
+      ]
+    },
+    {
+      "v": 234,
+      "lines": [
+        "Honest card reading: a planeswalker or activated ability now counts as understood only when ICEYfish plays every sentence of it. Cards that dropped part of their text now show as not fully understood, so you can teach them.",
+        "Taught in full: Nicol Bolas, Dragon-God; both Ugins; Elspeth, Storm Slayer; Nissa, Who Shakes the World; Grist; Thrasios; Raging Ravine; Liliana, Death's Majesty; and 20 more cards from the built-in decks. \"Activate only if…\" limits (Minas Tirith, Idol of Oblivion…) are now enforced."
+      ]
+    },
+    {
+      "v": 233,
+      "lines": [
+        "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow.",
+        "Top of your library: with Bolas's Citadel, Mystic Forge, Future Sight, Courser of Kruphix or Experimental Frenzy in play, tap the face-up top card to play it: Play land, Cast, or Cast for N life (Citadel, plus any tax like Thalia's). What isn't allowed shows greyed with the reason.",
+        "X can now be 0 when you cast an X spell.",
+        "Tidal Loop (Hakbal): its Drive name now says Bracket 5; ICEYfish's check keeps it at Bracket 4 (Bracket 5 needs a win before turn 4 on average; its median is turn 7)."
+      ]
+    },
+    {
+      "v": 232,
+      "lines": [
+        "Taught: Ajani, Sleeper Agent. His +1 reveals the top card (creature or planeswalker to hand, otherwise you may bottom it), −3 lets you split three +1/+1 counters, and Compleated loyalty is right.",
+        "Taught: Chandra, Torch of Defiance. Her first +1 exiles the top card and lets you cast it, or deals 2 damage to each opponent if you don't; her −7 makes the emblem that deals 5 damage whenever you cast a spell."
+      ]
+    },
+    {
+      "v": 231,
+      "lines": [
+        "On a phone, Practice, Duel and Pod now show the tabs in two rows of four, like every other screen."
+      ]
+    },
+    {
+      "v": 230,
+      "lines": [
+        "New built-in deck: Blood Bank (Edgar Markov). Its Drive name says Bracket 4; ICEYfish's check puts it at Bracket 3 (3 Game Changers, no cheap combo, turn-7 median kill).",
+        "Taught: Master of Dark Rites. Tap it and sacrifice another creature for {B}{B}{B}, which only pays for Vampire, Cleric or Demon spells."
+      ]
+    },
+    {
       "v": 229,
       "lines": [
         "Full priority is on: spells, triggers and abilities now go on a real stack, the way the Comprehensive Rules have it, so you and the autopilot can respond to each one in turn.",

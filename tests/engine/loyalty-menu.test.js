@@ -11,7 +11,7 @@ idx.sets.forEach(s => { store[s.code] = JSON.parse(fs.readFileSync(path.join(DIR
 const find = n => { for (const f of Object.values(store)) { const c = f.cards.find(x => x.name === n && !x.ref); if (c) return Object.assign({}, c, { qty: 1 }); } throw new Error('not in the database: ' + n); };
 const load = n => JSON.parse(fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', n + '-loaded.json'), 'utf8'));
 const SF = load('loyalty-program'), ZA = load('zul-ashur');
-const cards = SF.cards.concat(['Oath of Teferi', 'Teferi, Temporal Archmage', 'Nahiri, the Lithomancer'].filter(n => !SF.cards.some(c => c.name === n)).map(find));
+const cards = SF.cards.concat(['Oath of Teferi', 'Teferi, Temporal Archmage', 'Estrid, the Masked'].filter(n => !SF.cards.some(c => c.name === n)).map(find));
 const O = { turns: 25, onPlay: false, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40, prioritizeCommander: true };
 let pass = 0, fail = 0;
 const check = (n, ok, d) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '   [' + d + ']' : '')); };
@@ -30,8 +30,8 @@ const elspeth = g => putOn(g, card(g, "Elspeth, Sun's Champion"));
   check("Elspeth, Sun's Champion (loyalty 4): three abilities, +1, −3, −7", e.loyalty === 4 && st.list.map(x => x.label).join(' ') === '+1 −3 −7' && /^Create three 1\/1 white Soldier/.test(st.list[0].text), st.list.map(x => x.label + ' ' + x.text.slice(0, 30)).join(' | '));
   check('...+1 and −3 can be used; −7 cannot ("needs 7 loyalty")', st.list[0].ok && st.list[1].ok && !st.list[2].ok && /needs 7 loyalty \(it has 4\)/.test(st.list[2].why), st.list[2].why);
   check('...the menu is available as soon as it is on the battlefield (planeswalkers have no summoning sickness)', !st.why && (() => { const f = putOn(a, card(a, 'Liliana of the Veil')); f.sick = true; f.enteredTurn = a.turn; return G.loyaltyState(a, f).list.some(x => x.ok); })()); }
-{ const p = duel(), a = p.games[0], t = putOn(a, card(a, 'Nahiri, the Lithomancer')); const st = G.loyaltyState(a, t);
-  check('an ability the engine does not play is listed but cannot be used, and says so (Nahiri, the Lithomancer −2; Teferi, Temporal Archmage −1 has been played since T-100)', st.list[0].ok && !st.list[1].ok && /does not play this ability yet/.test(st.list[1].why), st.list.map(x => x.label + ' ' + (x.ok ? 'ok' : x.why)).join(' | ')); }
+{ const p = duel(), a = p.games[0], t = putOn(a, card(a, 'Estrid, the Masked')); const st = G.loyaltyState(a, t);
+  check('an ability the engine does not play is listed but cannot be used, and says so (Estrid, the Masked +2; Nahiri, the Lithomancer −2 and Teferi, Temporal Archmage −1 has been played since T-100)', st.list.some(x => !x.ok && /does not play this ability yet/.test(x.why || '')), st.list.map(x => x.label + ' ' + (x.ok ? 'ok' : x.why)).join(' | ')); }
 // ---- using one
 { const p = duel(), a = p.games[0], e = elspeth(a);
   const ev = G.useLoyalty(a, e, 0);

@@ -18,7 +18,7 @@ for (const d of index.decks) {
   for (const e of entries) { const c = byName.get(e.name) || byName.get(e.name.split(' // ')[0]); if (!c) { gone.push(e.name); continue; } const hit = cards.find(x => x.name === c.name); if (hit) { hit.qty += e.qty; hit.commander = hit.commander || e.commander; } else cards.push(Object.assign({}, c, { qty: e.qty, commander: e.commander })); }
   if (!cards.some(c => c.commander)) for (const n of d.commanders || []) { const c = cards.find(x => x.name === n || x.name.split(' // ')[0] === n); if (c) c.commander = true; }
   const deck = G.buildDeck(cards, []), bad = [];
-  for (const c of deck.unique) for (const x of [c].concat(c.a.backCard ? [c.a.backCard] : [])) for (const v of x.a.coverage || []) if (v.status === 'ignored') bad.push(c.name + ': ' + v.text.slice(0, 60));
+  for (const c of deck.unique) for (const x of [c].concat(c.a.backCard ? [c.a.backCard] : [])) for (const v of x.a.coverage || []) if (v.status === 'ignored' || v.status === 'partial') bad.push(c.name + ': ' + v.text.slice(0, 60));
   missing += gone.length; unread += bad.length;
   if (gone.length || bad.length) check(d.name + ': every card is in the database and every rules line is read', false, gone.map(n => 'not in the database: ' + n).concat(bad).slice(0, 5).join(' || '));
   loaded.push({ d, cards, deck });

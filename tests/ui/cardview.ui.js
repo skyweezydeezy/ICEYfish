@@ -39,7 +39,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('Back closes it', !(await p.isVisible('#ctxMenu')));
   await hand.tap(edge); await p.waitForTimeout(450); await p.tap('#ctxMenu button:has-text("View card")'); await p.waitForTimeout(3000);
   const name0 = await p.textContent('.lb-name'), count0 = await p.textContent('.lb-count');
-  check('View card opens the viewer with a position count', /^\d+ \/ \d+$/.test(count0), name0 + ' ' + count0);
+  check('View card opens the viewer with a position count', /^\d+ of \d+$/.test(count0), name0 + ' ' + count0);
   await p.tap('.lb-nav.next'); await p.waitForTimeout(300);
   check('next moves to another card', (await p.textContent('.lb-name')) !== name0);
   await p.tap('.lb-nav.prev'); await p.waitForTimeout(300);
