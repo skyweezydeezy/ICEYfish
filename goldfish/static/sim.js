@@ -12166,8 +12166,9 @@ g.actSeq = (g.actSeq || 0) + 1;
   function autoLoyalty(g, p) {
     let best = null, bs = -Infinity;
     for (const ab of loyaltyAbilities(g, p)) {
-      const c = ab.x ? -pwXAuto(g, p, ab, Math.max(0, p.loyalty)) : ab.cost;
-      if (ab.x && c === 0) continue;          // T-139: a -X that does nothing is not played
+      const xp = ab.x && ab.fx.some(f => (f.type === 'burnCreature' || f.type === 'sweepDamage') && f.n === 'X');
+      const c = xp ? -pwXAuto(g, p, ab, Math.max(0, p.loyalty)) : ab.x ? -Math.max(0, p.loyalty - 1) : ab.cost;
+      if (xp && c === 0) continue;          // T-139: a -X that does nothing is not played
       if (p.loyalty + c < 0) continue;                              // cannot pay the loyalty cost
       if (!ab.fx.length && ab.cost < 0) continue;                    // an ultimate that needs an opponent (Sorin's -6) would only burn loyalty
       let v = fxValue(g, ab.fx) + c * (+pol(g, 'pwLoyalty') || 0);
@@ -12181,11 +12182,12 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (otherTurn(g, active)) { const k = turnKey(active); if (p.pwOther !== k) { p.pwOther = k; p.pwOtherN = 0; } p.pwOtherN++; }          // on another player's turn (Teferi, Master of Time)
     else { if (p.pwTurn !== g.turn) { p.pwTurn = g.turn; p.pwN = 0; } p.pwN++; }
     if (pwPlus === undefined) pwPlus = g.battlefield.some(q => q.card.a.statics.pwPlus);
-    let pwX = 0; if (ab.x) pwX = pwXPick(g, p, ab);          // T-139: -X really costs X loyalty
+    const xPays = ab.x && ab.fx.some(f => (f.type === 'burnCreature' || f.type === 'sweepDamage') && f.n === 'X');          // the other -X abilities (Ugin, Sorin) take their own loyalty
+    let pwX = 0; if (xPays) pwX = pwXPick(g, p, ab);          // T-139: -X really costs X loyalty
     p.loyalty += ab.x ? -pwX : (ab.cost > 0 ? Math.floor((ab.cost + (bfInfo(g).cplusLz || 0)) * counterMult(g) / (othersHave(g, 'vorinHalf') ? 2 : 1)) : ab.cost);   // Doubling Season doubles + loyalty costs
     if (pwPlus) p.loyalty += 1;                                                                // Carth: "cost an additional [+1]"
     ev.push({ type: 'pw', perm: p, text: ab.text, cost: ab.cost, x: ab.x });
-    { const xPrev = g.xValue; if (ab.x) g.xValue = pwX; try { applyEffects(g, ab.fx, p, ev, null); abilityCopy(g, ab.fx, p, ev); } finally { if (ab.x) g.xValue = xPrev; } }
+    { const xPrev = g.xValue; if (xPays) g.xValue = pwX; try { applyEffects(g, ab.fx, p, ev, null); abilityCopy(g, ab.fx, p, ev); } finally { if (xPays) g.xValue = xPrev; } }
     if (p.loyalty <= 0) {
       removePerm(g, p); g.graveyard.push(p.inst);
       for (const q of g.battlefield.slice()) for (const t of q.card.a.triggers) if (t.kinds.includes('pwDies')) fire(g, t, q, ev, null);       // Carth the Lion
