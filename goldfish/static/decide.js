@@ -172,6 +172,8 @@
     drake: ['exchange for which creature?', 'Choose the creature of theirs you gain control of; they gain control of this creature.'],
     threaten: ['gain control of which creature?', 'Choose the creature you gain control of until end of turn. It untaps and gains haste.'],
     astral: ['copy which permanent?', 'Choose the noncreature permanent: you create two tokens that are copies of it, 3/3 flying Dragon creatures as well.'],
+    distribute: ['put a +1/+1 counter on which creature?', 'Choose up to three target creatures, one at a time (choose none to stop). The three +1/+1 counters are distributed among them, each getting at least one, and they gain vigilance until end of turn.'],
+    distributeExtra: ['which creature gets the extra counter?', 'With fewer than three targets, the remaining +1/+1 counters are distributed among them.'],
     oath: ['exile which permanent?', 'Choose another permanent of yours to exile. It returns to the battlefield at the beginning of the next end step.'],
     fangs: ['choose a creature', 'Choose the creature that gets a +1/+1 counter; then its +1/+1 counters are doubled.'],
     flickerAll: ['flicker which creatures?', 'Choose any number of your creatures to exile. They return to the battlefield at the beginning of the next end step (a token does not come back, so tokens are left alone).'],
