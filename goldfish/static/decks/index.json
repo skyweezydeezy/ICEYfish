@@ -721,9 +721,13 @@
    "colors": "UG",
    "cards": 100,
    "bracket": 4,
-   "checkedMedian": 8,
+   "checkedMedian": 7,
    "by5": 1,
-   "by7": 49.9,
+   "by7": 51.6,
+   "earliestKill": 3,
+   "by2": 0,
+   "by3": 0,
+   "by4": 0.1,
    "policy": {
     "tutorFocus": "payoff"
    },
@@ -739,7 +743,11 @@
     }
    ],
    "learnedAt": "2026-11-19",
-   "learnedVs": "field"
+   "learnedVs": "field",
+   "medianKill": 7,
+   "floor": 4,
+   "speedBracket": 3,
+   "checkedAt": "2026-11-28"
   },
   {
    "file": "tidecaller.txt",
