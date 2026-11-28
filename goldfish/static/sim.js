@@ -3141,6 +3141,21 @@
           : /^target player mills (\w+) cards\.?$/i.test(pwt) ? { fx: [{ type: 'millOpp', n: NUM[pwt.match(/mills (\w+) cards/i)[1].toLowerCase()] || +pwt.match(/mills (\w+) cards/i)[1] || 20 }] }          // Jace Beleren
           : /^until your next turn, you may cast sorcery spells as though they had flash/i.test(pwt) ? { fx: [{ type: 'flashUntil', phrases: [['sorcery']] }] }
           : /^~ deals (\d+) damage to each non-[a-z]+ creature\.?$/i.test(pwt) ? { fx: [{ type: 'sweepDamage', n: +pwt.match(/deals (\d+)/i)[1], noExile: true, noFly: false }] }          // Chandra, Awakened Inferno (every creature: rules batch 38)
+          : /^you may discard a card\. if you do, draw a card\.?$/i.test(pwt) ? { fx: [{ type: 'discardFor', n: 1, may: true, then: [{ type: 'draw', n: 1 }] }] }          // T-139: Nahiri, the Harbinger +2
+          : /^search your library for an artifact or creature card, put it onto the battlefield, then shuffle\. it gains haste\. return it to your hand at the beginning of the next end step\.?$/i.test(pwt) ? { fx: [{ type: 'nahiriUlt' }] }          // T-139: Nahiri, the Harbinger -8
+          : /^create a 1\/1 white kor soldier creature token\. you may attach an equipment you control to it\.?$/i.test(pwt) ? { fx: parseEffects('Create a 1/1 white Kor Soldier creature token.').fx.concat([{ type: 'attachEquipNew' }]) }          // T-139: Nahiri, the Lithomancer +2
+          : /^you may put an equipment card from your hand or graveyard onto the battlefield\.?$/i.test(pwt) ? { fx: [{ type: 'putEquipment' }] }          // T-139: Nahiri, the Lithomancer -2
+          : /^each opponent loses 1 life\. you gain life equal to the life lost this way\.?$/i.test(pwt) ? { fx: [{ type: 'drain', n: 1 }, { type: 'gainLife', n: 1 }] }          // T-139: Ob Nixilis of the Black Oath +2
+          : /^discard a card, then draw a card\. if a land card is discarded this way, draw an additional card\.?$/i.test(pwt) ? { fx: [{ type: 'windgraceLoot' }] }          // T-139: Lord Windgrace +2
+          : /^return up to two target land cards from your graveyard to the battlefield\.?$/i.test(pwt) ? { fx: [{ type: 'yardLands', n: 2 }] }          // T-139: Lord Windgrace -3
+          : /^sacrifice a creature\. when you do, ~ deals x damage to any target, where x is that creature's power\. if the sacrificed creature was a hamster, draw x cards\.?$/i.test(pwt) ? { fx: [{ type: 'minscSac' }] }          // T-139: Minsc & Boo -2
+          : /^target creature you control gains deathtouch and lifelink until end of turn\. if it's a vampire, put a \+1\/\+1 counter on it\.?$/i.test(pwt) ? { fx: [{ type: 'sorinPlus' }] }          // T-139: Sorin, Imperious Bloodlord +1
+          : /^you may sacrifice another creature or planeswalker\. if you do, draw two cards, then draw another card if the sacrificed permanent was a commander\.?$/i.test(pwt) ? { fx: [{ type: 'teveshSac' }] }          // T-139: Tevesh Szat, Doom of Fools +1
+          : /^untap target artifact or creature\. if it's an artifact creature, put a \+1\/\+1 counter on it\.?$/i.test(pwt) ? { fx: [{ type: 'tezUntap' }] }          // T-139: Tezzeret, Cruel Captain 0
+          : /^put a \+1\/\+1 counter on up to one target elf\. untap it\. it gains deathtouch until end of turn\.?$/i.test(pwt) ? { fx: [{ type: 'tyvarPlus' }] }          // T-139: Tyvar Kell +1
+          : /^up to one target creature you control can't be blocked this turn\. draw a card, then discard a card\.?$/i.test(pwt) ? { fx: [{ type: 'pumpOne', self: false, p: 0, t: 0, keywords: ['unblockable'] }, { type: 'draw', n: 1 }, { type: 'discardSelf', n: 1 }] }          // T-139: Kaito, Cunning Infiltrator +1
+          : /^you lose 1 life\. look at the top three cards of your library\. put one of them into your hand and the rest into your graveyard\.?$/i.test(pwt) ? { fx: [{ type: 'loseLife', n: 1 }, { type: 'lookTake', look: 3, take: 1, toYard: true }] }          // T-139: Professor Onyx +1
+          : /^each opponent may discard a card\. if they don't, they lose 3 life\. repeat this process six more times\.?$/i.test(pwt) ? { fx: [{ type: 'onyxUlt' }] }          // T-139: Professor Onyx -8
           : /^add \{r\}\{r\}\{r\}\. spend this mana only to cast instant or sorcery spells\.?$/i.test(pwt) ? { fx: [{ type: 'restrictMana', colors: ['R'], amount: 3, R: { k: 'instantSorcery' } }] }          // T-139: Jaya Ballard
           : /^you gain 2 life\. add \{u\}, \{r\}, or \{w\}\. spend this mana only to cast a noncreature spell\.?$/i.test(pwt) ? { fx: [{ type: 'gainLife', n: 2 }, { type: 'restrictMana', colors: ['U', 'R', 'W'], amount: 1, R: { k: 'noncreature' } }] }          // T-139: Narset of the Ancient Way
           : /^add \{r\} or \{g\}\. creature spells you cast this turn can't be countered\.?$/i.test(pwt) ? { fx: parseEffects('Add {R} or {G}.').fx.concat([{ type: 'noCounterCreat' }]) }          // T-139: Domri, Anarch of Bolas
@@ -8790,6 +8805,73 @@
           if (isCreaturePerm(tg)) against(g, tg, () => burnHit(g, tg, pick.card.a.mv, source, ev)); else { tg.loyalty = Math.max(0, (tg.loyalty || 0) - pick.card.a.mv); if (tg.loyalty <= 0) { leavePerm(g.opp, tg, ev); flushLeaves(g.opp, ev); } }
           break;
         }
+        case 'nahiriUlt': {                                                                                // T-139: Nahiri, the Harbinger -8: an artifact or creature from the library onto the battlefield with haste, back to hand at the next end step
+          const before = new Set(g.battlefield); tutor(g, { filters: ['artifact', 'creature'], dest: 'battlefield' }, ev, source);
+          for (const q of g.battlefield) if (!before.has(q)) { q.eotKw = new Set([...(q.eotKw || []), 'haste']); q.sick = false; q.handEnd = true; ev.push({ type: 'note', text: `${q.card.name} has haste and returns to your hand at the beginning of the next end step`, source }); }
+          break;
+        }
+        case 'attachEquipNew': {                                                                           // T-139: Nahiri, the Lithomancer +2: you may attach an Equipment you control to the new Soldier
+          const tk = g._lastTok; if (!tk || !g.battlefield.includes(tk)) break;
+          const eq = g.battlefield.filter(q => q.card.a.isEquipment && q.attachedTo !== tk.iid).sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0))[0]; if (!eq) break;
+          if (g.ask && !askUse(g, `attach ${eq.card.name} to the new Soldier`, source ? source.card.name : 'Nahiri', source, tk)) break;
+          eq.attachedTo = tk.iid; touch(g); ev.push({ type: 'equip', perm: eq, target: tk }); break;
+        }
+        case 'putEquipment': {                                                                             // T-139: Nahiri, the Lithomancer -2: you may put an Equipment card from your hand or graveyard onto the battlefield
+          const cs = g.hand.concat(g.graveyard).filter(i => i.card.a.isEquipment && !i.card.commander && !entryBlocked(g, i.card, 'hand')).sort((x, y) => (y.card.a.mv || 0) - (x.card.a.mv || 0)), c = cs[0]; if (!c) break;
+          if (g.ask && !askUse(g, `put ${c.card.name} onto the battlefield`, source ? source.card.name : 'Nahiri', source, null)) break;
+          const from = g.hand.includes(c) ? g.hand : g.graveyard; from.splice(from.indexOf(c), 1); enterWithTriggers(g, c, {}, ev); ev.push({ type: 'note', text: `${c.card.name} is put onto the battlefield`, source }); break;
+        }
+        case 'windgraceLoot': {                                                                            // T-139: Lord Windgrace +2: discard a card, then draw; a land discarded draws an additional card
+          let did = false, land = false;
+          if (g.hand.length) { let c = g.hand.slice().sort((x, y) => discardValue(g, x) - discardValue(g, y))[0]; if (g.ask && !g.dry && g.hand.length > 1) c = decide(g, { kind: 'discard', options: g.hand.slice(), def: c, source }) || c; g.hand.splice(g.hand.indexOf(c), 1); g.graveyard.push(c); did = true; land = !!c.card.a.isLand; ev.push({ type: 'note', text: `Discarded ${c.card.name}`, source }); if (land) landToYard(g, ev, false); }
+          draw(g, 1, ev); if (did && land) draw(g, 1, ev); break;
+        }
+        case 'yardLands': {                                                                                // T-139: Lord Windgrace -3: up to two land cards from your graveyard onto the battlefield
+          const ls = g.graveyard.filter(i => i.card.a.isLand && !entryBlocked(g, i.card, 'yard')).sort((x, y) => (y.card.a.produce ? y.card.a.produce.amount : 0) - (x.card.a.produce ? x.card.a.produce.amount : 0)).slice(0, f.n);
+          for (const i of ls) { if (g.ask && !askUse(g, `return ${i.card.name} to the battlefield`, source ? source.card.name : 'Lord Windgrace', source, null)) continue; g.graveyard.splice(g.graveyard.indexOf(i), 1); const np = enterWithTriggers(g, i, {}, ev); ev.push({ type: 'rampLand', inst: i, perm: np, source }); }
+          break;
+        }
+        case 'minscSac': {                                                                                 // T-139: Minsc & Boo -2: sacrifice a creature, X damage to any target (X = its power), a Hamster also draws X
+          const cs = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased && powerOf(g, q) >= 1).sort((x, y) => (powerOf(g, y) * 2 - creatureValue(g, y)) - (powerOf(g, x) * 2 - creatureValue(g, x)));
+          let v = cs[0]; if (!v || (!g.opp && g.dry)) break;
+          if (g.ask && !g.dry && cs.length > 1) v = decide(g, { kind: 'sacrifice', options: cs, def: v, by: g, source }) || v;
+          const X = Math.max(0, powerOf(g, v)), ham = matchesFilter(v.card, 'hamster');
+          ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}sacrifices ${v.card.name}: ${X} damage to any target${ham ? ' and draws ' + X : ''}`, source });
+          sacEvent(g, v, ev); leavePerm(g, v, ev); flushLeaves(g, ev);
+          if (X > 0) applyEffects(g, [{ type: 'damage', n: X, any: true }], source, ev, null);
+          if (ham && X > 0) draw(g, Math.min(X, 20), ev); break;
+        }
+        case 'sorinPlus': {                                                                                // T-139: Sorin, Imperious Bloodlord +1: deathtouch and lifelink until end of turn; a Vampire also gets a +1/+1 counter
+          const c = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased).sort((x, y) => (matchesFilter(y.card, 'vampire') ? 3 : 0) + powerOf(g, y) - (matchesFilter(x.card, 'vampire') ? 3 : 0) - powerOf(g, x))[0]; if (!c) break;
+          c.eotKw = new Set([...(c.eotKw || []), 'deathtouch', 'lifelink']); touch(g); ev.push({ type: 'note', text: `${c.card.name} gains deathtouch and lifelink until end of turn`, source });
+          if (matchesFilter(c.card, 'vampire')) addCounters(g, c, '+1/+1', 1, ev, source); break;
+        }
+        case 'teveshSac': {                                                                                // T-139: Tevesh Szat +1: you may sacrifice another creature or planeswalker; if you do, draw two (three for a commander)
+          const cs = g.battlefield.filter(q => q !== source && (isCreaturePerm(q) || q.card.a.isPlaneswalker) && !q.phased).sort((x, y) => (x.token ? -5 : 0) + (isCreaturePerm(x) ? creatureValue(g, x) : 20) - (y.token ? -5 : 0) - (isCreaturePerm(y) ? creatureValue(g, y) : 20));
+          const v = cs[0]; if (!v || g.library.length < 3) break;
+          const worth = v.token || (isCreaturePerm(v) && creatureValue(g, v) <= 3);
+          if (g.ask && !g.dry ? !askUse(g, `sacrifice ${v.card.name}: draw two cards`, source ? source.card.name : 'Tevesh Szat', source, v) : !worth) break;
+          const cmd = !!v.card.commander; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}sacrifices ${v.card.name}`, source });
+          if (isCreaturePerm(v)) { sacEvent(g, v, ev); leavePerm(g, v, ev); flushLeaves(g, ev); } else { leavePerm(g, v, ev); flushLeaves(g, ev); }
+          draw(g, cmd ? 3 : 2, ev); break;
+        }
+        case 'tezUntap': {                                                                                 // T-139: Tezzeret, Cruel Captain 0: untap an artifact or creature; an artifact creature gets a +1/+1 counter
+          const ts = g.battlefield.filter(q => q.tapped && !q.phased && (q.card.a.isArtifact || isCreaturePerm(q))).sort((x, y) => ((isCreaturePerm(y) && y.card.a.isArtifact) ? 5 : 0) + (y.produce ? y.produce.amount : 0) + (isCreaturePerm(y) ? powerOf(g, y) * 0.5 : 0) - (((isCreaturePerm(x) && x.card.a.isArtifact) ? 5 : 0) + (x.produce ? x.produce.amount : 0) + (isCreaturePerm(x) ? powerOf(g, x) * 0.5 : 0)));
+          const t = ts[0] || g.battlefield.find(q => isCreaturePerm(q) && q.card.a.isArtifact); if (!t) break;
+          if (t.tapped) { t.tapped = false; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}untaps ${t.card.name}`, source }); touch(g); }
+          if (isCreaturePerm(t) && t.card.a.isArtifact) addCounters(g, t, '+1/+1', 1, ev, source); break;
+        }
+        case 'tyvarPlus': {                                                                                // T-139: Tyvar Kell +1: a +1/+1 counter on up to one Elf, untap it, deathtouch until end of turn
+          const el = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased && matchesFilter(q.card, 'elf')).sort((x, y) => (y.tapped ? 3 : 0) + powerOf(g, y) - (x.tapped ? 3 : 0) - powerOf(g, x))[0]; if (!el) break;
+          addCounters(g, el, '+1/+1', 1, ev, source); if (el.tapped) { el.tapped = false; touch(g); } el.eotKw = new Set([...(el.eotKw || []), 'deathtouch']); ev.push({ type: 'note', text: `${el.card.name} untaps and gains deathtouch until end of turn`, source }); break;
+        }
+        case 'onyxUlt': {                                                                                  // T-139: Professor Onyx -8: each opponent may discard a card; if they don't they lose 3 life; seven times in all (an opponent discards while it holds a card)
+          for (let k = 0; k < 7; k++) {
+            if (!otherPlayers(g).length) { const h = g.oppHand == null ? 7 : g.oppHand; if (g.dry) break; if (h > 0) g.oppHand = h - 1; else damageOpp(g, 3, ev, source, false, true); continue; }
+            for (const o of otherPlayers(g)) { if (o.dead) continue; if (o.hand.length) { const w = o.hand.slice().sort((x, y) => discardValue(o, x) - discardValue(o, y))[0]; o.hand.splice(o.hand.indexOf(w), 1); o.graveyard.push(w); } else { o.life -= 3; checkDeath(o, ev); } }
+          }
+          ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}each opponent discards or loses 3 life, seven times`, source }); break;
+        }
         case 'noCounterCreat': g.noCounterCreat = g.turn; ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}creature spells you cast this turn can't be countered`, source }); break;
         case 'jaceMM': {                                                                                   // T-139: Jace, Mirror Mage 0: draw and reveal a card, remove that many loyalty counters from him
           const before = g.hand.length; draw(g, 1, ev); const c = g.hand.length > before ? g.hand[g.hand.length - 1] : null; if (!c) break;
@@ -13663,6 +13745,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (g.flickerform && g.flickerform.length) for (const { host, auras } of g.flickerform.splice(0)) { const hi = g.exile.indexOf(host); if (hi < 0) continue; g.exile.splice(hi, 1); const np = enterWithTriggers(g, host, {}, []); for (const ai of auras) { const at = g.exile.indexOf(ai); if (at < 0) continue; g.exile.splice(at, 1); const ap = enterWithTriggers(g, ai, {}, []); ap.attachedTo = np.iid; } touch(g); }          // Flickerform
     for (const p of g.battlefield.slice()) if (p.courserBack) { p.courserBack = false; removePerm(g, p); g.command.push(p.inst); }          // Hellkite Courser: the commander goes back
     for (const p of g.battlefield.slice()) if (p.exileEnd) leavePerm(g, p, [], 'exile');
+    for (const p of g.battlefield.slice()) if (p.handEnd) { p.handEnd = false; leavePerm(g, p, [], 'hand'); }          // T-139: Nahiri, the Harbinger -8
     if (g.liesaBack && g.liesaBack.length) for (const i of g.liesaBack.splice(0)) { const gi = g.graveyard.indexOf(i); if (gi >= 0) { g.graveyard.splice(gi, 1); g.hand.push(i); } }          // Liesa, Forgotten Archangel
     const necroEv = [];
     if (g.flickering && g.flickering.length) { for (const i of g.flickering.splice(0)) { const np = enterWithTriggers(g, i, {}, necroEv); np.sick = false; } }
