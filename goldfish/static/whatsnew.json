@@ -2,6 +2,41 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 238,
+      "lines": [
+        "Combo wins are now checked for legality: each combo pays its startup cost (Basalt Monolith + Rings needs its first 5 mana), Underworld Breach needs real fuel and a finisher you can cast, and the game log lists every combo step.",
+        "Mox Amber makes only the colours of your legendary creatures and planeswalkers, Reflecting Pool only what your other lands make, and Arcane Signet and Command Tower only your commander's colours."
+      ]
+    },
+    {
+      "v": 237,
+      "lines": [
+        "Tap any card in Practice, Duel or Pod, including the cards on a question sheet, to open it large with its actions as buttons: Cast, Play land, abilities, loyalty, attack or block, pick a target. Swipe to the next card in the same row.",
+        "Planeswalker ultimates taught: Ral Crackling Wit, both Tamiyos, Wrenn and Seven, Tezzeret Master of the Bridge, Ral Zarek, Saheeli the Gifted, plus Teferi Who Slows the Sunset, Ral Storm Conduit and Estrid's +2. More \"Activate only if\u2026\" limits are enforced (Sea Gate Wreckage, Resonating Lute, Endless Atlas, Luminarch Ascension\u2026)."
+      ]
+    },
+    {
+      "v": 236,
+      "lines": [
+        "Taught in full: Nahiri the Harbinger, Nahiri the Lithomancer, Ob Nixilis of the Black Oath (+2), Lord Windgrace, Minsc & Boo (\u22122), Sorin Imperious Bloodlord (+1), Tevesh Szat (+1), Tezzeret Cruel Captain (0), Tyvar Kell (+1), Kaito Cunning Infiltrator (+1) and Professor Onyx.",
+        "Chandra, Awakened Inferno's \u2212X can now hit a planeswalker as well as a creature."
+      ]
+    },
+    {
+      "v": 235,
+      "lines": [
+        "Planeswalker abilities with \u2212X that deal damage now really remove X loyalty. You pick X; the autopilot pays the smallest X that does the job.",
+        "Taught in full: Chandra, Awakened Inferno; Chandra, Flamecaller; Commodore Guff; Dihada; Domri; Jace, Mirror Mage; Kaito, Bane of Nightmares; Narset of the Ancient Way; and Jaya Ballard's +1. Mana that can only be spent on certain spells is now tracked."
+      ]
+    },
+    {
+      "v": 234,
+      "lines": [
+        "Honest card reading: a planeswalker or activated ability now counts as understood only when ICEYfish plays every sentence of it. Cards that dropped part of their text now show as not fully understood, so you can teach them.",
+        "Taught in full: Nicol Bolas, Dragon-God; both Ugins; Elspeth, Storm Slayer; Nissa, Who Shakes the World; Grist; Thrasios; Raging Ravine; Liliana, Death's Majesty; and 20 more cards from the built-in decks. \"Activate only if…\" limits (Minas Tirith, Idol of Oblivion…) are now enforced."
+      ]
+    },
+    {
       "v": 233,
       "lines": [
         "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow.",

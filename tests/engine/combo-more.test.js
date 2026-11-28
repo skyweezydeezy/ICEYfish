@@ -65,7 +65,9 @@ sc('...Breach in hand with no mana: no win', g => { hand(g, 'Underworld Breach')
 sc('...an empty graveyard has nothing to exile', g => { put(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Brain Freeze'); }, false);
 sc('Underworld Breach + Lotus Petal + Brain Freeze with a full graveyard and two mana: win', g => { lands(g, 2, 'Island'); put(g, 'Underworld Breach'); put(g, 'Lotus Petal'); hand(g, 'Brain Freeze'); for (let i = 0; i < 8; i++) yard(g, 'Grizzly Bears'); }, true);
 sc('Underworld Breach + Brain Freeze with no rock: no win', g => { lands(g, 2, 'Island'); put(g, 'Underworld Breach'); hand(g, 'Brain Freeze'); five(g); }, false);
-sc('Underworld Breach + Lion\'s Eye Diamond + Wheel of Fortune with Thassa\'s Oracle in the library: win', g => { put(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Wheel of Fortune'); lib(g, 'Thassa\'s Oracle'); }, true);
+sc('Underworld Breach + Lion\'s Eye Diamond + Wheel of Fortune with Thassa\'s Oracle in the library, the Wheel paid for and three other cards to exile: win', g => { lands(g, 3, 'Mountain'); put(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Wheel of Fortune'); lib(g, 'Thassa\'s Oracle'); five(g); }, true);
+sc('...T-140: with no mana for the Wheel (and nothing to exile) it is not a win', g => { put(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Wheel of Fortune'); lib(g, 'Thassa\'s Oracle'); }, false);
+sc('...T-140: Breach in hand, only one land for it: no win (nothing was cast)', g => { lands(g, 1, 'Mountain'); hand(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Wheel of Fortune'); lib(g, 'Thassa\'s Oracle'); five(g); }, false);
 sc('...with nothing to find: no win', g => { put(g, 'Underworld Breach'); put(g, 'Lion\'s Eye Diamond'); hand(g, 'Wheel of Fortune'); }, false);
 
 // ---- Peer into the Abyss ----
@@ -84,7 +86,8 @@ sc('...at 50 life the payment would kill you', g => { put(g, 'Aetherflux Reservo
 sc('Sensei\'s Divining Top + Bolas\'s Citadel + Aetherflux Reservoir: win', g => { put(g, 'Sensei\'s Divining Top'); put(g, 'Bolas\'s Citadel'); put(g, 'Aetherflux Reservoir'); g.life = 30; }, true);
 sc('...Top and Citadel without the Reservoir: no win', g => { put(g, 'Sensei\'s Divining Top'); put(g, 'Bolas\'s Citadel'); g.life = 30; }, false);
 sc('Sensei\'s Divining Top + Mystic Forge + Glaring Fleshraker with one mana: win', g => { lands(g, 1, 'Island'); put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); put(g, 'Glaring Fleshraker'); }, true);
-sc('Sensei\'s Divining Top + Mystic Forge + Cloud Key with Walking Ballista in the library: win', g => { put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); put(g, 'Cloud Key'); lib(g, 'Walking Ballista'); }, true);
+sc('Sensei\'s Divining Top + Mystic Forge + Cloud Key with Thassa\'s Oracle in the library and {U}{U} to cast it: win', g => { lands(g, 2, 'Island'); put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); put(g, 'Cloud Key'); lib(g, 'Thassa\'s Oracle'); }, true);
+sc('...T-140: with a Walking Ballista found and no mana to cast it for anything, it is not a win', g => { put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); put(g, 'Cloud Key'); lib(g, 'Walking Ballista'); }, false);
 sc('...with nothing to find it only draws', g => { put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); put(g, 'Cloud Key'); }, false);
 sc('Sensei\'s Divining Top + Mystic Forge alone: no win', g => { lands(g, 3, 'Island'); put(g, 'Sensei\'s Divining Top'); put(g, 'Mystic Forge'); lib(g, 'Walking Ballista'); }, false);
 
@@ -128,7 +131,8 @@ sc('...Vraska alone: no win', g => { lands(g, 6, 'Swamp'); hand(g, 'Vraska, Betr
 const inf = (name, setup, want) => { const g = fresh(); setup(g); const r = G.infiniteMana(g); check(name, !!r === want, r ? r.how : 'none'); return g; };
 inf('Basalt Monolith + Forsaken Monument is infinite mana', g => { put(g, 'Basalt Monolith'); put(g, 'Forsaken Monument'); }, true);
 inf('Grim Monolith + Forsaken Monument is not (4 to untap, 4 made)', g => { put(g, 'Grim Monolith'); put(g, 'Forsaken Monument'); }, false);
-inf('Grim Monolith + Forsaken Monument + Rings of Brighthearth is', g => { put(g, 'Grim Monolith'); put(g, 'Forsaken Monument'); put(g, 'Rings of Brighthearth'); }, true);
+inf('Grim Monolith + Forsaken Monument + Rings of Brighthearth is infinite mana only with the 6 to start the loop ({4} untap + {2} copy; the Monolith makes 4)', g => { put(g, 'Grim Monolith'); put(g, 'Forsaken Monument'); put(g, 'Rings of Brighthearth'); }, false);
+inf('...with two more lands to pay it', g => { put(g, 'Grim Monolith'); put(g, 'Forsaken Monument'); put(g, 'Rings of Brighthearth'); lands(g, 2, 'Mountain'); }, true);
 inf('Basalt Monolith + Nyxbloom Ancient is infinite mana', g => { put(g, 'Basalt Monolith'); put(g, 'Nyxbloom Ancient'); }, true);
 inf('Grim Monolith + Nyxbloom Ancient too', g => { put(g, 'Grim Monolith'); put(g, 'Nyxbloom Ancient'); }, true);
 inf('Voltaic Key + Rings of Brighthearth + Thran Dynamo is not (3 made, 3 paid)', g => { put(g, 'Voltaic Key'); put(g, 'Rings of Brighthearth'); put(g, 'Thran Dynamo'); }, false);

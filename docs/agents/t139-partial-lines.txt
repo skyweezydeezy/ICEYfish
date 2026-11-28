@@ -1,0 +1,109 @@
+Den of the Bugbear | ok | partial | {3}{R}: Until end of turn, ~ becomes a 3/2 red Goblin creature with "Whenever ~ attacks, create a 1/1 red Gobl
+Oviya, Automech Artisan | ok | partial | {G}, {T}: You may put a creature or Vehicle card from your hand onto the battlefield. If you put an artifact o
+The Aetherspark | ok | partial | +1: Attach ~ to up to one target creature you control. Put a +1/+1 counter on that creature.
+Liliana, Death's Majesty | ok | partial | −3: Return target creature card from your graveyard to the battlefield. That creature is a black Zombie in add
+Will Kenrith | ok | partial | −2: Target player draws two cards. Until your next turn, instant, sorcery, and planeswalker spells that player
+Ral, Crackling Wit | ok | partial | −10: Draw three cards. You get an emblem with "Instant and sorcery spells you cast have storm."
+Heroes' Podium | ok | partial | {X}, {T}: Look at the top X cards of your library. You may reveal a legendary creature card from among them an
+Nahiri, the Lithomancer | ok | partial | +2: Create a 1/1 white Kor Soldier creature token. You may attach an Equipment you control to it.
+Stitcher Geralf | ok | partial | {2}{U}, {T}: Each player mills three cards. Exile up to two creature cards put into graveyards this way. Creat
+Teferi, Temporal Archmage | ok | partial | +1: Look at the top two cards of your library. Put one of them into your hand and the other on the bottom of y
+Ob Nixilis of the Black Oath | ok | partial | +2: Each opponent loses 1 life. You gain life equal to the life lost this way.
+Loreseeker's Stone | ok | partial | {3}, {T}: Draw three cards. This ability costs {1} more to activate for each card in your hand.
+Thrasios, Triton Hero | ok | partial | {4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped
+Estrid, the Masked | ok | partial | −7: Mill seven cards. Return all non-Aura enchantment cards from your graveyard to the battlefield, then do th
+Lord Windgrace | ok | partial | +2: Discard a card, then draw a card. If a land card is discarded this way, draw an additional card.
+Saheeli, the Gifted | ok | partial | −7: For each artifact you control, create a token that's a copy of it. Those tokens gain haste. Exile those to
+Xantcha, Sleeper Agent | ok | partial | {3}: ~'s controller loses 2 life and you draw a card. Any player may activate this ability.
+Endless Atlas | ok | partial | {2}, {T}: Draw a card. Activate only if you control three or more lands with the same name.
+Forge of Heroes | ok | partial | {T}: Choose target commander that entered this turn. Put a +1/+1 counter on it if it's a creature and a loyalt
+Idol of Oblivion | ok | partial | {T}: Draw a card. Activate only if you created a token this turn.
+Pendant of Prosperity | ok | partial | {2}, {T}: Draw a card, then you may put a land card from your hand onto the battlefield. ~'s owner draws a car
+Capricopian | ok | partial | {2}: Put a +1/+1 counter on ~, then you may reselect which player ~ is attacking. Only the player ~ is attacki
+Sequence Engine | ok | partial | {X}, {T}: Exile target creature card with mana value X from a graveyard. Create a 0/0 green and blue Fractal c
+Tevesh Szat, Doom of Fools | ok | partial | +1: You may sacrifice another creature or planeswalker. If you do, draw two cards, then draw another card if t
+Alaundo the Seer | ok | partial | {T}: Draw a card, then exile a card from your hand and put a number of time counters on it equal to its mana v
+Minsc & Boo, Timeless Heroes | ok | partial | −2: Sacrifice a creature. When you do, ~ deals X damage to any target, where X is that creature's power. If th
+Commodore Guff | ok | partial | +1: Create a 1/1 red Wizard creature token with "{T}: Add {R}. Spend this mana only to cast a planeswalker spe
+Tezzeret, Artifice Master | ok | partial | 0: Draw a card. If you control three or more artifacts, draw two cards instead.
+Vivien Reid | ok | partial | +1: Look at the top four cards of your library. You may reveal a creature or land card from among them and put
+Sorin, Imperious Bloodlord | ok | partial | +1: Target creature you control gains deathtouch and lifelink until end of turn. If it's a Vampire, put a +1/+
+Chandra, Awakened Inferno | ok | partial | −X: ~ deals X damage to target creature or planeswalker. If a permanent dealt damage this way would die this t
+Speaker of the Heavens | ok | partial | {T}: Create a 4/4 white Angel creature token with flying. Activate only if you have at least 7 life more than 
+Jaya Ballard | ok | partial | +1: Add {R}{R}{R}. Spend this mana only to cast instant or sorcery spells.
+The Raven Man | ok | partial | {3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.
+Ajani, Sleeper Agent | ok | partial | +1: Reveal the top card of your library. If it's a creature or planeswalker card, put it into your hand. Other
+Ajani, Sleeper Agent | ok | partial | −3: Distribute three +1/+1 counters among up to three target creatures. They gain vigilance until end of turn.
+Dihada, Binder of Wills | ok | partial | −3: Reveal the top four cards of your library. Put any number of legendary cards from among them into your han
+Ral Zarek | ok | partial | −7: Flip five coins. Take an extra turn after this one for each coin that comes up heads.
+Kaito, Bane of Nightmares | ok | partial | −2: Tap target creature. Put two stun counters on it.
+Tezzeret, Cruel Captain | ok | partial | 0: Untap target artifact or creature. If it's an artifact creature, put a +1/+1 counter on it.
+Tezzeret, Cruel Captain | ok | partial | −7: You get an emblem with "At the beginning of combat on your turn, put three +1/+1 counters on target artifa
+Tamiyo, Field Researcher | ok | partial | +1: Choose up to two target creatures. Until your next turn, whenever either of those creatures deals combat d
+Tamiyo, Field Researcher | ok | partial | −7: Draw three cards. You get an emblem with "You may cast spells from your hand without paying their mana cos
+Yes Man, Personal Securitron | ok | partial | {T}: Target opponent gains control of ~. When they do, you draw two cards and put a quest counter on ~. Activa
+Luck Bobblehead | ok | partial | {1}, {T}: Roll X six-sided dice, where X is the number of Bobbleheads you control. Create a tapped Treasure to
+Humble Defector | ok | partial | {T}: Draw two cards. Target opponent gains control of ~. Activate only during your turn.
+Eden, Seat of the Sanctum | ok | partial | {5}, {T}: Mill two cards. Then you may sacrifice ~. When you do, return another target permanent card from you
+The Gold Saucer | ok | partial | {2}, {T}: Flip a coin. If you win the flip, create a Treasure token.
+Kaito, Cunning Infiltrator | ok | partial | +1: Up to one target creature you control can't be blocked this turn. Draw a card, then discard a card.
+Tinybones, Bauble Burglar | ok | partial | {3}{B}, {T}: Each opponent discards a card. Activate only as a sorcery.
+Jeweled Amulet | ok | partial | {1}, {T}: Put a charge counter on ~. Note the type of mana spent to pay this activation cost. Activate only if
+General's Enforcer | ok | partial | {2}{W}{B}: Exile target card from a graveyard. If it was a creature card, create a 1/1 white Human Soldier cre
+Narset of the Ancient Way | ok | partial | +1: You gain 2 life. Add {U}, {R}, or {W}. Spend this mana only to cast a noncreature spell.
+Narset of the Ancient Way | ok | partial | −2: Draw a card, then you may discard a card. When you discard a nonland card this way, ~ deals damage equal t
+Bonders' Enclave | ok | partial | {3}, {T}: Draw a card. Activate only if you control a creature with power 4 or greater.
+Voldaren Estate | ok | partial | {5}, {T}: Create a Blood token. This ability costs {1} less to activate for each Vampire you control.
+Wrenn and Seven | ok | partial | −8: Return all permanent cards from your graveyard to your hand. You get an emblem with "You have no maximum h
+Teferi, Who Slows the Sunset | ok | partial | +1: Choose up to one target artifact, up to one target creature, and up to one target land. Untap the chosen p
+Teferi, Who Slows the Sunset | ok | partial | −2: Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of 
+Chandra, Torch of Defiance | ok | partial | +1: Exile the top card of your library. You may cast that card. If you don't, ~ deals 2 damage to each opponen
+Tyvar Kell | ok | partial | +1: Put a +1/+1 counter on up to one target Elf. Untap it. It gains deathtouch until end of turn.
+Tyrite Sanctum | ok | partial | {2}, {T}: Target legendary creature becomes a God in addition to its other types. Put a +1/+1 counter on it.
+Lion Sash | ok | partial | {W}: Exile target card from a graveyard. If it was a permanent card, put a +1/+1 counter on ~.
+Tezzeret, Betrayer of Flesh | ok | partial | +1: Draw two cards. Then discard two cards unless you discard an artifact card.
+Goro-Goro, Disciple of Ryusei | ok | partial | {3}{R}{R}: Create a 5/5 red Dragon Spirit creature token with flying. Activate only if you control an attackin
+Satsuki, the Living Lore | ok | partial | {T}: Put a lore counter on each Saga you control. Activate only as a sorcery.
+Ashling the Pilgrim | ok | partial | {1}{R}: Put a +1/+1 counter on Ashling. If this is the third time this ability has resolved this turn, remove 
+Druidic Satchel | ok | partial | {2}, {T}: Reveal the top card of your library. If it's a creature card, create a 1/1 green Saproling creature 
+Ozolith, the Shattered Spire | ok | partial | {1}{G}, {T}: Put a +1/+1 counter on target artifact or creature you control. Activate only as a sorcery.
+Raving Visionary | ok | partial | Delirium — {2}{U}, {T}: Draw a card. Activate only if there are four or more card types among cards in your gr
+Deepwood Denizen | ok | partial | {5}{G}, {T}: Draw a card. This ability costs {1} less to activate for each +1/+1 counter on creatures you cont
+Grist, the Hunger Tide | neutral | partial | −2: You may sacrifice a creature. When you do, destroy target creature or planeswalker.
+Kami of Jealous Thirst | ok | partial | {4}{B}: Each opponent loses 2 life and you gain 2 life. This ability costs {4}{B} less to activate if you've d
+Izzet Generatorium | ok | partial | {T}: Draw a card. Activate only if you've paid or lost four or more {E} this turn.
+Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar | ok | partial | −7: Draw cards equal to half the number of cards in your library, rounded up. You get an emblem with "You have
+Nicol Bolas, Dragon-God | ok | partial | +1: You draw a card. Each opponent exiles a card from their hand or a permanent they control.
+Chandra, Flamecaller | ok | partial | +1: Create two 3/1 red Elemental creature tokens with haste. Exile them at the beginning of the next end step.
+Sea Gate Wreckage | ok | partial | {2}{C}, {T}: Draw a card. Activate only if you have no cards in hand.
+The Eternal Wanderer | neutral | partial | +1: Exile up to one target artifact or creature. Return that card to the battlefield under its owner's control
+Arch of Orazca | ok | partial | {5}, {T}: Draw a card. Activate only if you have the city's blessing.
+Resonating Lute | ok | partial | {T}: Draw a card. Activate only if you have seven or more cards in your hand.
+Leechridden Swamp | ok | partial | {B}, {T}: Each opponent loses 1 life. Activate only if you control two or more black permanents.
+Duskwatch Recruiter // Krallenhorde Howler | ok | partial | {2}{G}: Look at the top three cards of your library. You may reveal a creature card from among them and put it
+Nahiri, the Harbinger | ok | partial | +2: You may discard a card. If you do, draw a card.
+Nahiri, the Harbinger | ok | partial | −8: Search your library for an artifact or creature card, put it onto the battlefield, then shuffle. It gains 
+Professor Onyx | ok | partial | +1: You lose 1 life. Look at the top three cards of your library. Put one of them into your hand and the rest 
+Professor Onyx | ok | partial | −8: Each opponent may discard a card. If they don't, they lose 3 life. Repeat this process six more times.
+Zimone, Quandrix Prodigy | ok | partial | {4}, {T}: Draw a card. If you control eight or more lands, draw two cards instead.
+Hithlain Rope | ok | partial | {2}, {T}: Draw a card. The player to your right gains control of ~.
+Minas Morgul, Dark Fortress | ok | partial | {3}{B}, {T}: Put a shadow counter on target creature. For as long as that creature has a shadow counter on it,
+Ugin, Eye of the Storms | ok | partial | −11: Search your library for any number of colorless nonland cards, exile them, then shuffle. Until end of tur
+Elspeth, Storm Slayer | ok | partial | 0: Put a +1/+1 counter on each creature you control. Those creatures gain flying until your next turn.
+Dalkovan Encampment | ok | partial | {2}{W}, {T}: Whenever you attack this turn, create two 1/1 red Warrior creature tokens that are tapped and att
+Argoth, Sanctum of Nature | ok | partial | {2}{G}{G}, {T}: Create a 2/2 green Bear creature token, then mill three cards. Activate only as a sorcery.
+Minas Tirith | ok | partial | {1}{W}, {T}: Draw a card. Activate only if you attacked with two or more creatures this turn.
+Nylea, Keen-Eyed | ok | partial | {2}{G}: Reveal the top card of your library. If it's a creature card, put it into your hand. Otherwise, you ma
+Emry, Lurker of the Loch | ok | partial | {T}: Choose target artifact card in your graveyard. You may cast that card this turn.
+Ugin, the Ineffable | ok | partial | +1: Exile the top card of your library face down and look at it. Create a 2/2 colorless Spirit creature token.
+Narset, Parter of Veils | ok | partial | −2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and
+Nissa, Who Shakes the World | ok | partial | −8: You get an emblem with "Lands you control have indestructible." Search your library for any number of Fore
+Domri, Anarch of Bolas | ok | partial | +1: Add {R} or {G}. Creature spells you cast this turn can't be countered.
+Ral, Storm Conduit | ok | partial | −2: When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for 
+Tezzeret, Master of the Bridge | ok | partial | −8: Exile the top ten cards of your library. Put all artifact cards from among them onto the battlefield.
+Agatha's Soul Cauldron | ok | partial | {T}: Exile target card from a graveyard. When a creature card is exiled this way, put a +1/+1 counter on targe
+Throne of Eldraine | ok | partial | {3}, {T}: Draw two cards. Spend only mana of the chosen color to activate this ability.
+Raging Ravine | ok | partial | {2}{R}{G}: Until end of turn, ~ becomes a 3/3 red and green Elemental creature with "Whenever ~ attacks, put a
+Luminarch Ascension | ok | partial | {1}{W}: Create a 4/4 white Angel creature token with flying. Activate only if ~ has four or more quest counter
+Jace, Mirror Mage | ok | partial | 0: Draw a card and reveal it. Remove a number of loyalty counters equal to that card's mana value from ~.
+lines 108 cards 101

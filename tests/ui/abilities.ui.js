@@ -2,6 +2,7 @@
 // and on your turn the beginning of combat is its own step before the attack: Hakbal, cast this turn and still summoning sick, explores
 // and you are asked whether the revealed card stays on top of your library.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 (async () => {
@@ -96,11 +97,11 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     const names = await p.$$eval('.ch-sheet .ch-opt', bs => bs.map(x => x.textContent.trim().slice(0, 6)));
     check('...X = 0 to 4 with four lands (X may be 0, CR 107.3)', names.length === 5, names.join(','));
     check('...listed in number order, the most you can pay preselected', names.map(s => s.match(/X = (\d+)/)[1]).join(',') === '0,1,2,3,4' && await p.$eval('.ch-sheet .ch-opt:last-child', b => b.classList.contains('sel')), names.join(','));
-    await p.click('.ch-sheet .ch-opt:has-text("X = 2")'); await p.click('.ch-sheet .ch-ok'); await p.waitForTimeout(1200);
+    await p.click('.ch-sheet .ch-opt:has-text("X = 2")'); await viewerPick(p); await p.click('.ch-sheet .ch-ok'); await p.waitForTimeout(1200);
     const sp = await p.evaluate(() => { const g = window.__isf.game, q = g.battlefield.find(x => /Stonecoil/.test(x.card.name)); return q ? q.counters : -1; });
     check('...X = 2: it enters with two counters', sp === 2, sp);
   }
-  // ---- 1v1: a Food of yours glows; clicking it asks which ability, and cracking it gains 3 life
+  // ---- 1v1: a Food of yours glows; a tap opens it, its ability button asks which ability, and cracking it gains 3 life
   await p.click('[data-tab=duel]');
   for (const sel of await p.$$('#tab-duel .vs-opp')) await sel.selectOption('');
   await p.selectOption('#tab-duel .vs-you', 'human');
@@ -130,10 +131,10 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   if (glow) {
     const life = () => p.evaluate(() => { const gm = window.__isfVersus.duel.game; return gm.games[gm.human].life; });
     const dl0 = await life();
-    await glow.click();
+    await glow.click(); await p.waitForSelector('#lightbox.show .lb-act', { timeout: 5000 }); await p.waitForTimeout(450); await p.click('#lightbox .lb-act:has-text("Use its ability")');          // T-134: the card opens in the viewer, its ability is the button
     const q = await p.waitForSelector('.ch-sheet.ability', { timeout: 8000 }).then(() => true, () => false);
-    check('...clicking it asks which ability', q);
-    if (q) { await p.click('.ch-sheet .ch-opt'); await p.click('.ch-sheet .ch-ok'); await p.waitForTimeout(1500); }
+    check('...a tap opens it, its ability button asks which ability', q);
+    if (q) { await p.click('.ch-sheet .ch-opt'); await viewerPick(p); await p.click('.ch-sheet .ch-ok'); await p.waitForTimeout(1500); }
     const dl1 = await life();
     check('...and cracking it gains 3 life', dl1 === dl0 + 3, dl0 + ' -> ' + dl1);
   }

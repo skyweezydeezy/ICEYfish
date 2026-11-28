@@ -1261,6 +1261,19 @@
     }
     const slot = el.closest('.vs-slot');
     if (slot) slot.querySelectorAll('button').forEach(b => { if (b.dataset.iid != null) out.push([b.textContent.trim(), fresh(`.vs-slot button.${[...b.classList].join('.')}[data-iid="${b.dataset.iid}"]`), '']); });
+    if (gm.phase === 'block' && gm.block) {          // blockers: which attacker this creature blocks (the Block button still confirms)
+      const bsel = root.querySelector(`.vs-blk[data-iid="${iid}"]`);
+      if (bsel) {
+        const set = v => () => { bsel.value = v; bsel.dispatchEvent(new Event('change', { bubbles: true })); };
+        [...bsel.options].filter(o => o.value).forEach(o => out.push([(o.selected ? '✓ ' : '') + 'Block ' + o.textContent.replace(/^blocks /, ''), set(o.value), 'primary', true]));
+        if (bsel.value) out.push(['Does not block', set(''), '', true]);
+      }
+      return out;
+    }
+    if (!gm.picking && gm.phase !== 'mull' && (myMain(gm) || myResp(gm))) {          // an activated ability or a loyalty ability on a permanent of yours
+      if (el.classList.contains('vs-act')) out.push(['⚡ Use its ability', fresh(`.vs-seat.me .mtg.vs-act[data-iid="${iid}"]`), 'primary']);
+      if (el.classList.contains('vs-loyal')) { const p = gm.games[gm.human].battlefield.find(q => q.iid === +iid); out.push([p && p.card.a.chainVeil ? '◆ The Chain Veil' : '◆ Loyalty abilities…', fresh(`.vs-seat.me .mtg.vs-loyal[data-iid="${iid}"]`), 'primary']); }
+    }
     const stk = el.closest('.vs-seat.me .vs-stack.pickable');
     if (stk && gm.picking) { const ids = stk.dataset.iids.split(',').map(Number), all = ids.every(id => gm.pick.has(id)); out.push([all ? 'Hold it back' : 'Attack with it', fresh(`.vs-seat.me .vs-stack.pickable[data-iids="${stk.dataset.iids}"]`), 'primary']); }
     return out;
@@ -1307,6 +1320,8 @@
         if (list.length) { e.stopPropagation(); A.viewCard(list[0], list); }
         return;
       }
+      { const ct = !bypassSel && !t.closest('button, #lightbox, .vs-pile') && t.closest('.mtg[data-iid]');          // T-134: a tap or click on any card opens it in the viewer; its actions are buttons there
+        if (ct && ct.closest('.vs-hand, .vs-seat') && A.cardOf(ct)) { e.stopPropagation(); return A.viewCard(A.cardOf(ct), ct); } }
       if (hit('vs-loopbtn')) { const cb = V[mode].q('.vs-loop'); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change', { bubbles: true })); V[mode].bar = null; return render(mode); }          // T-121: the table-focus view hides the setup row, so the Loop setting is on the bar too
       if (hit('vs-looks')) { if (window.__isfLooks) window.__isfLooks.open(); return; }
       if (hit('vs-again')) return endChoice(mode, 'again');
@@ -1366,7 +1381,7 @@
           const ids = stk.dataset.iids.split(',').map(Number), all = ids.every(id => gm.pick.has(id));
           const toggle = () => { ids.forEach(id => { if (all) gm.pick.delete(id); else gm.pick.add(id); }); sfx('tap'); render(mode); };
           const face = stk.querySelector('.mtg');          // T-102, phones: a tap selects it, an option attacks or holds it back (Attack / All / None still finish)
-          if (A.isPhoneTouch() && face && A.cardOf(face)) return A.selectCard(face, A.cardOf(face), [[all ? 'Hold it back' : 'Attack with it', toggle, 'primary']]);
+          if (A.isPhoneTouch() && !bypassSel && face && A.cardOf(face)) return A.selectCard(face, A.cardOf(face), [[all ? 'Hold it back' : 'Attack with it', toggle, 'primary']]);
           toggle();
         }
         return;

@@ -1,6 +1,7 @@
 // T-086: in a Duel a person casts Chrome Mox and is asked which card to imprint. The sheet lists exactly the legal hand cards (a nonartifact,
 // nonland card: no land, no artifact) plus "Don't imprint"; picking one exiles it and the Mox makes its colour; "Don't imprint" exiles nothing.
 const { chromium } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 const DECK = ['2 Chrome Mox', '1 Sol Ring', '4 Lightning Bolt', '4 Opt', '4 Goblin Guide', '22 Mountain', '20 Island'].join('\n');
@@ -47,7 +48,7 @@ const DECK = ['2 Chrome Mox', '1 Sol Ring', '4 Lightning Bolt', '4 Opt', '4 Gobl
   await p.waitForTimeout(500);
   const castMox = async () => {
     const iid = await p.evaluate(() => window.__isfVersus.duel.game.games[0].hand.find(i => i.card.name === 'Chrome Mox').iid);
-    await p.click(`#tab-duel .vs-hand .vs-card[data-iid="${iid}"]`);
+    await p.click(`#tab-duel .vs-hand .vs-card[data-iid="${iid}"]`); await viewerPick(p);          // T-134: the card opens in the viewer; Cast is its button
     await p.waitForSelector('.ch-sheet', { timeout: 15000 });
     if (await p.evaluate(() => !!document.querySelector('.ch-sheet.resolve'))) { await p.click('.ch-sheet .ch-none'); await p.waitForTimeout(300); }          // "does it resolve?": pass
     await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });
@@ -57,7 +58,7 @@ const DECK = ['2 Chrome Mox', '1 Sol Ring', '4 Lightning Bolt', '4 Opt', '4 Gobl
   check('casting Chrome Mox opens the imprint question', /imprint/i.test(sheet.title), sheet.title.slice(0, 60));
   check('the options are exactly the legal cards (Lightning Bolt, Opt): no land, no artifact', sheet.opts.length === 2 && sheet.opts.every(t => /^(Lightning Bolt|Opt)/.test(t)), sheet.opts.join(' | '));
   check('"Don\'t imprint" is offered', sheet.none === "Don't imprint", sheet.none);
-  await p.click('.ch-sheet .ch-opt[title^="Opt"]'); await p.click('.ch-sheet .ch-ok');
+  await p.click('.ch-sheet .ch-opt[title^="Opt"]'); await viewerPick(p); await p.click('.ch-sheet .ch-ok');
   await p.waitForFunction(() => !document.querySelector('.ch-sheet'), null, { timeout: 10000 });
   const r1 = await p.evaluate(() => { const g = window.__isfVersus.duel.game.games[0], mox = g.battlefield.find(x => x.card.name === 'Chrome Mox'); return { hand: g.hand.map(i => i.card.name), exile: g.exile.map(i => i.card.name), colors: mox && mox.produce ? [...mox.produce.colors].join() : null }; });
   check('picking Opt exiles it from the hand and the Mox makes blue', r1.exile.includes('Opt') && !r1.hand.includes('Opt') && r1.colors === 'U', JSON.stringify(r1));

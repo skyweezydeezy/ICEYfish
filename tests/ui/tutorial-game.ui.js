@@ -2,6 +2,7 @@
 // and fixed seeds (same cards every time); every tap step points at its element; the person's own deck comes back afterwards and the
 // sample deck is never saved; leaving in the middle throws a Practice game away and leaves a Duel as a normal game. PC and iPhone.
 const { chromium, devices } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 const fs = require('fs'), path = require('path');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
@@ -103,10 +104,10 @@ async function practice(p, touch, stopAt) {
     const titles = []; let last = '', same = 0, beast = false;
     for (let k = 0; k < 2500; k++) {
       const a = await state(p); if (!a) break;
-      const key = a.step + a.title; if (key !== last) { titles.push(a.title); last = key; same = 0; } else if (++same > 900) { titles.push('STUCK at ' + a.title); break; }
+      const key = a.step + a.title; if (key !== last) { titles.push(a.title); if (process.env.TUT_DEBUG) console.log('DUEL step', a.title); last = key; same = 0; } else if (++same > 900) { titles.push('STUCK at ' + a.title); break; }
       if (a.busy) { await p.waitForTimeout(150); continue; }
       if (a.sheet) {          // answer as a person: Beast Within when asked about an instant, otherwise the autopilot's answer
-        if (/cast an instant/.test(a.sheet)) { const ok = await p.evaluate(() => { const t = [...document.querySelectorAll('.ch-sheet .ch-opts > *')].find(x => /Beast Within/.test(x.textContent)); if (t) t.click(); return !!t; }); if (ok) { beast = true; await p.waitForTimeout(200); await q(p, '.ch-ok'); await p.waitForTimeout(300); continue; } }
+        if (/cast an instant/.test(a.sheet)) { const ok = await p.evaluate(() => { const t = [...document.querySelectorAll('.ch-sheet .ch-opts > *')].find(x => /Beast Within/.test(x.textContent)); if (t) t.click(); return !!t; }); if (ok) { beast = true; await viewerPick(p); await q(p, '.ch-ok'); await p.waitForTimeout(300); continue; } }
         await q(p, '.ch-auto'); await p.waitForTimeout(300); continue;
       }
       if (a.phase === 'block') { await q(p, '#tab-duel .vs-block-go'); await p.waitForTimeout(300); continue; }
@@ -118,7 +119,7 @@ async function practice(p, touch, stopAt) {
         if (await q(p, '#tab-duel .vs-pass')) { await p.waitForTimeout(200); continue; }
         const cid = await p.evaluate(() => { const gm = window.__isfVersus.duel.game, g = gm.games[0]; if (gm.phase !== 'main' || gm.match.order[gm.idx].pid !== 0 || gm.busy) return null;
           const e = [...document.querySelectorAll('#tab-duel .vs-hand .vs-card.can')].find(x => { const c = g.hand.find(i => i.iid === +x.dataset.iid); return c && c.card.name !== 'Beast Within'; }); return e ? e.dataset.iid : null; });
-        if (cid) { await p.click(`#tab-duel .vs-hand .vs-card.can[data-iid="${cid}"]`, { timeout: 3000 }).catch(() => {}); await p.waitForTimeout(300); continue; }
+        if (cid) { await p.click(`#tab-duel .vs-hand .vs-card.can[data-iid="${cid}"]`, { timeout: 3000 }).catch(() => {}); await viewerPick(p); continue; }
         if (await q(p, '#tab-duel .vs-end')) { await p.waitForTimeout(300); continue; }
       }
       await p.waitForTimeout(150);

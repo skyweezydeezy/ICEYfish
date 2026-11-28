@@ -40,7 +40,7 @@ const KEY = 'isf_puzzle2';
   const settle = async () => {                                     // answer any question the engine asks the person, then wait until the table is idle again
     for (let i = 0; i < 40; i++) {
       await p.waitForTimeout(250);
-      if (await p.$('.ch-sheet')) { const ok = await p.$('.ch-sheet .ch-ok:not([disabled])'); const auto = await p.$('.ch-sheet .ch-auto'); if (auto) await auto.click(); else if (ok) await ok.click(); else await p.evaluate(() => { const c = document.querySelector('.ch-sheet .ch-opt, .ch-sheet button'); if (c) c.click(); }); continue; }
+      if (await p.$('.ch-sheet')) { const ok = await p.$('.ch-sheet .ch-ok:not([disabled])'); const auto = await p.$('.ch-sheet .ch-auto'); if (auto) await auto.click(); else if (ok) await ok.click(); else await p.evaluate(() => { const c = document.querySelector('.ch-sheet .ch-opt, .ch-sheet button'); if (c) c.click(); }); await p.waitForTimeout(400); await p.evaluate(() => { const a = document.querySelector('#lightbox.show .lb-act'); if (a) a.click(); }); continue; }
       const busy = await p.evaluate(() => { const s = window.ISFPuzzle.state(); return !s || s.busy || s.phase === 'setup'; });
       if (!busy) return;
     }
@@ -68,7 +68,7 @@ const KEY = 'isf_puzzle2';
   await cast('Mountain');
   await tap('.pz-card[data-name="Chrome Mox"]', /^Cast /); await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });
   check('Chrome Mox asks which card to imprint (a person has to choose)', await p.$eval('.ch-sheet.imprint', e => /Lightning Bolt/.test(e.textContent) && /Goldspan Dragon/.test(e.textContent)));
-  await p.click('.ch-sheet .ch-opt[title="Lightning Bolt"]'); await p.click('.ch-sheet .ch-ok'); await settle();
+  await p.click('.ch-sheet .ch-opt[title="Lightning Bolt"]'); await p.waitForSelector('#lightbox.show .lb-act'); await p.waitForTimeout(400); await p.click('#lightbox .lb-act:has-text("Lightning Bolt")'); await p.click('.ch-sheet .ch-ok'); await settle();
   await cast('Lotus Petal');
   await tap('.pz-card[data-name="Goldspan Dragon"]', /^Cast /); await p.waitForSelector('.ch-sheet.pay', { timeout: 15000 });
   const chips = await p.$$eval('.ch-sheet.pay .ch-paychip', xs => xs.map(x => x.textContent.replace(/\s+/g, ' ').trim()));

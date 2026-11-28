@@ -3,6 +3,7 @@
 // Sizes: iPhone 390x844, 375x667, 430x932, sideways 844x390, a Pixel 412x915 and sideways, iPads. Desktop is checked for the plain button.
 // Needs playwright, a static server on :8800 (node tests/run.js --ui duel-loop-phone) and internet access to Scryfall.
 const { chromium, devices } = require('playwright');
+const viewerPick = require('./viewer-pick.helper.js');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
 const phone = (w, h, base) => ({ ...devices[base || 'iPhone 13'], viewport: { width: w, height: h }, screen: { width: w, height: h }, deviceScaleFactor: 1 });
@@ -71,9 +72,9 @@ const ONLY = process.env.LOOP_ONLY ? new RegExp(process.env.LOOP_ONLY) : null;
     await p.locator(mon).first().evaluate(e => e.scrollIntoView({ block: 'center', inline: 'center' })).catch(() => {});
     touch ? await p.locator(mon).first().tap() : await p.locator(mon).first().click();
     await p.waitForTimeout(600);
-    if (touch) { await p.waitForSelector('#ctxMenu button.primary', { timeout: 5000 }); await p.tap('#ctxMenu button.primary'); }
+    await p.waitForSelector('#lightbox.show .lb-act.primary', { timeout: 5000 }); await p.waitForTimeout(450); await (touch ? p.tap('#lightbox .lb-act.primary') : p.click('#lightbox .lb-act.primary'));          // T-134: the card opens in the viewer; its ability is the button
     await p.waitForSelector('.ch-sheet', { timeout: 10000 });
-    await p.locator('.ch-sheet .ch-opt', { hasText: 'Untap Basalt Monolith' }).first().click();
+    await p.locator('.ch-sheet .ch-opt', { hasText: 'Untap Basalt Monolith' }).first().click(); await viewerPick(p);
     await tapIt(p, '.ch-sheet .ch-ok');
     // 2. the loop sheet, and its ∞ button
     await p.waitForSelector('.ch-sheet.combo .ch-mana-inf', { timeout: 15000 });

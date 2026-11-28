@@ -1580,7 +1580,7 @@
     const quick = canHover && (e.ctrlKey || e.metaKey || e.shiftKey);
     if (!quick) {
       e.stopPropagation();
-      if (canHover) openCtx(m, e.clientX, e.clientY); else { const r = m.getBoundingClientRect(); openCtx(m, r.left, r.top); }
+      showLightbox(cardOf(m), m);          // T-134: a tap or click opens the card in the viewer; what it can do is a button there (right-click or long-press keeps the menu)
       return;
     }
     const g = S.game, iid = +m.dataset.iid;
@@ -1729,7 +1729,7 @@
     ['cardkingdom', 'Card Kingdom', (c) => `https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=${enc(c.name)}`],
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
-  const LB_SCOPE = '.pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
+  const LB_SCOPE = '.ch-stack-list, .ch-targets, .ch-opts, .ch-spell, .pz-tiles, .vs-hand, .vs-row, .bf-row, .hand-zone, .pile-cards, .table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
   const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
@@ -2054,8 +2054,8 @@
       items.push([`▶ Cast the front: ${inst.card.name.split(' // ')[0]}`, () => castFace(inst, 0, m)]);
       items.push([`▶ Cast the back: ${inst.card.a.backCard.name}`, () => castFace(inst, 1, m)]);
     }
-    if (zone === 'battlefield' && obj.card.a.isPlaneswalker && !forViewer) items.push(['◆ Loyalty abilities…', () => openLoyalty(obj), 'primary']);          // the planeswalker menu: choose which ability
-    if (zone === 'battlefield' && obj.card.a.chainVeil && !forViewer) {          // The Chain Veil: {4}, {T}: each planeswalker may activate one more loyalty ability this turn
+    if (zone === 'battlefield' && obj.card.a.isPlaneswalker) items.push(['◆ Loyalty abilities…', () => openLoyalty(obj), 'primary']);          // the planeswalker menu: choose which ability
+    if (zone === 'battlefield' && obj.card.a.chainVeil) {          // The Chain Veil: {4}, {T}: each planeswalker may activate one more loyalty ability this turn
       const why = G.chainVeilState(S.game, obj);
       items.push([why ? `◆ The Chain Veil (${why})` : '◆ Activate: {4}, tap: one more loyalty ability for each planeswalker', () => { if (G.chainVeilState(S.game, obj)) { sfx('error'); return toast('The Chain Veil: ' + G.chainVeilState(S.game, obj)); } snap(); quiet(yours(x => G.useChainVeil(x, x.battlefield.find(y => y.iid === obj.iid))).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana for The Chain Veil'); } play(ev); })); }, why ? '' : 'primary']);
     }
