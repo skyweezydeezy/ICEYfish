@@ -124,6 +124,8 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 229** (2026-11-28 13:26 UTC): PR #201, 4/4 + Pages green: **T-127 stage 6, full priority ON by default** (smart stops trimmed; lone goldfish runs no rounds) + Rules Lawyers update (14 cards, B4 re-verified). Stage-6 tree: engine 287, sweep bad 0, **full UI 85/85**; final tree: engine 288, sweep bad 0, UI priority/decisions/versus/puzzles. Default fingerprint now a2e96ee33608669c02845f94a0b1448c (ISF_PRIORITY=0 keeps b8ce7c97...).
+- [V] **Version 228** (2026-11-28 13:04 UTC): PR #200: Teach Sorin, Vengeful Bloodlord (claude/card-teaching @ 8a17675), merged on its own. Engine 288, sweep bad 0.
 - [V] **Version 227** (2026-11-28 12:19 UTC): PR #199, 4/4 + Pages green: T-133 (phone Duel bar fits, remote-mobile 50/50; tune.test split in 4) + T-131 (Guess unknown rules, off by default; hard key words). Engine 287 ok, sweep bad 0, fingerprint b8ce7c97... unchanged; UI fuzzy-setting, puzzles, viewer, versus-fit, remote-mobile ok.
 - [V] **Version 226** (2026-11-28 11:38 UTC): PR #198, 4/4 + Pages green: T-134 step 1 (Puzzle tap -> viewer with actions; prices/printings kept) + Rules Lawyers deck (B4 verified, deck files only from claude/deck-brackets). Engine 283 + deck tests ok; UI puzzles 118, viewer files ok; ipad-card-tap timed out under --jobs 2, passed alone.
 - [V] **Version 225** (2026-11-28 10:47 UTC): PR #197, 4/4 + Pages green: copyright LICENSE (SWD Marketing) + T-110 UI test health (supersedes PR #187, closed). Engine 283 ok; 21 UI files ok except remote-mobile (live bug, T-133). Stage 6 (full priority) moves to v226.
@@ -271,7 +273,7 @@ States: Planned → Active → Reported → Accepted → Integrated → Verified
 | T-106 | Spacing setting removed: Standard only (the user) | MAIN | `claude/t106-standard-spacing` @ 6e97ae9 | [I] In the v207 batch (PR #175) |
 | T-107 | Pre-teach popular cards (the user): rules batches 84+ pick the EDHREC top ~2,000 by play rate, every unread/partial/false-ok line; running list docs/PRETEACH.md | Card Rules Engine 9 | `claude/engine-rules` | After T-098 rebase and T-101 |
 | T-126 | Ranking: one pass 300/pair, rank ranges on ties; Rank sort + win % in menus | Deck Brackets 3 | `claude/deck-brackets` @ 2e81f88 (+ single-pass update) | Tooling [R]; run held for T-122/T-127 |
-| T-127 | Full priority loop and stack | Priority 2 (`session_01K5kL4X9kBh8mMDZ2MUAbap`) from docs/agents/PRIORITY.md | `claude/t127-stack-3` @ 40368cb -> stages 4-6 | Stages 0-2 [V] v222; stage 3 [V] v223; stages 4-5 [V] v224; stage 6 [R] `claude/t127-stack-6` @ 3d09cf3 (default ON, bench +11.8%, fingerprint moves: pods up to 3/40, goldfish kill turn same 174/175) -> v225 testing (full UI) |
+| T-127 | Full priority loop and stack | Priority 2 (`session_01K5kL4X9kBh8mMDZ2MUAbap`) | `claude/t127-stack-6` @ 655b21d | [V] Verified: stages 0-2 v222, 3 v223, 4-5 v224, 6 (on by default) v229 |
 | T-130 | Priority sheet UI + Stop to respond | T-130 session (archived) | `claude/t130-priority-ui` @ 4493ef8 | [V] Verified v222 |
 | T-128 | Proliferate choices (CR 701.27) | Card teaching 12 (`session_01K5kL4Wdn7n4sDuMvmXwWaf`) | `claude/t128-proliferate` @ 2cba7fb (PR #191 draft) | [V] Verified v221 |
 | T-129 | Blurry strip: .panel.active fade fill-mode both -> backwards (WebKit soft layer) | T-121 session | `claude/t121-duel-loop-button` @ 579f423 | [V] Verified v221; user confirmed sharp on iPhone (v222) |
