@@ -2,6 +2,13 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 234,
+      "lines": [
+        "Honest card reading: a planeswalker or activated ability now counts as understood only when ICEYfish plays every sentence of it. Cards that dropped part of their text now show as not fully understood, so you can teach them.",
+        "Taught in full: Nicol Bolas, Dragon-God; both Ugins; Elspeth, Storm Slayer; Nissa, Who Shakes the World; Grist; Thrasios; Raging Ravine; Liliana, Death's Majesty; and 20 more cards from the built-in decks. \"Activate only if…\" limits (Minas Tirith, Idol of Oblivion…) are now enforced."
+      ]
+    },
+    {
       "v": 233,
       "lines": [
         "Swipe through cards: with a card open large, swipe left or right (or use the arrow keys) to move to the card next to it in the same row. It stops at the ends and shows \"3 of 7\". Puzzle first; the other tables follow.",
