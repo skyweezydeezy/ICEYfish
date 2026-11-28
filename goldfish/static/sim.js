@@ -7847,13 +7847,17 @@
             ev.push({ type: 'note', text: `${zada.card.name}: the spell targets only Zada and is copied for ${others.length} other creature${others.length === 1 ? '' : 's'}`, source: zada });
             break;
           }
+          const LP = f.self || lockRec ? null : tgtLock(g, f);          // T-143: the target chosen when the ability went on the stack
+          if (LP && !(LP.t && lockLegal(g, LP.t, f) && !LP.t.phased && (!f.legendary || LP.t.card.a.isLegendary))) { ev.push({ type: 'note', text: `${LP.t ? LP.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }
           if (f.legendary) {          // Okina: "target legendary creature" (a person chooses among them, the best attacker is the default)
             const pool = g.battlefield.filter(q => isCreaturePerm(q) && q.card.a.isLegendary && !q.phased); if (!pool.length) break;
             const def = pool.filter(q => canAttack(g, q)).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || pool.sort((x, y) => powerOf(g, y) - powerOf(g, x))[0];
-            const tg = g.ask && !g.dry && pool.length > 1 ? decide(g, { kind: 'target', what: 'pump', options: pool, def, source }) || def : def;
+            const tg = LP ? LP.t : g.ask && !g.dry && pool.length > 1 ? decide(g, { kind: 'target', what: 'pump', options: pool, def, source }) || def : def;
+            if (lockRec) { lockRec.map.set(f, { t: tg }); lockRec.taken.add(tg); break; }
             tg.eotP = (tg.eotP || 0) + f.p; tg.eotT = (tg.eotT || 0) + f.t; if (f.keywords && f.keywords.length) { tg.eotKw = tg.eotKw || new Set(); f.keywords.forEach(k => tg.eotKw.add(k)); } ev.push({ type: 'pump', perms: [tg], p: f.p, t: f.t, source }); break;
           }
-          const target = f.self && source && isCreaturePerm(source) ? source : ownCreature(g, (b0 => b0 && b0.card.a.sacOnTarget && !source ? g.battlefield.filter(q => isCreaturePerm(q) && !q.card.a.sacOnTarget).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || null : b0)(bestCreature(g)), 'pump', source);          // a spell never targets Departed Deckhand (it would be sacrificed)
+          const target = LP ? LP.t : f.self && source && isCreaturePerm(source) ? source : ownCreature(g, (b0 => b0 && b0.card.a.sacOnTarget && !source ? g.battlefield.filter(q => isCreaturePerm(q) && !q.card.a.sacOnTarget).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || null : b0)(bestCreature(g)), 'pump', source);          // a spell never targets Departed Deckhand (it would be sacrificed)
+          if (lockRec) { if (target) { lockRec.map.set(f, { t: target }); lockRec.taken.add(target); } break; }
           if (target) {
             const p = f.p === 'X' ? countFor(g, f.count, source) : f.p, t = f.t === 'X' ? countFor(g, f.count, source) : f.t;
             target.eotP = (target.eotP || 0) + p; target.eotT = (target.eotT || 0) + t;
@@ -8407,7 +8411,9 @@
         } break;
         case 'gainFire': {                                                                                   // T-104: "gains firebending N until end of turn" (Sozin's Comet: each creature you control; Fire Nation Palace: a target creature)
           let ts = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased);
-          if (f.target) { const def = ts.filter(q => canAttack(g, q) || q.attacking).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || ts.sort((x, y) => powerOf(g, y) - powerOf(g, x))[0]; let t = def; if (t && g.ask && !g.dry && ts.length > 1) t = decide(g, { kind: 'target', what: 'firebend', options: ts, def, source }) || def; ts = t ? [t] : []; }
+          if (f.target) { const L = lockRec ? null : tgtLock(g, f); if (L && !(L.t && lockLegal(g, L.t, f) && !L.t.phased)) { ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }
+            const def = ts.filter(q => canAttack(g, q) || q.attacking).sort((x, y) => powerOf(g, y) - powerOf(g, x))[0] || ts.sort((x, y) => powerOf(g, y) - powerOf(g, x))[0]; let t = L ? L.t : def; if (!L && t && g.ask && !g.dry && ts.length > 1) t = decide(g, { kind: 'target', what: 'firebend', options: ts, def, source }) || def; ts = t ? [t] : [];
+            if (lockRec) { if (t) { lockRec.map.set(f, { t }); lockRec.taken.add(t); } break; } }
           for (const q of ts) q.eotFire = (q.eotFire || []).concat(f.n);
           if (ts.length) ev.push({ type: 'note', text: `${ts.length === 1 ? ts[0].card.name : ts.length + ' creatures'} gain${ts.length === 1 ? 's' : ''} firebending ${f.n} until end of turn`, source }); break;
         }
@@ -8497,7 +8503,10 @@
         case 'landSwap': { let c = swapLand(g); if (c && g.ask && !g.dry) c = decide(g, { kind: 'search', options: g.library.filter(i => i.card.a.isLand), def: c, f: { dest: 'battlefield', land: 'land' }, source }) || c; if (c) { g.library.splice(g.library.indexOf(c), 1); const perm = enterWithTriggers(g, c, {}, ev); ev.push({ type: 'rampLand', inst: c, perm, source }); shuffle(g.library, g.rnd); } break; }          // Crop Rotation
         case 'sacAllOwn': for (const q of g.battlefield.filter(isCreaturePerm)) leavePerm(g, q, ev); flushLeaves(g, ev); break;          // Emrakul, the World Anew leaving
         case 'surveil': surveil(g, Math.min(n, 10), ev, source); if (!g.dry && n > 0) eachTrigger(g, 'scried', ev); break;
-        case 'pumpAttacker': { const at = g.battlefield.filter(q => q.attacking && isCreaturePerm(q)); let t = at.slice().sort((x, y) => powerOf(g, y) - powerOf(g, x))[0]; if (!t) break; if (g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'pumpAttacker', options: at, def: t, f, source }) || t;          // Hunter's Talent: the biggest attacker
+        case 'pumpAttacker': { const L = lockRec ? null : tgtLock(g, f); const at = g.battlefield.filter(q => q.attacking && isCreaturePerm(q)); let t = at.slice().sort((x, y) => powerOf(g, y) - powerOf(g, x))[0];
+          if (L) { if (!(L.t && L.t.attacking && lockLegal(g, L.t, f))) { ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; } t = L.t; }
+          if (!t) break; if (!L && g.ask && !g.dry) t = decide(g, { kind: 'target', what: 'pumpAttacker', options: at, def: t, f, source }) || t;
+          if (lockRec) { lockRec.map.set(f, { t }); lockRec.taken.add(t); break; }          // Hunter's Talent: the biggest attacker
           t.eotP = (t.eotP || 0) + (f.p || 0); t.eotT = (t.eotT || 0) + (f.t || 0); t.eotKw = t.eotKw || new Set(); (f.kw || []).forEach(k => t.eotKw.add(k)); touch(g); ev.push({ type: 'note', text: `${t.card.name} gets +${f.p}/+${f.t}${(f.kw || []).length ? ' and ' + f.kw.join(', ') : ''}`, source }); break; }
         case 'drawMaxMv': { const k = g.battlefield.reduce((m, q) => Math.max(m, q.token ? 0 : (q.card.a.mv || 0)), 0); if (k) draw(g, Math.min(k, 30), ev); break; }          // Will of the Temur
         case 'returnOwn': {          // Whitemane Lion: itself by default (it can be cast again), or a creature whose enter trigger is worth more
@@ -8736,9 +8745,12 @@
         case 'recklessEndeavor': { const r1 = 1 + Math.floor(g.rnd() * 12), r2 = 1 + Math.floor(g.rnd() * 12), lo = Math.min(r1, r2), hi = Math.max(r1, r2);          // rules batch 56: the low roll for damage, the high one for Treasures
           ev.push({ type: 'note', text: `Rolled two d12: ${r1} and ${r2}`, source }); applyEffects(g, [{ type: 'damageEachCreature', n: lo }], source, ev, null); createTokens(g, { type: 'token', n: 1, tapped: false, creature: false, name: 'Treasure', artifact: true }, hi, ev, source); break; }
         case 'attackerPump': {          // rules batch 59: "target attacking creature" (Hollowmurk Siege's Abzan, Paladin Class)
+          const L = lockRec ? null : tgtLock(g, f);
           const as = g.battlefield.filter(q => q.attacking && isCreaturePerm(q) && !(f.other && q === source)); if (!as.length) break;
           const def = as.slice().sort((x, y) => ((f.keywords || []).includes('double strike') ? (hasKw(g, x, 'double strike') ? 1 : 0) - (hasKw(g, y, 'double strike') ? 1 : 0) : 0) || powerOf(g, y) - powerOf(g, x))[0];
-          const t = g.ask && !g.dry && as.length > 1 ? decide(g, { kind: 'target', what: 'pump', options: as, def, source }) || def : def;
+          if (L && !(L.t && L.t.attacking && lockLegal(g, L.t, f))) { ev.push({ type: 'note', text: `${L.t ? L.t.card.name + ' is no longer a legal target' : 'No target'}: the ability does nothing`, source }); break; }
+          const t = L ? L.t : g.ask && !g.dry && as.length > 1 ? decide(g, { kind: 'target', what: 'pump', options: as, def, source }) || def : def;
+          if (lockRec) { lockRec.map.set(f, { t }); lockRec.taken.add(t); break; }
           if (f.counter) addCounters(g, t, '+1/+1', f.counter, ev, source);
           const k = f.perOther ? f.perOther * (as.length - 1) : 0; if (k) { t.eotP = (t.eotP || 0) + k; t.eotT = (t.eotT || 0) + k; }
           if (f.p || f.t) { t.eotP = (t.eotP || 0) + (f.p || 0); t.eotT = (t.eotT || 0) + (f.t || 0); } if (f.untap) t.tapped = false;          // Restless Ridgeline
@@ -15074,7 +15086,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   const tgtLock = (g, f) => { const m = LOCKS.get(g); if (!m || !m.map.has(f)) return undefined; const L = m.map.get(f); m.map.delete(f); return L; };          // used once
   const lockableBase = f => f.type === 'striveCopy' || f.type === 'earthbend' || f.type === 'airbend' || (f.type === 'removal' ? !f.noTarget : f.type === 'bounce' || f.type === 'burnCreature' || f.type === 'divideDamage' || (f.type === 'threaten' && !f.each) || (f.type === 'tapOpp' && f.what !== 'all') || (f.type === 'stealOne' && !!f.mvX) || (f.type === 'damage' && !!f.any && !f.multi));
   // T-143: effect types whose target is chosen inline at resolution move into lock mode group by group; each group owns one predicate below (return true for the effects it can lock)
-  const lockableA = f => false;          // pumps: pumpOne (non-self), attackerPump, pumpAttacker, gainFire
+  const lockableA = f => (f.type === 'pumpOne' && !f.self) || f.type === 'attackerPump' || f.type === 'pumpAttacker' || (f.type === 'gainFire' && !!f.target);          // pumps: pumpOne (non-self), attackerPump, pumpAttacker, gainFire
   //
   const lockableB = f => false;          // counters (target scope), distribute
   //
