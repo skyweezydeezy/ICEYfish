@@ -29,6 +29,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 
 | File | Covers |
 |---|---|
+| combo-legality | T-140: a declared win must be legal. "Any color among / that a land could produce / in your commander's identity" mana (Mox Amber, Reflecting Pool, Arcane Signet): only the allowed colors, none with nothing to read from; Basalt Monolith + Rings of Brighthearth needs {3}+{2} to start (a tapped Monolith needs it all from the other lands) |
 | fuzzy-rules | "Guess unknown rules" (T-131), engine side: scoring and slots with a small index, the real index (close unknown lines become `guessed`, far ones stay `ignored`, words that change how much, where or who must match), off restores every reading. **If it prints `WARN fuzzy-index.json is older than the set data`, that is only fewer templates, not a failure: rebuild with `node tools/build-fuzzy-index.js` (about 30 s) when merging data changes.** |
 | bridge-casting | A Bridge commander waits for WUBRG, continues casting ramp, respects explicit Esika/Bridge choices, and pays commander tax when recast; Esika in the ninety-nine retains automatic face selection. |
 | ring | The Ring tempts you, Ring-bearer, Frodo's conditions, counters engine |

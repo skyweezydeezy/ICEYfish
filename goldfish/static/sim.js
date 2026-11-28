@@ -3807,6 +3807,7 @@
     if (a.kioraUntap && !a.produce) a.produce = { colors: new Set(COLORS), amount: 1 };                      // Kiora's Follower
     if (a.colorMana && !a.produce) a.produce = { colors: new Set(COLORS), amount: 1, dynamic: 'colors' };   // Faeburrow Elder: one mana of each color among your permanents
     if (a.imprint === 'mox') a.produce = null;                         // Chrome Mox makes mana only once a card is imprinted
+    { const am = /(?:^|\n)\{T\}: Add one mana of any color among legendary creatures and planeswalkers you control/i.test(text) ? 'legend' : /(?:^|\n)\{T\}: Add one mana of any (?:color|type) that a land you control could produce/i.test(text) ? 'myLands' : /(?:^|\n)\{T\}: Add one mana of any color that a land an opponent controls could produce/i.test(text) ? 'oppLands' : /(?:^|\n)\{T\}: Add one mana of any color in your commander's color identity/i.test(text) ? 'identity' : null; if (am && a.produce) a.amongMana = am; }          // T-140: "any color among / that a land could produce / in your commander's identity": not every color (manaUnits narrows it)
     a.isRock = !!a.produce && !a.isLand;
     const etbFx = a.spellFx.concat(...a.triggers.filter(t => t.kinds.includes('etb') || t.kinds.includes('etbStatic')).map(t => t.fx));
     const ramp = etbFx.find(f => f.type === 'ramp');
@@ -4676,6 +4677,7 @@
       if (p.card.a.metalMana && g.battlefield.filter(q => artOn(g, q)).length < 3) continue;          // Mox Opal: metalcraft
       if (p.produce.dynamic === 'colors') { info.colors.forEach(c => units.push({ src: p, colors: new Set([c]) })); continue; }   // Faeburrow Elder
       let cols = (info.landsAnyColor && p.asLand) ? ANY_COLOR : (info.allSwamps && p.asLand && !p.produce.colors.has('B')) ? new Set([...p.produce.colors, 'B', ...(info.allForests ? ['G'] : [])]) : (info.allForests && p.asLand && !p.produce.colors.has('G')) ? new Set([...p.produce.colors, 'G']) : p.produce.colors;          // Urborg: every land also taps for {B}; Wrenn: any colour
+      if (p.card.a.amongMana) { if (p.asLand && (info.landsAnyColor || info.typeManaT === 'land')) cols = ANY_COLOR; else { const ac = amongColors(g, p); if (!ac) continue; cols = ac; } }          // Wrenn and Realmbreaker, Chromatic: a land that is told to tap for any color does          // T-140: Mox Amber, Reflecting Pool, Fellwar Stone, Exotic Orchard, Arcane Signet: only the colors the card allows (none: no mana)
       if (p.card.a.kioraUntap) {                                                                       // Kiora's Follower untaps your best other mana permanent: its mana, once more
         const okU = q => q !== p && q.produce && !q.card.a.kioraUntap && !(q.sick && isCreaturePerm(q) && !info.abilityHaste && !hasKw(g, q, 'haste')) && !(stony && q.card.a.isArtifact);
         const best = info.producers.filter(okU).sort((x, y) => y.produce.amount - x.produce.amount)[0];
@@ -4781,6 +4783,18 @@
     return units;
   }
   const ANY_COLOR = new Set(COLORS);
+  // T-140: the colors a "any color among / that a land could produce / in your commander's identity" source may add right now (null: it can add no mana)
+  function amongColors(g, p) {
+    const kind = p.card.a.amongMana, out = new Set(), W = 'WUBRG';
+    if (kind === 'legend') { for (const q of g.battlefield) if (q.card.a.isLegendary && (isCreaturePerm(q) || q.card.a.isPlaneswalker)) for (const c of colorsOf(g, q.card)) if (W.includes(c)) out.add(c); }          // the commander in the command zone does not count
+    else if (kind === 'identity') { if (!g.deck.commanders.length) return ANY_COLOR; for (const ci of g.deck.commanders) for (const c of ci.card.color_identity || []) if (W.includes(c)) out.add(c); }
+    else if (kind === 'myLands') { for (const q of g.battlefield) if (q !== p && q.asLand && q.produce && !(q.card.a.amongMana)) for (const c of q.produce.colors) out.add(c); }          // CR 106.7: a source that could only be fed by itself adds nothing
+    else if (kind === 'oppLands') { const os = otherPlayers(g); if (!os.length) return ANY_COLOR; for (const o of os) for (const q of o.battlefield) if (q.asLand && q.produce) for (const c of q.produce.colors) if (W.includes(c)) out.add(c); }          // a goldfish has no opponent lands (and a list with no commander no identity): keep the old any-color reading there
+    if (!out.size) return null;
+    const key = [...out].sort().join(''), hit = AMONG_SETS.get(key); if (hit) return hit;          // one shared Set per color combination, so a unit kept in the pool is the same object however often this is asked
+    AMONG_SETS.set(key, out); return out;
+  }
+  const AMONG_SETS = new Map();
   // T-061: with infinite mana taken (g.infMana, this turn only) the floating pool is topped up to a big finite number whenever it runs low
   function topUpInf(g) { const im = g.infMana; if (!im || im.turn !== g.turn || g.floating.length >= 50) return; const cols = new Set(im.colors); while (g.floating.length < COMBO_BIG) g.floating.push({ src: null, colors: cols, floating: true }); }
   let wbG = null;          // T-104: the game whose units canPay may extend with the waterbend taps (a cost with .wb)
@@ -13841,6 +13855,10 @@ g.actSeq = (g.actSeq || 0) + 1;
     g.comboInfo = Object.assign({ text }, info);
     const ans = comboAsk(g, ev, text, info);
     if (ans !== 'win') return false;
+    { const where = n => { const f = l => l.some(i => i.card && (i.card.name === n || String(i.card.name).split(' // ')[0] === n)); return f(g.battlefield) ? 'on the battlefield' : f(g.graveyard) ? 'in the graveyard' : f(g.hand) ? 'in hand' : f(g.exile) ? 'in exile' : f(g.command) ? 'in the command zone' : f(g.library) ? 'in the library' : null; };
+      const pieces = info.cards.map(n => { const w = where(n); return w ? `${n} (${w})` : null; }).filter(Boolean);
+      const mana = o && o.start ? `, started with ${o.start} mana` : '';
+      ev.push({ type: 'note', text: 'Combo steps: ' + ((o && o.steps) || (pieces.length ? 'the pieces are ' + pieces.join(', ') + mana : 'see the combo line')), source: null }); }          // T-140: a declared win shows how it is done
     ev.push({ type: 'note', text: 'Combo: ' + text, source: null });
     g.comboWin = text; g.winBy = { kind: 'combo', text, outcome: info.outcome, name: info.name };
     if (g.match) setWinner(g, ev, 'combo');
@@ -13866,47 +13884,50 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (tableHas(g, 'constructUntap') && bf.some(q => q.card.a.constructUntap)) {
       const okc = q => isCreaturePerm(q) && q.card.a.isArtifact && !(q.sick && !hasKw(g, q, 'haste'));
       const mw = bf.find(q => okc(q) && q.card.a.metalworker && 2 * g.hand.filter(i => i.card.a.isArtifact).length > 2) || bf.find(q => okc(q) && q.produce && (q.produce.amount || 1) >= 3);
-      if (mw) return { how: `${mw.card.name} + Voltaic Construct`, colors: new Set(mw.card.a.metalworker ? ['C'] : (mw.produce.colors || ['C'])) };
+      if (mw && canPay({ generic: 2, pips: [], x: 0 }, allUnits(g))) return { how: `${mw.card.name} + Voltaic Construct`, colors: new Set(mw.card.a.metalworker ? ['C'] : (mw.produce.colors || ['C'])) };
     }
     // Grand Architect + Pili-Pala: {U} makes Pili-Pala blue, it taps for {C}{C}, {2} and its untap symbol give one mana of any color back
     { const ga = bf.find(q => q.card.a.statics.blueTap), pp = bf.find(q => q.card.a.piliPala && isCreaturePerm(q) && !(q.sick && !hasKw(g, q, 'haste')));
       if (ga && pp && allUnits(g).some(u => u.colors.has('U'))) return { how: `${ga.card.name} + ${pp.card.name}`, colors: new Set(COLORS) }; }
     // B3: Umbral Mantle on a creature that taps for 4 or more mana ({3}, {Q}: untap it, again and again); Metalworker makes {C}{C} for each artifact card in hand
-    if (tableHas(g, 'umbral')) for (const q of bf) { const mw = q.card.a.metalworker && !(q.sick && !hasKw(g, q, 'haste')) ? 2 * g.hand.filter(i => i.card.a.isArtifact).length : 0; if (!isCreaturePerm(q) || !((q.produce && ready(q) && amount(q) >= 4) || mw >= 4)) continue; if (bf.some(e => e.card.a.umbral && e.attachedTo === q.iid)) return { how: `${q.card.name} + Umbral Mantle`, colors: new Set((q.produce && q.produce.colors) || ['C']) }; }
-    // B2: a rock that untaps itself, with a way to make the untap cheaper than what it makes
+    if (tableHas(g, 'umbral')) for (const q of bf) { const mw = q.card.a.metalworker && !(q.sick && !hasKw(g, q, 'haste')) ? 2 * g.hand.filter(i => i.card.a.isArtifact).length : 0; if (!isCreaturePerm(q) || !((q.produce && ready(q) && amount(q) >= 4) || mw >= 4)) continue; if (bf.some(e => e.card.a.umbral && e.attachedTo === q.iid) && canPay({ generic: 3, pips: [], x: 0 }, allUnits(g))) return { how: `${q.card.name} + Umbral Mantle`, colors: new Set((q.produce && q.produce.colors) || ['C']) }; }
+    // B2: a rock that untaps itself, with a way to make the untap cheaper than what it makes.
+    //     T-140: the first round has to be paid for out of what is still there (its own mana if it is untapped, the pool, the other sources)
     for (const m of nonland) {
       const u = comboKind(m.card).untapCost; if (u == null) continue;
       const k = amount(m);
       const pa = bf.some(q => comboKind(q.card).powerArtifact), rings = bf.some(q => comboKind(q.card).rings);
-      if (k > u || (pa && k > u - 2) || (rings && 2 * k > u + 2)) { const base = k / (trip ? 3 : 1) - (mon ? 1 : 0) - (kinnan ? 1 : 0), self = base > u, why = self ? null : trip && base * 3 > u ? trip.card.name : mon && base + 1 > u ? mon.card.name : kinnan && k > u ? 'Kinnan' : pa ? 'Power Artifact' : 'Rings of Brighthearth';
-        return { how: `${m.card.name}${why ? ' + ' + why : ''}`, colors: new Set(m.produce.colors || ['C']) }; }
+      const plans = [{ ok: k > u, c: u }, { ok: pa && k > u - 2, c: Math.max(1, u - 2) }, { ok: rings && 2 * k > u + 2, c: u + 2 }];          // the first round costs this much: {u}, {u-2}, or {u} and the {2} for the Rings copy
+      const pl = plans.find(x => x.ok && canPay({ generic: x.c, pips: [], x: 0 }, allUnits(g)));
+      if (pl) { const base = k / (trip ? 3 : 1) - (mon ? 1 : 0) - (kinnan ? 1 : 0), self = base > u, why = self ? null : trip && base * 3 > u ? trip.card.name : mon && base + 1 > u ? mon.card.name : kinnan && k > u ? 'Kinnan' : pa ? 'Power Artifact' : 'Rings of Brighthearth';
+        return { how: `${m.card.name}${why ? ' + ' + why : ''}`, colors: new Set(m.produce.colors || ['C']), start: pl.c }; }
     }
     // B3: an Aura that untaps its creature for {U} (Freed from the Real) on a creature that makes two or more mana with a blue one, or on Kiora's Follower with such a permanent to untap
     const twoBlue = q => q.produce && amount(q) >= 2 && q.produce.colors.has('U');
     for (const au of bf) if (au.card.a.auraUntapU && au.attachedTo != null) {
       const c = bf.find(q => q.iid === au.attachedTo); if (!c || (c.sick && !hasKw(g, c, 'haste'))) continue;
       const t = c.card.a.kioraUntap ? bf.find(q => q !== c && twoBlue(q) && !(q.sick && isCreaturePerm(q) && !hasKw(g, q, 'haste'))) : twoBlue(c) ? c : null;
-      if (t) return { how: `${au.card.name} + ${c.card.name}${t !== c ? ' + ' + t.card.name : ''}`, colors: new Set(t.produce.colors) };
+      if (t && canPay({ generic: 0, pips: [['U']], x: 0 }, allUnits(g))) return { how: `${au.card.name} + ${c.card.name}${t !== c ? ' + ' + t.card.name : ''}`, colors: new Set(t.produce.colors) };
     }
     // B4: Devoted Druid with Vizier of Remedies: the -1/-1 counter that untaps it is never put on it
     if (bf.some(q => q.card.a.statics.vizier)) { const dd = nonland.find(q => q.card.a.druidUntap); if (dd) return { how: `${dd.card.name} + Vizier of Remedies`, colors: new Set(dd.produce.colors) }; }
     // B5: Staff of Domination untapping itself and a creature that makes more than the {4} the loop costs
     for (const st of bf) if (st.card.a.untapper && st.card.a.selfUntap != null && st.card.a.untapper.what === 'creature') {
       const c = nonland.filter(q => isCreaturePerm(q) && q !== st).sort((x, y) => amount(y) - amount(x))[0];
-      if (c && amount(c) > st.card.a.untapper.cost + st.card.a.selfUntap) return { how: `${st.card.name} + ${c.card.name}`, colors: new Set(c.produce.colors) };
+      if (c && amount(c) > st.card.a.untapper.cost + st.card.a.selfUntap && canPay({ generic: st.card.a.untapper.cost + st.card.a.selfUntap, pips: [], x: 0 }, allUnits(g))) return { how: `${st.card.name} + ${c.card.name}`, colors: new Set(c.produce.colors) };
     }
     // B7: an artifact untapper (Voltaic Key) copied by Rings of Brighthearth untaps itself and a rock that makes more than the {1} + {2} it costs
     { const key = bf.find(q => q.card.a.untapper && q.card.a.untapper.what === 'artifact' && !q.tapped), rings = bf.find(q => comboKind(q.card).rings);
       const amt = q => q.card.a.metalworker ? 2 * g.hand.filter(i => i.card.a.isArtifact).length : amount(q);          // Metalworker: {C}{C} for each artifact card revealed from the hand
-      if (key && rings) { const r = bf.filter(q => q !== key && q.card.a.isArtifact && (ready(q) || (q.card.a.metalworker && !q.tapped && !(q.sick && !hasKw(g, q, 'haste'))))).sort((x, y) => amt(y) - amt(x))[0]; if (r && amt(r) > key.card.a.untapper.cost + 2) return { how: `${key.card.name} + ${rings.card.name} + ${r.card.name}`, colors: new Set((r.produce && r.produce.colors) || ['C']) }; } }
+      if (key && rings) { const r = bf.filter(q => q !== key && q.card.a.isArtifact && (ready(q) || (q.card.a.metalworker && !q.tapped && !(q.sick && !hasKw(g, q, 'haste'))))).sort((x, y) => amt(y) - amt(x))[0]; if (r && amt(r) > key.card.a.untapper.cost + 2 && canPay({ generic: key.card.a.untapper.cost + 2, pips: [], x: 0 }, allUnits(g))) return { how: `${key.card.name} + ${rings.card.name} + ${r.card.name}`, colors: new Set((r.produce && r.produce.colors) || ['C']) }; } }
     // B8: a planeswalker's "+1: untap up to two target artifacts" copied again and again by Lithoform Engine ({2}), with a rock that makes three or more
     { const le = bf.find(q => comboKind(q.card).copyAb && !q.tapped), tz = bf.find(q => comboKind(q.card).tezz && (q.loyalty || 0) > 0);
-      if (le && tz) { const r = nonland.filter(q => q !== le && q.card.a.isArtifact).sort((x, y) => amount(y) - amount(x))[0]; if (r && amount(r) > 2) return { how: `${le.card.name} + ${tz.card.name} + ${r.card.name}`, colors: new Set(r.produce.colors || ['C']) }; } }
+      if (le && tz) { const r = nonland.filter(q => q !== le && q.card.a.isArtifact).sort((x, y) => amount(y) - amount(x))[0]; if (r && amount(r) > 2 && canPay({ generic: 2, pips: [], x: 0 }, allUnits(g))) return { how: `${le.card.name} + ${tz.card.name} + ${r.card.name}`, colors: new Set(r.produce.colors || ['C']) }; } }
     // B9: "whenever you cast a spell, return target permanent to its owner's hand" with two cheap rocks that bounce and recast each other for more than they cost
     { const bo = bf.find(q => comboKind(q.card).bouncer);
       if (bo) { const rocks = bf.filter(q => !q.token && !q.asLand && q.produce && q.card.a.isArtifact && !q.card.a.isCreature).map(q => q.card).concat(g.hand.filter(i => i.card.a.isArtifact && !i.card.a.isCreature && !i.card.a.isLand && i.card.a.produce).map(i => i.card)).filter(c => c.a.produce)          /* a rock that lost its abilities still lists its mana, but its card makes none: only the card's own mana counts when it is recast */
           .map(c => ({ c, net: ((c.a.produce.amount || 1) + (mon && c.a.produce.colors.size === 1 && c.a.produce.colors.has('C') ? 1 : 0)) * (trip ? 3 : 1) - (c.a.castMv || 0) })).filter(x => x.net >= 0).sort((x, y) => y.net - x.net);
-        if (rocks.length >= 2 && rocks[0].net + rocks[1].net > 0 && rocks[0].c !== rocks[1].c) return { how: `${bo.card.name} + ${rocks[0].c.name} + ${rocks[1].c.name}`, colors: new Set([...rocks[0].c.a.produce.colors, ...rocks[1].c.a.produce.colors]), casts: true }; } }
+        if (rocks.length >= 2 && rocks[0].net + rocks[1].net > 0 && rocks[0].c !== rocks[1].c && canPay({ generic: Math.min(rocks[0].c.a.castMv || 0, rocks[1].c.a.castMv || 0), pips: [], x: 0 }, allUnits(g))) return { how: `${bo.card.name} + ${rocks[0].c.name} + ${rocks[1].c.name}`, colors: new Set([...rocks[0].c.a.produce.colors, ...rocks[1].c.a.produce.colors]), casts: true }; } }
     // B6: Deadeye Navigator blinking a creature that untaps lands as it enters (Peregrine Drake): each {1}{U} blink untaps three or more lands
     const dn = bf.find(q => comboKind(q.card).blinker);
     if (dn) {
@@ -13998,20 +14019,40 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (tp) {
         const fr = on(k => k.fleshraker);
         if (fr && afford({ generic: 1, pips: [], x: 0 })) return comboWin(g, ev, `${tp.card.name} + ${fg.card.name} + ${fr.card.name}: each cast makes a Spawn that pays for the next and deals 1 damage`);
-        const rd = on(k => k.artReducer), fin = rd && g.library.concat(hand).find(i => K(i).finisher);
-        if (fin) return comboWin(g, ev, `${tp.card.name} + ${fg.card.name} + ${rd.card.name}: the library is drawn for free and ${fin.card.name} is found`);
+        const rd = on(k => k.artReducer), fin = rd && g.library.concat(hand).find(i => (K(i).oracleWin || K(i).drawWin) && afford(effectiveCost(g, i)));          // T-140: the whole library is drawn, but only a winner the mana in play can cast ends it (a Walking Ballista found with no mana to spare does nothing)
+        if (fin) { pay(g, effectiveCost(g, fin)); return comboWin(g, ev, `${tp.card.name} + ${fg.card.name} + ${rd.card.name}: the library is drawn for free and ${fin.card.name} is found`, { steps: `${tp.card.name} is cast from the top of the library for {0} (${rd.card.name} takes off the {1}) and drawn back again and again; with the library drawn, ${fin.card.name} is cast ${costText(effectiveCost(g, fin))}` }); }
       } }
     // --- Underworld Breach: a storm mill spell recast from the graveyard, paid for by a rock that is recast with it ---
+    const ledOk = c => { const n = c.generic + c.pips.length; return n <= 3 && new Set(c.pips.map(q => q.join('/'))).size <= 1; };          // T-140: what Lion's Eye Diamond's three mana of one color can pay
     { const br = on(k => k.breach) || inHand(k => k.breach), zone = hand.concat(gy), fz = zone.find(i => K(i).stormMill);
       if (br && fz) {
         const all = zone.concat(bf), led = all.find(i => K(i).led), pet = all.find(i => K(i).petal), wh = zone.find(i => K(i).wheel);
-        const brCost = bf.includes(br) ? NONE0 : effectiveCost(g, br), cards = gy.length + hand.length;
-        const go = text => { if (!bf.includes(br)) { pay(g, brCost); g.hand.splice(g.hand.indexOf(br), 1); enterWithTriggers(g, br, {}, ev); } return comboWin(g, ev, text); };
-        if (led && cards >= 5 && afford(brCost)) return go(`${br.card.name} + ${led.card.name} + ${fz.card.name}: each recast mills more, until every library is empty`);
-        if (pet && cards >= 8 && afford(sumCost(brCost, effectiveCost(g, fz)))) return go(`${br.card.name} + ${pet.card.name} + ${fz.card.name}: each recast mills more, until every library is empty`);
+        const brCost = bf.includes(br) ? NONE0 : effectiveCost(g, br), cards = hand.concat(gy).filter(i => i !== br && i !== led && i !== pet && i !== fz).length;          // T-140: the cards left to be exiled (Breach is cast, the rock and the mill spell are the loop itself)
+        const go = (rock, text) => {
+          const steps = `${bf.includes(br) ? '' : 'cast ' + br.card.name + ' ' + costText(brCost) + '; '}${rock.card.name} ${rock === led ? 'is cast ({0}) and sacrificed: your hand is discarded, three mana of one color' : 'is sacrificed for mana'}; ${fz.card.name} is escaped for ${costText(effectiveCost(g, fz))} and three other cards from the graveyard, storm copies mill ${cards >= 3 ? 'more each time' : ''}; ${rock.card.name} is escaped too, and so on until the opponent's library is empty`;
+          if (!bf.includes(br)) { pay(g, brCost); g.hand.splice(g.hand.indexOf(br), 1); enterWithTriggers(g, br, {}, ev); }
+          if (hand.includes(rock) && rock.card.a.isArtifact) { hand.splice(hand.indexOf(rock), 1); enterWithTriggers(g, rock, {}, ev); }
+          return comboWin(g, ev, `${text} (${steps})`);
+        };
+        if (led && cards >= 3 && afford(brCost) && ledOk(effectiveCost(g, fz))) return go(led, `${br.card.name} + ${led.card.name} + ${fz.card.name}: each recast mills more, until every library is empty`);
+        if (pet && cards >= 6 && afford(sumCost(brCost, effectiveCost(g, fz)))) return go(pet, `${br.card.name} + ${pet.card.name} + ${fz.card.name}: each recast mills more, until every library is empty`);
       }
-      const wh = br && hand.concat(gy).find(i => K(i).wheel), led2 = wh && hand.concat(gy, bf).find(i => K(i).led), fin = led2 && g.library.concat(hand, gy).find(i => K(i).finisher);
-      if (fin && bf.includes(br)) return comboWin(g, ev, `${br.card.name} + ${led2.card.name} + ${wh.card.name}: a new hand of seven again and again, until ${fin.card.name} is found`);
+      // T-140: Breach + Lion's Eye Diamond + Wheel of Fortune needs its real pieces: Breach cast (or on the table), the Wheel cast with real mana the first time (from the hand) or escaped with the Diamond's mana
+      //        (from the graveyard), the Diamond castable, three other cards to exile for the first escape, and a winner the Diamond's three mana can cast (Oracle, Jace)
+      const wh = br && hand.concat(gy).find(i => K(i).wheel), led2 = wh && hand.concat(gy, bf).find(i => K(i).led);
+      if (wh && led2) {
+        const brCost2 = bf.includes(br) ? NONE0 : effectiveCost(g, br), whCost = effectiveCost(g, wh), real = hand.includes(wh) ? sumCost(brCost2, whCost) : brCost2;
+        const fin = g.library.concat(hand, gy).find(i => (K(i).oracleWin || K(i).drawWin) && ledOk(effectiveCost(g, i)) && (hand.includes(wh) || ledOk(whCost)));
+        const spare = hand.concat(gy).filter(i => i !== br && i !== wh && i !== led2).length;
+        if (fin && spare >= 3 && afford(real) && (bf.includes(led2) || hand.includes(led2) || gy.includes(led2))) {
+          const steps = `${bf.includes(br) ? '' : 'cast ' + br.card.name + ' ' + costText(brCost2) + '; '}${hand.includes(wh) ? 'cast ' + wh.card.name + ' ' + costText(whCost) + '; ' : ''}${led2.card.name} pays for each escape (three mana, then it is escaped again for 3 other cards)`;
+          pay(g, real);
+          if (!bf.includes(br)) { hand.splice(hand.indexOf(br), 1); enterWithTriggers(g, br, {}, ev); }
+          if (hand.includes(wh)) { hand.splice(hand.indexOf(wh), 1); g.graveyard.push(wh); }
+          if (hand.includes(led2)) { hand.splice(hand.indexOf(led2), 1); enterWithTriggers(g, led2, {}, ev); }
+          return comboWin(g, ev, `${br.card.name} + ${led2.card.name} + ${wh.card.name}: a new hand of seven again and again, until ${fin.card.name} is found (${steps})`);
+        }
+      }
     }
     // --- Peer into the Abyss with a card that hurts for every card drawn ---
     { const pr = inHand(k => k.peer);
@@ -14196,10 +14237,11 @@ g.actSeq = (g.actSeq || 0) + 1;
       pay(g, cost);
       [e, w].forEach(i => { g.hand.splice(g.hand.indexOf(i), 1); });
       g.graveyard.push(e); g.exile.push(...g.library); g.library = [];
-      const text = `${e.card.name} exiles the library, then ${w.card.name} wins`, before = g.killTurn;
+      const text = `${e.card.name} exiles the library, then ${w.card.name} wins`, before = g.killTurn, steps = `cast ${e.card.name} ${costText(effectiveCost(g, e))}: the library is exiled; cast ${w.card.name} ${costText(effectiveCost(g, w))}: ${comboKind(w.card).oracleWin ? 'its trigger looks at more cards than the (empty) library holds' : 'with no library, the next draw wins'}`;
+      ev.push({ type: 'note', text: 'Combo steps: ' + steps, source: null });
       enterWithTriggers(g, w, {}, ev);
       if (before == null && g.killTurn != null) { delete g.comboOk; g.comboWin = text; g.winBy = { kind: 'combo', text }; ev.push({ type: 'note', text: 'Combo: ' + text, source: null }); return true; }          // the winner's own enters ability ended the game
-      return comboWin(g, ev, text);
+      return comboWin(g, ev, text, { steps });
     }
     // a person's "Don't go off now" puts the game back as it was before the combo paid for anything (comboSnap)
     const held = f => { if (!g.ask) return f(g, ev); const sn = comboSnap(g, ev); g._rb = true; try { return f(g, ev); } catch (e) { if (e !== COMBO_HOLD) throw e; comboRestore(g, sn, ev); return false; } finally { delete g._rb; } };
@@ -14211,7 +14253,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     if (!inf) return;
     const bfHas = f => g.battlefield.some(p => f(comboKind(p.card)));
     const ballista = bfHas(k => k.ballista) || hand.some(i => comboKind(i.card).ballista);
-    if (ballista) return comboWin(g, ev, `infinite mana (${inf.how}) into Walking Ballista`, { outcome: 'mana', colors: inf.colors });
+    if (ballista) return comboWin(g, ev, `infinite mana (${inf.how}) into Walking Ballista`, { outcome: 'mana', colors: inf.colors, start: inf.start, steps: `${inf.how}: ${inf.start ? 'the first round is paid with ' + inf.start + ' of the mana in play, ' : ''}every round makes more mana than it costs; Walking Ballista is cast for any X and removes counters to ping` });
     const burn = hand.find(i => comboKind(i.card).xBurn && i.card.a.cost.pips.every(p => p.some(c => inf.colors.has(c)) || canPay({ generic: 0, pips: [p], x: 0 }, allUnits(g))));
     if (burn) return comboWin(g, ev, `infinite mana (${inf.how}) into ${burn.card.name}`, { outcome: 'mana', colors: inf.colors });
     const cp = inf.casts && g.battlefield.find(p => comboKind(p.card).castPing);          // the loop casts a spell every time round: Vivi Ornitier, Professor Onyx
@@ -16134,11 +16176,12 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (e.type === 'cast') items.push('cast ' + e.inst.card.name);
       else if (e.type === 'land') items.push('land ' + e.inst.card.name);
       else if (e.type === 'declare') items.push('attacks ' + (g.opp && g.match ? (g.match.names ? g.match.names[g.opp.pid] : 'the opponent') : '') + ' with ' + e.attackers.map(p => p.card.name).join(', '));
-      else if (e.type === 'note' && (e.out != null || /blocks|dies in combat|Extort|transform|Ring|Wheel|Miracle|copy|copied|is out of the game/.test(e.text))) items.push(e.text);
+      else if (e.type === 'note' && (e.out != null || /^Combo(?: steps)?: |blocks|dies in combat|Extort|transform|Ring|Wheel|Miracle|copy|copied|is out of the game/.test(e.text))) items.push(e.text);
       else if (e.type === 'attack') items.push(e.dmg + ' combat damage got through');
       else if (e.type === 'damage' && e.n > 0) items.push(e.n + ' damage' + (isPod(g) ? ' to each opponent' : '') + (e.source && e.source.card ? ' (' + e.source.card.name + ')' : ''));
       else if (e.type === 'kill') items.push('☠ WINS');
     }
+    const k = items.indexOf('☠ WINS'); if (k >= 0 && k < items.length - 1) items.push(...items.splice(k, 1));          // the win stays last (the combo line that explains it can come after the kill event)
     return items;
   }
   function podLog(players, opts, seed, first) {
