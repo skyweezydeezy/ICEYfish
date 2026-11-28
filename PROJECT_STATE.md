@@ -50,6 +50,7 @@ Firm requirements. The user's own wording is in `CLAUDE.md`; this is the list, n
 
 ## 2. Architecture and accepted decisions
 
+- [R] 12:25 UTC: v228 = T-127 stage 6 (claude/t127-stack-6 @ 655b21d; smart stops trimmed; instantWindow kind 'instant' again) + Rules Lawyers update (claude/decks-v226 @ 3e1ca8b: 14 cards changed, B4 re-verified). Full UI run in progress. Teach (top of queue): Sorin, Vengeful Bloodlord (2 lines) -> Card teaching 13; then Deck Brackets 3 re-checks Blood Bank [B4] (Edgar Markov) (preview B3) on claude/decks-v226-blood-bank. Two Drive folders named ManaBox (1CwIo9I4... older decks; 1kMuwQfe... Rules Lawyers): watcher told to scan both. Priority 2 on T-132 (claude/t132-ability-targets).
 - [R] In flight (11:45 UTC): v227 = T-133 (claude/t133-bar-width @ 815f8bf: phone Duel bar fits; tune.test split in 4) + T-131 (claude/t131-fuzzy-rules @ 1392eda: hard key words added, 33 of 48 guesses survive, stale index = warning). Deck Brackets 3: Rules Lawyers re-uploaded to Drive (new id 1jlRpLGV...), Blood Bank [B4] (Edgar Markov) new, on claude/decks-v226. Stage 6 -> after v227.
 - [V] Card taps (user, 2026-11-28): "In every card interaction across the entire app ... I want the cards to expand on selection and have the action buttons available within that new window." On every device; a single-action card still expands. T-134 (`session_01K5kL4ZFCuNEbw5TYo8Ls98`, claude/t134-tap-expand): Puzzle first, then Practice/Duel/Pod, then Mulligan/Build/Simulate.
 - [V] Sessions (2026-11-28 10:52 UTC): T-110 archived (work live in v225). New: T-131 fuzzy rules `session_01K5kL4VXstP7B9p1WJaVHvU` (claude/t131-fuzzy-rules); T-133 iPhone Duel bar width + tune.test cap `session_01K5kL4WQAKjGVM4hR6jeABs` (claude/t133-bar-width). Deck Brackets 3 assigned the new Drive deck Rules Lawyers [B4] (Winota) with the bracket check. Priority 2: stage 6 UI fixes, then T-132.
@@ -123,6 +124,7 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 227** (2026-11-28 12:19 UTC): PR #199, 4/4 + Pages green: T-133 (phone Duel bar fits, remote-mobile 50/50; tune.test split in 4) + T-131 (Guess unknown rules, off by default; hard key words). Engine 287 ok, sweep bad 0, fingerprint b8ce7c97... unchanged; UI fuzzy-setting, puzzles, viewer, versus-fit, remote-mobile ok.
 - [V] **Version 226** (2026-11-28 11:38 UTC): PR #198, 4/4 + Pages green: T-134 step 1 (Puzzle tap -> viewer with actions; prices/printings kept) + Rules Lawyers deck (B4 verified, deck files only from claude/deck-brackets). Engine 283 + deck tests ok; UI puzzles 118, viewer files ok; ipad-card-tap timed out under --jobs 2, passed alone.
 - [V] **Version 225** (2026-11-28 10:47 UTC): PR #197, 4/4 + Pages green: copyright LICENSE (SWD Marketing) + T-110 UI test health (supersedes PR #187, closed). Engine 283 ok; 21 UI files ok except remote-mobile (live bug, T-133). Stage 6 (full priority) moves to v226.
 - [V] **Version 224** (2026-11-28 09:10 UTC): PR #196, 4/4 + Pages green: T-127 stages 4-5 (off by default). Suite 283, sweep bad 0, UI priority/decisions/versus/versus-fit.
