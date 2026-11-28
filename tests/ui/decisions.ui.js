@@ -281,7 +281,7 @@ const shot = process.env.VERSUS_SHOTS;
   const owners = await p.evaluate(() => { const gm = window.__isfVersus.pod.game; return { owners: [...new Set(gm.choice.options.map(o => o.owner))].sort().join(','), focus: gm.games[0].opp.pid, third: gm.choice.options.find(o => o.owner === 3).k }; });
   check('in a pod the target sheet offers the permanents of all three opponents, each under its player\'s name', owners.owners === '1,2,3' && sh.tiles === 3 && new Set(sh.notes.map(n => n.split(' · ')[0])).size === 3, sh.notes.join(' | '));
   if (shot) await p.screenshot({ path: path.join(shot, 'choice-pod-target.png') });
-  await p.evaluate(k => document.querySelector('.ch-sheet .ch-opt[data-k="' + k + '"]').click(), owners.third);
+  await p.evaluate(k => document.querySelector('.ch-sheet .ch-opt[data-k="' + k + '"]').click(), owners.third); await viewerPick(p);
   await p.click('.ch-sheet .ch-ok');
   await passStack('pod');
   await p.waitForFunction(() => !document.querySelector('.ch-sheet') && !window.__isfVersus.pod.game.acting, null, { timeout: 10000 });
