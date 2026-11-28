@@ -656,6 +656,7 @@
       a.coverage.push(rec);
       if (TRACING) traceStart(a, rec);
       { const sr = line.match(/^\{t\}, sacrifice another creature: add ((?:\{[wubrgc]\})+)\. spend this mana only to cast ([a-z,/ ]+?) spells\.?$/i); if (sr) { const pr = parseAdd('add ' + sr[1]), ts = sr[2].toLowerCase().split(/,? and\/or |, and |, | and /).map(x => x.trim()).filter(Boolean); if (pr && ts.length) { a.sacRestrict = { colors: pr.colors, amount: pr.amount, ts }; rec.status = 'ok'; continue; } } }          // Master of Dark Rites: {T}, sacrifice another creature, mana only for some creature types' spells
+      if (/^compleated\b/i.test(line)) { a.compleated = true; rec.status = 'ok'; continue; }          // CR 702.150: {P} paid with life: it enters with two fewer loyalty counters (enter())
       if (/^choose a creature type\. for each [^.]*, create a token that's a copy of that creature\. those tokens gain haste\. exile them at the beginning of the next end step\.?$/i.test(raw)) { a.spellFx.push({ type: 'tribeSpell', op: 'charge' }); rec.status = 'ok'; continue; }          // Kindred Charge (it was read as a copy effect that made nothing)
       // draw, then a discard the generic reading dropped (only the draw was played)
       { let dm;
@@ -3034,6 +3035,7 @@
         const cost = m[2] === 'X' ? -1 : sign * +m[2];
         const pwt = m[3];
         const r = /^gain control of target (creature|permanent)|^gain control of all nonland permanents until end of turn\. untap them|^~ deals damage to target creature equal to the number of \w+ you control\.?$|^until your next turn, up to one target creature gains reach and vigilance\.?$/i.test(pwt) ? { fx: [], neutral: true }          // rules batch 52-53: Dihada's -11 (the opponents' permanents), Koth's -3 (an opponent's creature), Vivien's +1
+          : /^reveal the top card of your library\. if it's an? ([a-z, ]+?) card, put it into your hand\. otherwise, you may put it on the bottom of your library\.?$/i.test(pwt) ? { fx: [{ type: 'revealTake', spec: pwt.match(/if it's an? ([a-z, ]+?) card/i)[1].toLowerCase() }] }          // Ajani, Sleeper Agent +1: revealed, then to hand or (your choice) the bottom
           : /^untap two target lands\.?$/i.test(pwt) ? { fx: [{ type: 'untapLands', n: 2 }] }          // Garruk Wildspeaker
           : /^untap up to four target permanents\.?$/i.test(pwt) ? { fx: [{ type: 'untapPerms', n: 4 }] }          // T-100: Teferi, Temporal Archmage
           : /^put all creature cards from all graveyards onto the battlefield under your control\.?$/i.test(pwt) ? { fx: [{ type: 'massReanimate' }] }
@@ -5453,14 +5455,14 @@
   // Phyrexian mana (CR 107.4f): each symbol is paid with its color or 2 life (only with at least 2 life, CR 119.4). pick[i]: a person chose life (true) or mana (false) for symbol i. The
   // autopilot pays life while its life is comfortable (24 in a match, 10 alone) and mana otherwise, and life when the mana cannot be had (never down to 0). Returns the cost left to pay
   // in mana and the life to pay.
-  function phyResolve(g, cost, pick) {
+  function phyResolve(g, cost, pick, compl) {
     const units = allUnits(g), floor = g.opp ? 24 : 10;
     let c = { generic: cost.generic, pips: cost.pips.slice(), x: cost.x }, life = 0;
     if (cost.h2) c.h2 = cost.h2;
     cost.phy.forEach((cols, i) => {
       const withPip = Object.assign({}, c, { pips: c.pips.concat([cols]) });
       const manaOk = !!canPay(withPip, units), lifeOk = g.life - life >= 2;
-      const useLife = pick && pick[i] != null ? !!pick[i] && lifeOk : lifeOk && (g.life - life - 2 >= floor || (!manaOk && g.life - life - 2 >= 1));
+      const useLife = pick && pick[i] != null ? !!pick[i] && lifeOk : lifeOk && ((!compl && g.life - life - 2 >= floor) || (!manaOk && g.life - life - 2 >= 1));          // Compleated: life costs two loyalty, so mana first
       if (useLife) life += 2; else c = withPip;
     });
     return { cost: c, life };
@@ -5477,7 +5479,7 @@
     const c = effectiveCost1(g, inst);
     inst._phyLife = 0;
     if (!c.phy || !c.phy.length) return c;
-    const r = phyResolve(g, c, inst._phyPick); inst._phyLife = r.life; return r.cost;
+    const r = phyResolve(g, c, inst._phyPick, !!inst.card.a.compleated); inst._phyLife = r.life; return r.cost;
   }
   function effectiveCost1(g, inst) {
     let c = effectiveCost0(g, inst);
@@ -5626,6 +5628,7 @@
     else { perm.sick = a.isCreature; if (a.etbTapped) perm.tapped = true; }
     perm.enteredSeq = turnSeq(g);          // the shared turn sequence (a match's turns, not only this player's): Neriv's "entered this turn"
     if (o.addType) perm.card = Object.assign({}, inst.card, { type_line: /—/.test(inst.card.type_line || '') ? inst.card.type_line + ' ' + o.addType : (inst.card.type_line || '') + ' — ' + o.addType });          // Sorin, Vengeful Bloodlord: a Vampire in addition to its other types
+    if (a.compleated && inst._phyPaid) { perm.loyalty = Math.max(0, perm.loyalty - inst._phyPaid); inst._phyPaid = 0; }          // Compleated: two fewer loyalty counters for each {P} paid with life (inst._phyPaid is the life paid)
     if (o.noCreature) perm.noCreature = true;          // Enduring creatures return as enchantments: not a creature as it enters (so -X/-X from Elesh Norn cannot kill it, again and again)
     if (o.flyCounter) perm.flyCounter = true;          // the counters a returning creature comes back with are on it as it enters (Luminous Broodmoth, persist, undying,
     if (o.counters) perm.counters = (perm.counters || 0) + o.counters;          // Undying Malice), so dying at once (Elesh Norn's -X/-X) does not bring it back again and again
@@ -8671,6 +8674,17 @@
           shuffle(g.library, g.rnd);
           break;
         }
+        case 'revealTake': {          // Ajani, Sleeper Agent +1: reveal the top card; a creature or planeswalker card goes to your hand, otherwise you may put it on the bottom
+          const top = g.library[0], who = source ? source.card.name : 'It';
+          if (!top) { ev.push({ type: 'note', text: `${who}: your library is empty, nothing to reveal`, source }); break; }
+          ev.push({ type: 'reveal', inst: top, source, pid: g.pid });
+          if (typeMatch(top.card, f.spec)) { g.library.shift(); g.hand.push(top); ev.push({ type: 'tutor', inst: top, source }, { type: 'note', text: `${who}: reveals ${top.card.name}, a ${f.spec} card: into your hand`, source }); break; }
+          let bottom = wantsBottom(g, top);
+          if (g.ask && !g.dry) bottom = decide(g, { kind: 'may', options: ['yes', 'no'], def: bottom ? 'yes' : 'no', title: `${who}: put ${top.card.name} on the bottom of your library?`, text: `You revealed ${top.card.name}, not a ${f.spec} card. You may put it on the bottom of your library; if you don't, it stays on top.`, yes: 'Put it on the bottom', no: 'Leave it on top', source }) === 'yes';
+          if (bottom) { g.library.shift(); g.library.push(top); }
+          ev.push({ type: 'note', text: `${who}: reveals ${top.card.name}, not a ${f.spec} card: ${bottom ? 'it goes to the bottom of your library' : 'it stays on top'}`, source });
+          break;
+        }
         case 'lookFilter': {                                                                                 // look at the top N, take the best card of the right kind, bottom the rest
           const top = g.library.splice(0, Math.min(f.look, g.library.length)), ctx = tutorContext(g);
           const ms = top.filter(i => typeMatch(i.card, f.spec) && (!f.tribe || matchesFilter(i.card, f.tribe))).sort((x, y) => tutorScore(g, y, ctx) - tutorScore(g, x, ctx));
@@ -8695,8 +8709,14 @@
           break;
         }
         case 'distribute': {                                                                                  // Ajani: three +1/+1 counters among up to three creatures
-          const cs = g.battlefield.filter(isCreaturePerm).sort((x, y) => powerOf(g, y) - powerOf(g, x)).slice(0, f.max);
-          for (let k = 0; k < f.n && cs.length; k++) addCounters(g, cs[k % cs.length], '+1/+1', 1, ev, source);
+          const all = g.battlefield.filter(q => isCreaturePerm(q) && !q.phased); let cs = all.slice().sort((x, y) => powerOf(g, y) - powerOf(g, x)).slice(0, f.max);
+          if (g.ask && !g.dry && all.length > 1) {          // a person chooses up to three target creatures, one at a time, and who gets the extra counters (each target gets at least one)
+            const chosen = [], pool = all.slice();
+            for (let k = 0; k < f.max && pool.length; k++) { const pick = decide(g, { kind: 'target', what: 'distribute', options: pool.slice(), def: cs.find(x => pool.includes(x)) || null, optional: true, source }); if (!pick || !pool.includes(pick)) break; chosen.push(pick); pool.splice(pool.indexOf(pick), 1); }
+            cs = chosen;
+          }
+          const cnt = cs.map(() => (cs.length ? 1 : 0)); for (let k = cs.length; k < f.n && cs.length; k++) { let t = k % cs.length; if (g.ask && !g.dry && cs.length > 1) { const pk = decide(g, { kind: 'target', what: 'distributeExtra', options: cs.slice(), def: cs[t], source }); if (pk && cs.includes(pk)) t = cs.indexOf(pk); } cnt[t]++; }
+          cs.forEach((c, i) => { if (cnt[i]) addCounters(g, c, '+1/+1', cnt[i], ev, source); });
           cs.forEach(c => { c.eotKw = c.eotKw || new Set(); (f.keywords || []).forEach(kw => c.eotKw.add(kw)); });
           break;
         }
@@ -10154,9 +10174,9 @@
       base.phy.forEach((cols, i) => {
         const withPip = { generic: base.generic, pips: base.pips.concat(bag, [cols]), x: base.x }; if (base.h2) withPip.h2 = base.h2;
         const manaOk = !!canPay(withPip, units), lifeOk = g.life - life >= 2, sym = '{' + cols.join('/') + '/P}';
-        const auto = phyResolve(g, Object.assign({}, base, { phy: base.phy.slice(0, i + 1) }), pick.concat([null])).life > life;
+        const auto = phyResolve(g, Object.assign({}, base, { phy: base.phy.slice(0, i + 1) }), pick.concat([null]), !!inst.card.a.compleated).life > life;
         let useLife = lifeOk && !manaOk;
-        if (lifeOk && manaOk) useLife = decide(g, { kind: 'may', options: ['yes', 'no'], def: auto ? 'yes' : 'no', title: `${inst.card.name}: pay 2 life or {${cols.join('/')}} for ${sym}?`, text: `One of its mana symbols is Phyrexian: pay {${cols.join('/')}} or 2 life. You have ${g.life} life.`, yes: 'Pay 2 life', no: 'Pay {' + cols.join('/') + '}', source: { card: inst.card } }) === 'yes';
+        if (lifeOk && manaOk) useLife = decide(g, { kind: 'may', options: ['yes', 'no'], def: auto ? 'yes' : 'no', title: `${inst.card.name}: pay 2 life or {${cols.join('/')}} for ${sym}?`, text: `One of its mana symbols is Phyrexian: pay {${cols.join('/')}} or 2 life. You have ${g.life} life.` + (inst.card.a.compleated ? ' Compleated: if you pay life, it enters with two fewer loyalty counters.' : ''), yes: 'Pay 2 life', no: 'Pay {' + cols.join('/') + '}', source: { card: inst.card } }) === 'yes';
         pick.push(useLife); if (useLife) life += 2; else bag.push(cols);
       });
       inst._phyPick = pick;
@@ -10263,7 +10283,7 @@
     if (n != null && !g.dry && (inst.card.a.mv || 0) > n && !inst.card.a.isLand) { const cs = (tableHas(g, 'cellarspawn') ? g.battlefield.filter(x => x.card.a.cellarspawn) : []).length; if (cs) damageOpp(g, ((inst.card.a.mv || 0) - n) * cs, ev, null, false, true); }          // Ancient Cellarspawn: less mana spent than its mana value
     inst._castExile = g.exile.includes(inst);
     inst._tre = n != null && !!g._payTre; inst._paidBy = n != null ? g._paySrcs : null; inst._manaN = n;          // Boromir: how much mana was spent to cast it
-    if (n != null && inst._phyLife && !g.dry) { g.life -= inst._phyLife; ev.push({ type: 'note', text: `Paid ${inst._phyLife} life for Phyrexian mana: ${inst.card.name}` }); inst._phyLife = 0; checkDeath(g, ev); }          // CR 107.4f
+    if (n != null && inst._phyLife && !g.dry) { if (inst.card.a.compleated) inst._phyPaid = inst._phyLife; g.life -= inst._phyLife; ev.push({ type: 'note', text: `Paid ${inst._phyLife} life for Phyrexian mana: ${inst.card.name}` }); inst._phyLife = 0; checkDeath(g, ev); }          // CR 107.4f
     if (n != null && inst._defiler && !g.dry) { g.life -= 2 * inst._defiler; ev.push({ type: 'note', text: `Paid ${2 * inst._defiler} life: ${inst.card.name} costs less` }); inst._defiler = 0; checkDeath(g, ev); }
     if (n != null && inst.card.a.spree) {                                                                  // spree: the mode already paid for, then any others worth it that the rest of your mana covers
       const all = inst.card.a.spree, chosen = inst._spree > 0 ? [inst._spree - 1] : [];
