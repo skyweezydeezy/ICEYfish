@@ -50,6 +50,7 @@ Firm requirements. The user's own wording is in `CLAUDE.md`; this is the list, n
 
 ## 2. Architecture and accepted decisions
 
+- [R] In flight (11:45 UTC): v227 = T-133 (claude/t133-bar-width @ 815f8bf: phone Duel bar fits; tune.test split in 4) + T-131 (claude/t131-fuzzy-rules @ 1392eda: hard key words added, 33 of 48 guesses survive, stale index = warning). Deck Brackets 3: Rules Lawyers re-uploaded to Drive (new id 1jlRpLGV...), Blood Bank [B4] (Edgar Markov) new, on claude/decks-v226. Stage 6 -> after v227.
 - [V] Card taps (user, 2026-11-28): "In every card interaction across the entire app ... I want the cards to expand on selection and have the action buttons available within that new window." On every device; a single-action card still expands. T-134 (`session_01K5kL4ZFCuNEbw5TYo8Ls98`, claude/t134-tap-expand): Puzzle first, then Practice/Duel/Pod, then Mulligan/Build/Simulate.
 - [V] Sessions (2026-11-28 10:52 UTC): T-110 archived (work live in v225). New: T-131 fuzzy rules `session_01K5kL4VXstP7B9p1WJaVHvU` (claude/t131-fuzzy-rules); T-133 iPhone Duel bar width + tune.test cap `session_01K5kL4WQAKjGVM4hR6jeABs` (claude/t133-bar-width). Deck Brackets 3 assigned the new Drive deck Rules Lawyers [B4] (Winota) with the bracket check. Priority 2: stage 6 UI fixes, then T-132.
 - [V] Rules roadmap (user, 2026-11-28): after T-127, work through docs/briefs/rules-roadmap.md one area at a time ("continue ... until we ingest and apply all rules properly"). Next: T-132 targets for triggered/activated abilities when put on the stack (602.2b/603.3d/608.2b; spells already lock targets on cast since T-072, v197), after v225 is live. Each area changes results a little, so the ranking (T-126) shows the version it was run on.
@@ -122,6 +123,7 @@ Accepted decisions:
 
 ## 3. Latest verified version
 
+- [V] **Version 226** (2026-11-28 11:38 UTC): PR #198, 4/4 + Pages green: T-134 step 1 (Puzzle tap -> viewer with actions; prices/printings kept) + Rules Lawyers deck (B4 verified, deck files only from claude/deck-brackets). Engine 283 + deck tests ok; UI puzzles 118, viewer files ok; ipad-card-tap timed out under --jobs 2, passed alone.
 - [V] **Version 225** (2026-11-28 10:47 UTC): PR #197, 4/4 + Pages green: copyright LICENSE (SWD Marketing) + T-110 UI test health (supersedes PR #187, closed). Engine 283 ok; 21 UI files ok except remote-mobile (live bug, T-133). Stage 6 (full priority) moves to v226.
 - [V] **Version 224** (2026-11-28 09:10 UTC): PR #196, 4/4 + Pages green: T-127 stages 4-5 (off by default). Suite 283, sweep bad 0, UI priority/decisions/versus/versus-fit.
 - [V] **Version 223** (2026-11-28 08:34 UTC): PR #195, 4/4 + Pages green: T-127 stage 3 (off by default). Suite 281, sweep bad 0, UI priority/decisions/versus/versus-fit. One engine job hit tune.test.js's 300 s cap (275 s locally; the other engine run passed the same commit); passed on its single re-run. Open: tune.test.js runs close to its cap.
