@@ -139,6 +139,74 @@
    "reason": "speed says B1 (median kill T>10); card rules say at least B4 (18 Game Changers (B3 allows 3); mass land denial: Back to Basics, Blood Moon, Decree of Annihilation, Magus of the Moon, Mana Breach, Mana Vortex, Rising Waters, Stasis, Static Orb, Sunder, Tectonic Break, Winter Moon, Winter Orb; 1 cheap two-card infinite combo (e.g. Dramatic Reversal + Isochron Scepter, 4 mana))"
   },
   {
+   "file": "blood-bank.txt",
+   "name": "Blood Bank (Edgar Markov)",
+   "stated": 4,
+   "verified": 3,
+   "commander": true,
+   "goldfish": {
+    "games": 20000,
+    "errors": 0,
+    "medianKill": 7,
+    "by2": 0,
+    "by3": 0.1,
+    "by4": 0.7,
+    "by5": 6.2,
+    "by6": 25.3,
+    "by7": 63.7,
+    "by8": 87.8,
+    "byT": 98.5,
+    "earliestKill": 3,
+    "killHist": [
+     0,
+     0,
+     0.075,
+     0.665,
+     5.475,
+     19.13,
+     38.345,
+     24.11,
+     8.23,
+     2.43,
+     1.54
+    ],
+    "cmdrMedian": 6,
+    "mana4": 4.22,
+    "winBy": {
+     "damage": 64.1,
+     "combo": 31.4,
+     "commander": 2.9
+    },
+    "topLine": {
+     "kind": "combo",
+     "text": "Enduring Tenacity + Bloodthirsty Conqueror: each drain gains life, each life gained drains",
+     "share": 0.0592,
+     "avgTurn": 6.8108108108108105
+    }
+   },
+   "field": null,
+   "rules": {
+    "gameChangers": [
+     "Demonic Tutor",
+     "Necropotence",
+     "Vampiric Tutor"
+    ],
+    "massLandDenial": [],
+    "extraTurns": [],
+    "twoCardInfinite": 12,
+    "cheapTwoCard": [],
+    "floor": 3,
+    "why": [
+     "3 Game Changers (B1-B2 allow none)",
+     "12 two-card infinite combos (all over 6 mana)"
+    ]
+   },
+   "speedBracket": 3,
+   "reason": "speed says B3 (median kill T7); card rules say at least B3 (3 Game Changers (B1-B2 allow none); 12 two-card infinite combos (all over 6 mana))",
+   "version": 229,
+   "date": "2026-11-28"
+  },
+  {
    "file": "bridge-to-the-inevitable-abyss.txt",
    "name": "Bridge to the Inevitable Abyss (Esika, God of the Tree)",
    "stated": 4,
@@ -4459,6 +4527,45 @@
    "matchTurns": 25,
    "seed": 20261123,
    "seconds": 78,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "blood-bank.txt"
+   ],
+   "version": 226,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 73,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "blood-bank.txt"
+   ],
+   "version": 229,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 77,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "blood-bank.txt"
+   ],
+   "version": 229,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 7,
    "jobs": 4
   }
  ]

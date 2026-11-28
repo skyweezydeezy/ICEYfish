@@ -486,7 +486,16 @@
    "importedAt": "2026-11-28T11:43:44.742Z",
    "verified": 4,
    "verifiedAt": "2026-11-28"
+  },
+  "Blood Bank [B4] (Edgar Markov).txt": {
+   "deck": "blood-bank.txt",
+   "bracket": 4,
+   "id": "10s4xXBz_ZStTljX4LVvnBL_P_2IRwRvr",
+   "modifiedTime": "2026-11-28T11:24:17.549Z",
+   "importedAt": "2026-11-28T11:55:14.522Z",
+   "verified": 3,
+   "verifiedAt": "2026-11-28"
   }
  },
- "checkedAt": "2026-11-28T11:43:44.742Z"
+ "checkedAt": "2026-11-28T11:55:14.523Z"
 }

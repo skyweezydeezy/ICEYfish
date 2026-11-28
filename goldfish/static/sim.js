@@ -130,6 +130,7 @@
     const a = ctx.card.a, c = ctx.card;
     switch (R.k) {
       case 'creature': return a.isCreature;
+      case 'types': return matchesFilter(c, R.ts.join('|'));          // Master of Dark Rites: Vampire, Cleric and/or Demon spells
       case 'type': return (R.anySpell || a.isCreature) && matchesFilter(c, R.t);
       case 'legendary': return a.isLegendary;
       case 'eldrazi': return !colorsOf(g, c).length && matchesFilter(c, 'eldrazi');
@@ -654,6 +655,7 @@
       const rec = { text: stPre + raw, status: 'ignored' };
       a.coverage.push(rec);
       if (TRACING) traceStart(a, rec);
+      { const sr = line.match(/^\{t\}, sacrifice another creature: add ((?:\{[wubrgc]\})+)\. spend this mana only to cast ([a-z,/ ]+?) spells\.?$/i); if (sr) { const pr = parseAdd('add ' + sr[1]), ts = sr[2].toLowerCase().split(/,? and\/or |, and |, | and /).map(x => x.trim()).filter(Boolean); if (pr && ts.length) { a.sacRestrict = { colors: pr.colors, amount: pr.amount, ts }; rec.status = 'ok'; continue; } } }          // Master of Dark Rites: {T}, sacrifice another creature, mana only for some creature types' spells
       if (/^choose a creature type\. for each [^.]*, create a token that's a copy of that creature\. those tokens gain haste\. exile them at the beginning of the next end step\.?$/i.test(raw)) { a.spellFx.push({ type: 'tribeSpell', op: 'charge' }); rec.status = 'ok'; continue; }          // Kindred Charge (it was read as a copy effect that made nothing)
       // draw, then a discard the generic reading dropped (only the draw was played)
       { let dm;
@@ -4694,7 +4696,7 @@
   // T-061: with infinite mana taken (g.infMana, this turn only) the floating pool is topped up to a big finite number whenever it runs low
   function topUpInf(g) { const im = g.infMana; if (!im || im.turn !== g.turn || g.floating.length >= 50) return; const cols = new Set(im.colors); while (g.floating.length < COMBO_BIG) g.floating.push({ src: null, colors: cols, floating: true }); }
   let wbG = null;          // T-104: the game whose units canPay may extend with the waterbend taps (a cost with .wb)
-  function allUnits(g) { wbG = g; if (g._noMana) return []; if (g._comOnly) return g.floating.filter(u => u.combat); if (g.infMana) topUpInf(g); const f = g.floating, u = manaUnits(g); return f && f.length ? f.concat(u) : u; }          // g._comOnly: only the firebending mana (what a combat ability may spend before it is lost)
+  function allUnits(g) { wbG = g; if (g._noMana) return []; if (g._comOnly) return g.floating.filter(u => u.combat); if (g.infMana) topUpInf(g); const f = g.floating, u = manaUnits(g); return f && f.length ? (f.some(x => x.restrict) ? f.filter(x => !x.restrict || restrictOk(g, x.restrict, g._payFor)) : f).concat(u) : u; }          // g._comOnly: only the firebending mana (what a combat ability may spend before it is lost)
   // Mycosynth Lattice: every permanent is an artifact; Enchanted Evening: every permanent is an enchantment
   const latticeOn = g => !!(bfInfo(g).lattice || (g.opp && bfInfo(g.opp).lattice));
   const artOn = (g, q) => q.card.a.isArtifact || !!q.eotArt || latticeOn(g) || (tableHas(g, 'statics.myco') && mycoOn(g, q));
@@ -10627,6 +10629,22 @@ g.actSeq = (g.actSeq || 0) + 1;
         return ev2 ? pre.concat(ev2) : pre;
       }
     }
+    // Master of Dark Rites: {T}, sacrifice another creature for {B}{B}{B} that only a Vampire, Cleric or Demon spell can use: only for such a spell nothing else can pay for, and only a creature that is fine to lose
+    if (!best && !g.dry && (tableHas(g, 'sacRestrict') && g.battlefield.some(p => p.card.a.sacRestrict && !sickTap(g, p)))) {
+      const mk = g.battlefield.find(p => p.card.a.sacRestrict && !sickTap(g, p)), R = mk.card.a.sacRestrict, v = fodderList(g, true).find(x => x.p !== mk);
+      if (v) {
+        const more = units.concat(Array.from({ length: R.amount }, () => ({ src: null, colors: R.colors, floating: true })));
+        for (const c of cands) { const a = c.card.a; if (!a.isCreature || !matchesFilter(c.card, R.ts.join('|')) || (a.mv || 0) < 3) continue; if (!canPay(effectiveCost(g, c), more) || (a.sacCreatureCost && !pickSacrifice(g, a))) continue; const sc = spellScore(g, c); if (sc > -1 && (!best || sc > bestScore)) { best = c; bestScore = sc; } }
+        if (best) {
+          const pre = []; mk.tapped = true; sacEvent(g, v.p, pre); leavePerm(g, v.p, pre); flushLeaves(g, pre);
+          const RR = { k: 'types', ts: R.ts };
+          for (let j = 0; j < R.amount; j++) g.floating.push({ src: null, colors: R.colors, floating: true, restrict: RR });
+          pre.push({ type: 'note', text: `${mk.card.name}: sacrificed ${v.p.card.name} for ${R.amount} mana that only ${R.ts.join(', ')} spells can use`, source: mk });
+          const ev2 = castCard(g, best);
+          return ev2 ? pre.concat(ev2) : pre;
+        }
+      }
+    }
     if (!best && !g.dry && (tableHas(g, 'steamMana') && g.battlefield.some(p => p.card.a.steamMana && (p.counters || 0) >= 3))) {            // Runaway Steam-Kin: remove three +1/+1 counters for {R}{R}{R}
       const kin = (tableHas(g, 'steamMana') ? g.battlefield.filter(p => p.card.a.steamMana && (p.counters || 0) >= 3) : []); let kk = 0;
       for (let k = 1; k <= kin.length && !best; k++) {
@@ -11074,6 +11092,14 @@ g.actSeq = (g.actSeq || 0) + 1;
       const v = sacVictim(ev, p.card.name); if (!v) return;
       for (let i = 0; i < a.altar.n; i++) g.floating.push({ src: null, colors: a.altar.any ? new Set(['W', 'U', 'B', 'R', 'G']) : new Set(['C']), floating: true });
       ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${v.card.name} for ${a.altar.n} mana`, source: p });
+    });
+    if (a.sacRestrict) add(`{T}, Sacrifice another creature: add ${'{' + [...a.sacRestrict.colors][0] + '}'}×${a.sacRestrict.amount} (only for ${a.sacRestrict.ts.join(', ')} spells)`, '{T}, Sacrifice another creature', blocked || sickTap(g, p) || (g.battlefield.some(q => q !== p && isCreaturePerm(q)) ? null : 'you control no other creature'), ev => {
+      const vs = g.battlefield.filter(q => q !== p && isCreaturePerm(q)); let v = fodderList(g, true).map(x => x.p).find(q => q !== p) || vs.slice().sort((x, y) => creatureValue(g, x) - creatureValue(g, y))[0];
+      if (g.ask) v = decide(g, { kind: 'sacrifice', options: vs, def: v, ability: p.card.name, optional: true, source: p });
+      if (!v || !g.battlefield.includes(v)) return;
+      p.tapped = true; sacEvent(g, v, ev); leavePerm(g, v, ev); flushLeaves(g, ev);
+      for (let i = 0; i < a.sacRestrict.amount; i++) g.floating.push({ src: null, colors: a.sacRestrict.colors, floating: true, restrict: { k: 'types', ts: a.sacRestrict.ts } });
+      ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${v.card.name} for ${a.sacRestrict.amount} mana that only ${a.sacRestrict.ts.join(', ')} spells can use`, source: p });
     });
     if (a.sacScry) add(`Sacrifice a creature: ${a.sacSurveil ? 'surveil' : 'scry'} ${a.sacScry}`, 'Sacrifice a creature', blocked || anyCreature, ev => {
       const v = sacVictim(ev, p.card.name); if (!v) return;
