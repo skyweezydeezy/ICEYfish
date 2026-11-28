@@ -1563,6 +1563,12 @@
     snap();
     quiet(yoursC(x => G.castCard(x, sameInst(x, inst), force)).then(ev => castDone(ev, inst, el, a)));
   }
+  // T-135: play the top card of the library (the cards in play say how: a land, mana, or Bolas's Citadel's life); the stack and the log are the engine's
+  function playFromTop(via, el) {
+    const g = S.game; if (!g || S.busy) return;
+    snap();
+    quiet(yoursC(x => G.playTop(x, via)).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('It cannot be played from the top of your library now'); } play(ev); }));
+  }
   function castDone(ev, inst, el, a) {
     if (!ev) { S.undo.pop(); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); sfx('error'); return toast(a.isAura ? 'You need a creature to enchant. Shift-click to cast anyway.' : 'Not enough mana. Shift-click to cast it anyway.'); }
     play(ev);
@@ -1977,9 +1983,15 @@
     const zones = { hand: g.hand, battlefield: g.battlefield, graveyard: g.graveyard, exile: g.exile, command: g.command };
     let zone = null, obj = null;
     for (const [z, arr] of Object.entries(zones)) { const f = arr.find(x => x.iid === iid); if (f) { zone = z; obj = f; } }
+    if (!obj && g.library[0] && g.library[0].iid === iid && G.topPlay(g)) { zone = 'library'; obj = g.library[0]; }          // T-135: the exposed top card of the library
     if (!obj) return null;
     const inst = zone === 'battlefield' ? obj.inst : obj;
     const items = [];
+    if (zone === 'library') {          // what the cards in play let you do with it right now; what cannot be done now is greyed with the reason (the viewer's 5th field)
+      G.topPlay(g).options.forEach(o => items.push([o.label + (o.source ? ` (${o.source})` : '') + (forViewer || o.ok ? '' : ' — not now: ' + o.why), o.ok ? () => playFromTop(o.via, m) : () => { sfx('error'); toast(o.why); }, o.ok ? 'primary' : '', false, o.ok ? null : o.why]));
+      if (!forViewer) items.push(['🔍 View card', () => showLightbox(inst.card, m)]);
+      return { inst, items };
+    }
     const act = fn => () => { snap(); fn(); G.touch(g); render(); };
     const move = (to, top) => act(() => {
       if (zone === 'battlefield') G.removePerm(g, obj); else zones[zone].splice(zones[zone].indexOf(obj), 1);
@@ -1990,7 +2002,8 @@
       else zones[to].push(inst);
       log(`${esc(inst.card.name)} → ${to}${to === 'library' ? (top ? ' (top)' : ' (bottom)') : ''}`);
     });
-    if (zone === 'hand' || zone === 'command') items.push([inst.card.a.isLand ? '▶ Play land' : '▶ Cast', () => playFromHand(inst, false, m), 'primary']);
+    const ban = zone === 'hand' && G.handBan(g) ? `${G.handBan(g)}: you can't play cards from your hand` : null;          // T-135: Experimental Frenzy
+    if (zone === 'hand' || zone === 'command') items.push([(inst.card.a.isLand ? '▶ Play land' : '▶ Cast') + (ban && !forViewer ? ' — not now: ' + ban : ''), ban ? () => { sfx('error'); toast(ban); } : () => playFromHand(inst, false, m), ban ? '' : 'primary', false, ban]);
     if (zone === 'graveyard' && G.yardCastable(g, inst)) items.push(['▶ Cast from your graveyard', () => playFromHand(inst, false, m), 'primary']);          // Zul Ashur let you cast it this turn
     if (zone === 'hand' && inst.card.a.typecycle) items.push([`🔎 ${inst.card.a.typecycle.basic ? 'Basic land' : inst.card.a.typecycle.type === 'land' ? 'Land' : inst.card.a.typecycle.type[0].toUpperCase() + inst.card.a.typecycle.type.slice(1)}cycle (search for a land)`, () => { snap(); quiet(yours(x => G.landcycleCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to cycle it'); } play(ev); })); }]);
     if (zone === 'hand' && inst.card.a.transmute) items.push([`🔎 Transmute (search for a card with mana value ${inst.card.a.mv || 0})`, () => { snap(); quiet(yours(x => G.transmuteCard(x, sameInst(x, inst), [])).then(ev => { if (!ev) { S.undo.pop(); sfx('error'); return toast('Not enough mana to transmute it'); } play(ev); })); }]);

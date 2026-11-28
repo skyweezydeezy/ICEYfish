@@ -172,6 +172,8 @@
     drake: ['exchange for which creature?', 'Choose the creature of theirs you gain control of; they gain control of this creature.'],
     threaten: ['gain control of which creature?', 'Choose the creature you gain control of until end of turn. It untaps and gains haste.'],
     astral: ['copy which permanent?', 'Choose the noncreature permanent: you create two tokens that are copies of it, 3/3 flying Dragon creatures as well.'],
+    distribute: ['put a +1/+1 counter on which creature?', 'Choose up to three target creatures, one at a time (choose none to stop). The three +1/+1 counters are distributed among them, each getting at least one, and they gain vigilance until end of turn.'],
+    distributeExtra: ['which creature gets the extra counter?', 'With fewer than three targets, the remaining +1/+1 counters are distributed among them.'],
     oath: ['exile which permanent?', 'Choose another permanent of yours to exile. It returns to the battlefield at the beginning of the next end step.'],
     fangs: ['choose a creature', 'Choose the creature that gets a +1/+1 counter; then its +1/+1 counters are doubled.'],
     flickerAll: ['flicker which creatures?', 'Choose any number of your creatures to exile. They return to the battlefield at the beginning of the next end step (a token does not come back, so tokens are left alone).'],
@@ -216,7 +218,7 @@
       else if (d.kind === 'combo') { item.name = o.label; item.note = o.note || ''; item.id = o.id; }
       else if (d.kind === 'shock') { item.name = o === 'pay' ? `Pay ${d.life} life` : 'Enter tapped'; item.note = o === 'pay' ? `it enters untapped · you go to ${g.life - d.life} life` : 'no life paid · it can\'t tap for mana this turn'; }
       else if (d.kind === 'tax') { item.name = o === 'pay' ? `Pay {${d.cost}}` : 'Do not pay'; item.note = o === 'pay' ? `you have ${G.allUnits(g).length} untapped mana` : taxThen(d, g, m); }          // T-080: "unless that player pays"
-      else if (d.kind === 'may') { item.name = o === 'yes' ? d.yes || 'Yes' : d.no || 'No'; }          // T-090: a plain "you may" (Sylvan Library)
+      else if (d.kind === 'may') { item.name = o === 'yes' ? d.yes || 'Yes' : d.no || 'No'; if (o === 'yes' && d.yesWhy) { item.disabled = true; item.note = d.yesWhy; } }          // T-090: a plain "you may" (Sylvan Library)
       else if (d.kind === 'color') { item.name = d.basic ? { W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest' }[o] + ' (' + (G.COLOR_NAME[o] || o) + ')' : G.COLOR_NAME[o] || o; const n = (d.counts || {})[o] || 0; item.note = `${n} card${n === 1 ? '' : 's'} left in your library and hand`; }
       else if (d.kind === 'player') { item.name = m && m.names ? m.names[o.pid] : 'Opponent'; item.owner = o.pid; item.note = `${o.life} life · ${o.hand.length} card${o.hand.length === 1 ? '' : 's'} in hand · ${o.battlefield.filter(p => G.isCreaturePerm(p)).length} creatures`; }
       else if (d.kind === 'x' && d.what === 'squad') { item.name = o ? `Pay squad ${o === 1 ? 'once' : o + ' times'}` : 'Don\'t pay squad'; item.note = o ? `${o} token cop${o === 1 ? 'y' : 'ies'} of it as it enters` : 'just the card'; }

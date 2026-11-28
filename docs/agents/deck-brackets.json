@@ -3440,42 +3440,50 @@
   {
    "file": "tidal-loop.txt",
    "name": "Tidal Loop (Hakbal of the Surging Soul)",
-   "stated": 4,
+   "stated": 5,
    "verified": 4,
    "commander": true,
    "goldfish": {
     "games": 20000,
     "errors": 0,
-    "medianKill": 8,
+    "medianKill": 7,
+    "by2": 0,
+    "by3": 0,
     "by4": 0.1,
     "by5": 1,
-    "by6": 15,
-    "by7": 49.9,
-    "by8": 79.4,
-    "byT": 94.3,
+    "by6": 15.6,
+    "by7": 51.6,
+    "by8": 80.6,
+    "byT": 94.8,
+    "earliestKill": 3,
+    "killHist": [
+     0,
+     0,
+     0.01,
+     0.06,
+     0.95,
+     14.565,
+     35.99,
+     29.025,
+     10.31,
+     3.885,
+     5.205
+    ],
     "cmdrMedian": 4,
-    "mana4": 4.74,
+    "mana4": 4.8,
     "winBy": {
-     "damage": 54.3,
-     "commander": 37.8,
-     "combo": 2.2
+     "commander": 38.1,
+     "damage": 54.2,
+     "combo": 2.4
     },
     "topLine": {
      "kind": "combo",
      "text": "infinite mana (Isochron Scepter + Dramatic Reversal) into Walking Ballista",
-     "share": 0.0108,
-     "avgTurn": 7.148148148148148
+     "share": 0.0092,
+     "avgTurn": 7.260869565217392
     }
    },
-   "field": {
-    "games": 20008,
-    "wins": 9962,
-    "losses": 10010,
-    "none": 36,
-    "errors": 0,
-    "winRate": 49.8,
-    "opponents": "41 other Commander decks"
-   },
+   "field": null,
    "rules": {
     "gameChangers": [
      "Ancient Tomb",
@@ -3532,8 +3540,10 @@
      "3 cheap two-card infinite combos (e.g. Dramatic Reversal + Isochron Scepter, 4 mana)"
     ]
    },
-   "speedBracket": 2,
-   "reason": "speed says B2 (median kill T8); card rules say at least B4 (12 Game Changers (B3 allows 3); 3 cheap two-card infinite combos (e.g. Dramatic Reversal + Isochron Scepter, 4 mana))"
+   "speedBracket": 3,
+   "reason": "speed says B3 (median kill T7); card rules say at least B4 (12 Game Changers (B3 allows 3); 3 cheap two-card infinite combos (e.g. Dramatic Reversal + Isochron Scepter, 4 mana))",
+   "version": 230,
+   "date": "2026-11-28"
   },
   {
    "file": "tidecaller.txt",
@@ -4566,6 +4576,19 @@
    "matchTurns": 25,
    "seed": 20261123,
    "seconds": 7,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "tidal-loop.txt"
+   ],
+   "version": 230,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 101,
    "jobs": 4
   }
  ]
