@@ -38,7 +38,7 @@ G.setFuzzy(null);
   p.on('pageerror', e => errs.push(e.message));
   const load = async () => {
     await p.goto('http://127.0.0.1:8800/');
-    await p.fill('#deckText', `1 ${pick.name}\n30 Forest\n`);
+    await p.selectOption('#optFormat', '60'); await p.fill('#deckText', `1 ${pick.name}\n59 Forest\n`);
     await p.click('#loadDeck');
     await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
