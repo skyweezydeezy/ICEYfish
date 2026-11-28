@@ -152,36 +152,36 @@
     "by3": 0.1,
     "by4": 0.7,
     "by5": 6.2,
-    "by6": 24.9,
-    "by7": 62.7,
-    "by8": 87.2,
-    "byT": 98.4,
+    "by6": 25.3,
+    "by7": 63.7,
+    "by8": 87.8,
+    "byT": 98.5,
     "earliestKill": 3,
     "killHist": [
      0,
      0,
      0.075,
-     0.67,
-     5.42,
-     18.77,
-     37.75,
-     24.505,
-     8.54,
-     2.665,
-     1.605
+     0.665,
+     5.475,
+     19.13,
+     38.345,
+     24.11,
+     8.23,
+     2.43,
+     1.54
     ],
     "cmdrMedian": 6,
     "mana4": 4.22,
     "winBy": {
-     "damage": 63.7,
-     "combo": 31.8,
+     "damage": 64.1,
+     "combo": 31.4,
      "commander": 2.9
     },
     "topLine": {
      "kind": "combo",
      "text": "Enduring Tenacity + Bloodthirsty Conqueror: each drain gains life, each life gained drains",
-     "share": 0.0536,
-     "avgTurn": 6.8059701492537314
+     "share": 0.0592,
+     "avgTurn": 6.8108108108108105
     }
    },
    "field": null,
@@ -203,7 +203,7 @@
    },
    "speedBracket": 3,
    "reason": "speed says B3 (median kill T7); card rules say at least B3 (3 Game Changers (B1-B2 allow none); 12 two-card infinite combos (all over 6 mana))",
-   "version": 226,
+   "version": 229,
    "date": "2026-11-28"
   },
   {
@@ -4540,6 +4540,32 @@
    "matchTurns": 25,
    "seed": 20261123,
    "seconds": 73,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "blood-bank.txt"
+   ],
+   "version": 229,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 77,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "blood-bank.txt"
+   ],
+   "version": 229,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 7,
    "jobs": 4
   }
  ]
