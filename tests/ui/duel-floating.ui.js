@@ -20,7 +20,16 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('#tab-duel .vs-new');
   await p.waitForSelector('#tab-duel .vs-keep', { state: 'attached', timeout: 60000 }); await p.evaluate(() => document.querySelector('#tab-duel .vs-keep').click());
   // the main step: poll until End turn is there, then act in the same breath (the autopilot's steps redraw the page)
-  const reached = await p.waitForFunction(() => document.querySelector('#tab-duel .vs-end') && window.__isfVersus.duel.game.human != null, null, { timeout: 90000, polling: 50 }).then(() => true, () => false);
+  // T-132: who goes first is random; if the opponent does, it may cast a spell the seated person can answer and a "does it resolve?" sheet opens first. Answer it with its default ("Not now"/auto) and go on, so the test no longer depends on the die.
+  const reached = await (async () => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < 90000) {
+      if (await p.evaluate(() => !!document.querySelector('#tab-duel .vs-end') && window.__isfVersus.duel.game.human != null && !document.querySelector('.ch-sheet') && !window.__isfVersus.duel.game.acting)) return true;
+      await p.evaluate(() => { const x = document.querySelector('.ch-sheet .ch-none') || document.querySelector('.ch-sheet .ch-auto') || document.querySelector('.ch-sheet .ch-ok'); if (x) x.click(); });
+      await p.waitForTimeout(100);
+    }
+    return false;
+  })();
   if (!reached) console.log('STATE', JSON.stringify(await p.evaluate(() => ({ ask: [...document.querySelectorAll('#tab-duel .vs-ask')].map(e => e.innerText.slice(0, 160)), btns: [...document.querySelectorAll('#tab-duel button')].filter(e => e.offsetParent).map(e => e.className.split(' ').pop()), sheet: [...document.querySelectorAll('.ch-sheet')].map(e => e.className) }))));
   const mine = () => p.evaluate(() => { const gm = window.__isfVersus.duel.game; return gm && gm.human != null; });
   check('a Duel with a seated person is on its main step', await p.$('#tab-duel .vs-end') !== null && await mine());
