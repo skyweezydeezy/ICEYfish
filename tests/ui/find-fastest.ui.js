@@ -28,14 +28,14 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.click('#deckWatch .dw-find');
   await p.waitForFunction(() => /Searching|Loading/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 30000 });
   check('the line shows progress while it searches', true);
-  await p.waitForFunction(() => /^Fastest win vs .+: turn \d+ · /.test(document.querySelector('#deckWatch .dw-line').textContent) || /No win found/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 280000 });
-  const line = await p.textContent('#deckWatch .dw-line'), spec = await p.evaluate(() => JSON.parse(document.querySelector('#deckWatch').dataset.spec || 'null'));
+  await p.waitForFunction(() => /^Fastest win vs .+: turn \d+ · /.test((document.querySelector('#deckWatch .dw-full') || {}).textContent || '') || /No win found/.test(document.querySelector('#deckWatch .dw-line').textContent), null, { timeout: 280000 });
+  const line = await p.textContent('#deckWatch .dw-full'), spec = await p.evaluate(() => JSON.parse(document.querySelector('#deckWatch').dataset.spec || 'null'));
   check('it finds a win: "Fastest win vs <deck>: turn N" with Watch, and Search again moves behind the i', !!spec && await p.isVisible('#deckWatch .dw-go') && /Search again/.test(await p.textContent('#deckWatch .dw-find')) && await p.isHidden('#deckWatch .dw-find'), line);
   await p.reload(); await p.waitForFunction(() => document.querySelectorAll('#savedDecks option[value^="builtin:"]').length > 10, null, { timeout: 30000 });
   await p.fill('#deckText', fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'frodo.txt'), 'utf8')); await p.click('#loadDeck');
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 90000 });
   await p.waitForSelector('#deckWatch:not([hidden])', { timeout: 20000 });
-  check('after a reload and loading the same deck again, the found win is still there', await p.textContent('#deckWatch .dw-line') === line && await p.isVisible('#deckWatch .dw-go'), await p.textContent('#deckWatch .dw-line'));
+  check('after a reload and loading the same deck again, the found win is still there', await p.textContent('#deckWatch .dw-full') === line && await p.isVisible('#deckWatch .dw-go'), await p.textContent('#deckWatch .dw-full'));
   await p.click('#deckWatch .dw-go');
   await p.waitForFunction(() => document.body.dataset.view === 'duel', null, { timeout: 60000 });
   await p.waitForSelector('.vs-dice', { timeout: 60000 });

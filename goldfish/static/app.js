@@ -333,13 +333,14 @@
     const f = mine && (!st || mine.turn < st.turn) ? mine : st, opp = f && builtinByValue('builtin:' + f.opp);
     el.dataset.file = d ? d.file : ''; el.dataset.key = key; el.dataset.name = d ? d.name : (S.deck.commanders[0] && S.deck.commanders[0].card.name) || 'Your deck';
     const r = f && f.rarity, it = f && f.interaction, rare = r ? (r.oneIn ? `about 1 game in ${r.oneIn.toLocaleString()}` : `rarer than 1 in ${r.goldfish.toLocaleString()}`) : '';
-    el.querySelector('.dw-line').textContent = f && opp ? `Fastest win vs ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}: turn ${f.turn}${rare ? ' · ' + rare : ''}` : 'Fastest Duel win: not searched yet';
+    const oname = opp ? opp.name.replace(/\s*\([^)]*\)\s*$/, '') : '', ln = el.querySelector('.dw-line');
+    ln.innerHTML = f && opp ? `<span class="dw-full">Fastest win vs ${esc(oname)}: turn ${f.turn}${rare ? ' · ' + rare : ''}</span><span class="dw-short">Fastest win vs ${esc(oname)}: T${f.turn}${r ? ' · 1 in ' + (r.oneIn ? r.oneIn.toLocaleString() : '>' + r.goldfish.toLocaleString()) : ''}</span>` : 'Fastest Duel win: not searched yet';
     el.querySelector('.dw-detail').textContent = f && opp ? ` Found by playing ${r ? r.goldfish.toLocaleString() : 'many'} goldfish games to rank seeds, then ${f.stage2 || 'many'} Duels against ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}, a Bracket 3 deck with blockers, removal and counterspells that does not win fast itself. "About 1 game in N" is how often the goldfish games kill by turn ${f.turn}. In this game the opponent fought back ${it ? it.total : '?'} time${it && it.total === 1 ? '' : 's'}: ${it ? `${it.blocks} block${it.blocks === 1 ? '' : 's'}, ${it.counters} counterspell${it.counters === 1 ? '' : 's'}, ${it.removal} removal` : ''}.` : '';
     el.querySelector('.dw-go').hidden = !(f && opp);
     const fb = el.querySelector('.dw-find') || (() => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost dw-find'; return b; })();
     fb.textContent = f ? '🔍 Search again' : '🔍'; fb.title = 'Find fastest win: search this deck\'s quickest win in a Duel against the standard opponent (about half a minute)'; fb.setAttribute('aria-label', 'Find fastest win');
     (f && opp ? el.querySelector('.dw-slot2') : el.querySelector('.dw-slot')).appendChild(fb);          // one line: a small 🔍 on it until there is a result; then Search again sits behind the i
-    el.querySelector('.dw-line').title = el.querySelector('.dw-line').textContent;
+    ln.title = f && opp ? ln.querySelector('.dw-full').textContent : '';
     el.dataset.spec = f && opp ? JSON.stringify(Object.assign({}, f, d ? { file: d.file } : { self: true, name: el.dataset.name })) : '';
     el.hidden = false;
   }

@@ -1528,3 +1528,5 @@ body.tfocus .vs-me .row:has(.vs-block-go), body.tfocus .vs-me > .row:last-child 
 .deck-speed .dw-go, .deck-speed .dw-find { padding: 2px 8px; font-size: .85rem; }
 .vs-seat.opp .vs-hand { justify-content: center; margin: 0 0 4px; }
 .vs-bar .vs-jump { max-width: 8.5em; }
+#deckWatch .dw-short { display: none; }
+@media (max-width: 600px) { #deckWatch .dw-full { display: none; } #deckWatch .dw-short { display: inline; } #deckWatch .dw-go { padding: 2px 6px; } #deckWatch .dw-line { font-size: .74rem; } }          /* a phone: the line says T6 · 1 in 294 */

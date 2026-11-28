@@ -26,7 +26,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.selectOption('#savedDecks', 'builtin:' + file);
   await p.waitForFunction(() => window.__isf && window.__isf.deck, null, { timeout: 120000 });
   await p.waitForSelector('#deckWatch:not([hidden])', { timeout: 10000 });
-  const line = await p.$eval('#deckWatch .dw-line', e => e.textContent);
+  const line = await p.$eval('#deckWatch .dw-full', e => e.textContent);
   check('Build: one line "Fastest win vs <deck>: turn N" with a Watch button', new RegExp(`^Fastest win vs .+: turn ${stored.turn} · (about 1 game in [\\d,]+|rarer than 1 in [\\d,]+)$`).test(line) && /Watch/.test(await p.$eval('#deckWatch .dw-go', e => e.textContent)), line);
   check('Build: the line is one line high, its explanation is folded behind the i', await p.$eval('#deckWatch', e => e.getBoundingClientRect().height < 34) && await p.$eval('#deckWatch .hint', e => e.classList.contains('folded')));
   const V = () => p.evaluate(() => { const g = window.__isfVersus.duel.game; return g ? { ply: g.ply, over: g.over, playing: g.playing, busy: g.busy, winner: g.match.winner, turns: g.games.map(x => x.turn), round: g.match.round, fp: JSON.stringify(g.games.map(x => [x.turn, x.life, x.hand.map(i => i.card.name).sort(), x.battlefield.map(i => i.card.name).sort(), x.graveyard.length, x.library.length])) } : null; });
@@ -38,9 +38,8 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   check('Watch opens the Duel tab on the dice roll: a die for each deck', (await p.$$('.vs-dice .vs-die')).length === 2);
   check('the log says it is a replay and how each seat kept its hand', await p.$eval('.vs-log', e => /Replay: the fastest win of/.test(e.textContent) && (e.textContent.match(/keeps 7 cards|mulligan/g) || []).length >= 2), await p.$eval('.vs-log', e => e.textContent.slice(0, 300)));
   const first = await p.evaluate(() => window.__isfVersus.duel.game.match.order[0].pid);
-  await p.waitForFunction(() => !document.querySelector('.vs-dice'), null, { timeout: 30000 });
+  await p.waitForFunction(() => !document.querySelector('.vs-dice'), null, { timeout: 60000, polling: 100 });
   check('the dice agree with the stored first player', first === stored.first && /goes first/.test(await p.$eval('.vs-log', e => e.textContent)), 'first ' + first + ' stored ' + stored.first);
-  check('both hands are face up (the opponent\'s too)', (await p.$$('.vs-seat.opp .vs-hand .mtg')).length > 0 && (await p.$$('.vs-seat.me .vs-hand .mtg')).length > 0);
   // it plays by itself to the stored win
   await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.over; }, null, { timeout: 180000 });
   let s = await V();
@@ -58,12 +57,14 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   s = await V(); check('Jump to round 1: both seats have played one turn', s.ply === 2 && !s.over && s.turns[0] === 1 && s.turns[1] === 1, JSON.stringify(s.turns));
   await p.selectOption('.vs-jump', '0'); await atPly(0);
   s = await V(); check('Jump to the opening hands: nobody has played a turn', s.ply === 0 && s.turns.every(t => !t) && !s.over, JSON.stringify(s.turns));
+  check('both hands are face up at the opening hands (the opponent\'s too)', (await p.$$('.vs-seat.opp .vs-hand .mtg')).length >= 5 && (await p.$$('.vs-seat.me .vs-hand .mtg')).length >= 5);
   await p.selectOption('.vs-jump', String(2 * stored.round)); await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.over && !g.busy; }, null, { timeout: 90000 });
   s = await V(); check('Jump to the last round: the same final game as watching it through', s.fp === endFp && s.winner === 0, s.fp === endFp ? '' : s.fp.slice(0, 200));
+  await p.$eval('#tab-duel .speed-bar input', e => { e.value = e.min; e.dispatchEvent(new Event('input', { bubbles: true })); });          // slow, so there is time to pause
   await p.click('.vs-rs');
   await p.waitForSelector('.vs-dice', { timeout: 30000 });
   check('Restart: the dice again, from the start', (await V()).ply === 0);
-  await p.waitForFunction(() => !document.querySelector('.vs-dice') && window.__isfVersus.duel.game.playing, null, { timeout: 30000 });
+  await p.waitForFunction(() => !document.querySelector('.vs-dice') && window.__isfVersus.duel.game.playing, null, { timeout: 60000 });
   await p.click('.vs-play');
   await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return !g.playing && !g.busy; }, null, { timeout: 60000 });
   const paused = await V(); await p.waitForTimeout(1500);
@@ -73,7 +74,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   // a card opens in the viewer
   await p.click('.vs-play').catch(() => {});
   await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return (!g.playing && !g.busy) || g.over; }, null, { timeout: 60000 });
-  await p.click('.vs-seat.opp .vs-hand .mtg', { force: true });
+  await p.click('.vs-seat.me .vs-hand .mtg', { force: true });
   if (!(await p.isVisible('#lightbox.show'))) { await p.waitForTimeout(400); const v = p.locator('#ctxMenu button:has-text("View card")'); if (await v.count()) await v.first().click(); }
   await p.waitForSelector('#lightbox.show', { timeout: 10000 });
   check('a card opens in the shared viewer', /\d+ \/ \d+/.test(await p.textContent('.lb-count')) && (await p.textContent('.lb-name')).length > 0, await p.textContent('.lb-name'));

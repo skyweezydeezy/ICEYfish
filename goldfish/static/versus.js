@@ -325,8 +325,7 @@
   const replayBar = gm => {
     const R = Math.max(1, gm.replay.round | 0), at = gm.ply || 0;
     const jumps = '<option value="">Jump to…</option><option value="0">Opening hands</option>' + Array.from({ length: R }, (_, i) => `<option value="${2 * (i + 1)}">Round ${i + 1}${i + 1 === R ? ' (the win)' : ''}</option>`).join('');
-    return (gm.over ? `<b>${esc(gm.over)}</b>` : '') +
-      `<button class="ghost vs-rs" title="Restart: start again from the dice roll" aria-label="Restart">⏮</button><button class="ghost vs-back"${at ? '' : ' disabled'} title="Back: go back one turn" aria-label="Back">‹ Back</button>` +
+    return `<button class="ghost vs-rs" title="Restart: start again from the dice roll" aria-label="Restart">⏮</button><button class="ghost vs-back"${at ? '' : ' disabled'} title="Back: go back one turn" aria-label="Back">‹ Back</button>` +
       `<button class="vs-play primary"${gm.over ? ' disabled' : ''} title="Watch the game at the speed of the slider">${gm.playing ? '⏸ Pause' : '▶ Play'}</button><button class="vs-next"${gm.over ? ' disabled' : ''} title="Play one turn (one player's turn)">Step ›</button>` +
       `<select class="vs-jump" aria-label="Jump to a round" title="Jump to a round">${jumps}</select><button class="vs-toend"${gm.over ? ' disabled' : ''} title="Play the rest of the game at once">⏭</button><button class="ghost vs-leave" title="Back to where you came from">Leave</button>`;
   };
