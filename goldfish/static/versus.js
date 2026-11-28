@@ -228,6 +228,107 @@
       }
     } finally { q('.vs-new').disabled = false; }
   }
+  // ---------- Watch a replay (T-137): the fastest win of a built-in deck, found by tools/fastest-kill.js ----------
+  // spec: { file, opp, seed, first, turn, round } (decks/fastest.json). Both seats are autopilots, so it is a Duel with nobody seated: the same table, dice,
+  // log, speed slider and Play / Pause / Step buttons. The game is rebuilt from its seed, so Back, Jump and Restart replay it up to the place asked for.
+  // REPLAY_OPTS must equal DUEL_OPTS in tools/lib/fastest.js: every viewer sees the game the tool found, whatever their own Goldfish rules say.
+  const REPLAY_OPTS = { turns: 25, minLands: 2, maxLands: 5, freeMulligan: true, minHandSize: 5, oppLife: 40, startLife: 40, prioritizeCommander: true, idealLandRatio: 0.42, noMaxHand: false, turnTimer: false, bookCombos: [] };
+  const shortName = n => String(n).replace(/\s*\([^)]*\)\s*$/, '');
+  async function watchGame(mode, spec, ply, dice) {
+    const st = V[mode], q = st.q, ps = [spec.self ? mySeat(spec.name) : await loadOpp('builtin:' + spec.file, t => info(mode, t)), await loadOpp('builtin:' + spec.opp, t => info(mode, t))];
+    info(mode, '');
+    const names = ps.map(p => shortName(p.name)), decks = ps.map(p => G.buildDeck(p.cards, p.tokens, p.policy && p.policy.tribe));
+    const optsList = ps.map(p => Object.assign({}, REPLAY_OPTS, { policy: p.policy || {} })), roll = rollFirst(2, spec.seed, spec.first);
+    C.close();
+    const pod = G.newPod(decks, optsList, spec.seed >>> 0, names, spec.first, null);
+    pod.match.round = 1;
+    const gm = st.game = { turnTimer: false, games: pod.games, match: pod.match, idx: 0, human: null, remote: null, phase: null, mulling: {}, bottom: new Set(), block: null, rounds: REPLAY_OPTS.turns, over: null, busy: false, token: {}, pick: new Set(), target: null, playing: false,
+      step: null, preview: null, choice: null, respond: null, acting: false, noStop: false, replay: spec, ply: 0 };
+    st.nodes = new Map(); st.backs = new Map(); st.drawn = false; st.last = null; st.life = {}; st.note = ''; st.table = null; st.endSig = null; st.bar = null;
+    gm.looks = dealLooks(2);
+    q('.vs-game').hidden = false; q('.vs-log').innerHTML = '';
+    say(mode, null, `Replay: the fastest win of ${names[0]}, against ${names[1]} (seed ${spec.seed >>> 0}). Both seats are autopilots.`);
+    pod.games.forEach((g, i) => say(mode, null, `${names[i]} ${g.mulligans ? `took ${g.mulligans} mulligan${g.mulligans > 1 ? 's' : ''} and keeps ${g.hand.length} cards` : 'keeps 7 cards'}.`));
+    const announce = () => {
+      say(mode, null, rollText(roll, names));
+      say(mode, null, `${names[pod.match.order[0].pid]} goes first. Everyone starts at ${pod.games[0].life} life.`);
+    };
+    if (dice) say(mode, null, 'Everyone rolls a D20 to see who goes first…'); else announce();
+    render(mode);
+    if (dice) {
+      let told = false;
+      const tell = () => { if (told) return; told = true; gm.onRoll = null; document.querySelectorAll(`.vs-dice[data-mode="${mode}"]`).forEach(d => d.remove()); if (st.game === gm) { announce(); render(mode); if (!gm.busy && !gm.over) advance(mode, 9999, true); } };          // the dice have landed: the game plays itself
+      gm.onRoll = tell;
+      showRoll(mode, roll, names).then(tell, tell);
+    } else if (ply) { gm.fast = true; await advanceRun(mode, ply, false); gm.fast = false; }
+    return gm;
+  }
+  // The loaded deck as seat 0 of a replay (a deck that is not a built-in one). Its choices learned in the Policy lab are used, as in a Duel.
+  const mySeat = name => ({ cards: A.S.cards, tokens: A.S.tokens, name: name || 'Your deck', policy: A.currentPolicy() });
+  // Find fastest win (Build tab): the same two-stage search as tools/fastest-kill.js, smaller. Stage 1: goldfish games of the loaded deck from seeds 1..N (on the draw,
+  // up to 7 turns; a seed starts from the same library as seat 0 of a Duel with that seed) give each seed a kill turn. Stage 2: the best seeds are played as Duels
+  // against the standard opponent (decks/fastest.json: "standard", or "fallback" when the deck is the standard one), once with each seat first, both on the
+  // autopilot, in the replay's own game (REPLAY_OPTS). The fastest win is kept; among equal turns the one where the opponent fought back most.
+  // self: { file ('' for a deck that is not built in), name }. Resolves to { opp, seed, first, turn, round, interaction, rarity, v } or null.
+  // It runs on the page a game at a time so the page stays usable; a new search stops the one before.
+  let findToken = 0;
+  const tallyNotes = (g, ev, t) => { if (ev.some(e => e.type === 'kill')) { const items = G.turnSummary(g, ev).filter(x => !/WINS/.test(x)); t.visible = items.some(x => /damage|poison|Combo:|Combo steps:|infinite|win the game|loses? the game|out of the game \(|mill|commander damage/i.test(x)); } for (const e of ev) { if (e.type !== 'note' || typeof e.text !== 'string') continue; if (g.pid === 0) { if (/ blocks /.test(e.text)) t.blocks++; else if (/ counters /.test(e.text)) t.counters++; } else if (/^(Destroyed|Exiled|Returned|Bounced) the opponent's /.test(e.text)) t.removal++; } };
+  async function findFastest(self, progress, goldfish, nSeeds) {
+    const token = ++findToken, say = t => progress && progress(t), meta = window.__isfFastestMeta || {};
+    goldfish = goldfish || window.__isfFindGames || 1500; nSeeds = nSeeds || window.__isfFindSeeds || 30;
+    await window.Source.init();
+    const stdFile = self.file === meta.standard ? meta.fallback : meta.standard;
+    if (!stdFile) throw new Error('the standard opponent is not listed (decks/fastest.json)');
+    say('Loading the standard opponent…');
+    const me = self.file ? await loadOpp('builtin:' + self.file, () => {}) : mySeat(self.name), std = await loadOpp('builtin:' + stdFile, () => {});
+    const build = p => ({ deck: G.buildDeck(p.cards, p.tokens, p.policy && p.policy.tribe), opts: Object.assign({}, REPLAY_OPTS, { policy: p.policy || {} }), name: shortName(p.name) });
+    const M = build(me), S = build(std), CAP = 7, kills = new Array(CAP + 1).fill(0), ranked = [];
+    for (let seed = 1; seed <= goldfish; seed++) {          // stage 1
+      const g = G.newGame(M.deck, Object.assign({}, M.opts, { onPlay: false, turns: CAP }), seed); G.mulligan(g);
+      for (let t = 0; t < CAP && g.killTurn == null && !G.matchOver(g); t++) G.playTurn(g);
+      if (g.killTurn != null) { kills[g.killTurn]++; ranked.push([g.killTurn, seed]); }
+      if (seed % 40 === 0) { say(`Searching… ${Math.round(seed / goldfish * 70)}%`); await sleep(0); if (token !== findToken) throw new Error('stopped'); }
+    }
+    ranked.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const pick = ranked.slice(0, nSeeds).map(x => x[1]);
+    for (let s = 1; pick.length < nSeeds && s <= goldfish; s++) if (!pick.includes(s)) pick.push(s);
+    let best = null, k = 0;
+    for (const seed of pick) for (const first of [1, 0]) {          // stage 2
+      try {
+        const t = { blocks: 0, counters: 0, removal: 0 }, pod = G.playPod([M.deck, S.deck], [M.opts, S.opts], seed, [M.name, S.name], first, (g, ev) => tallyNotes(g, ev, t)), m = pod.match;
+        if (m.winner === 0 && t.visible) { const turn = pod.games[0].turn, total = t.blocks + t.counters + t.removal;
+          if (!best || turn < best.turn || (turn === best.turn && (total > best.interaction.total || (total === best.interaction.total && m.round < best.round)))) best = { opp: stdFile, seed, first, turn, round: m.round, interaction: { blocks: t.blocks, counters: t.counters, removal: t.removal, total } }; }
+      } catch (e) { /* a Duel that stops on an engine error is not a candidate */ }
+      k++; if (k % 2 === 0) { say(`Searching… ${70 + Math.round(k / (pick.length * 2) * 30)}%` + (best ? ` · best so far turn ${best.turn}` : '')); await sleep(0); if (token !== findToken) throw new Error('stopped'); }
+    }
+    if (!best) return null;
+    const n = kills.slice(0, best.turn + 1).reduce((a, b) => a + b, 0);
+    return Object.assign(best, { rarity: { goldfish, atOrBelow: n, oneIn: n ? Math.round(goldfish / n) : null }, v: window.ISF_VERSION || 0, stage2: pick.length * 2 });
+  }
+  V.findFastest = findFastest;
+  async function watch(spec) {
+    const mode = 'duel', st = V[mode];
+    if (!spec || !(spec.file || spec.self) || !spec.opp) return;
+    if (!MODES[document.body.dataset.view]) from = document.body.dataset.view;          // Leave goes back to the Build tab
+    window.__isfShowTab(mode);
+    const dice = !(window.localStorage && localStorage.getItem('isf_dice') === '0');
+    sfx('shuffle');
+    try { await watchGame(mode, spec, 0, dice); if (!document.body.classList.contains('tfocus')) { const bar = document.querySelector('.topbar'), top = st.q('.vs-game').getBoundingClientRect().top + window.scrollY - (bar ? bar.offsetHeight : 0) - 8; window.scrollTo({ top, behavior: 'smooth' }); } } catch (e) { info(mode, 'Could not start the replay: ' + (e.message || e)); st.q('.vs-game').hidden = true; }
+  }
+  // Back, Jump and Restart: the game is built again from its seed and played quickly up to ply (one player's turn each) turns.
+  async function seek(mode, ply) {
+    const st = V[mode], gm = st.game; if (!gm || !gm.replay) return;
+    gm.playing = false;
+    try { await watchGame(mode, gm.replay, Math.max(0, ply), false); } catch (e) { if (e !== C.CANCELLED) info(mode, 'Could not go there: ' + (e.message || e)); }
+  }
+  V.watch = watch;
+  const replayBar = gm => {
+    const R = Math.max(1, gm.replay.round | 0), at = gm.ply || 0;
+    const jumps = '<option value="">Jump to…</option><option value="0">Opening hands</option>' + Array.from({ length: R }, (_, i) => `<option value="${2 * (i + 1)}">Round ${i + 1}${i + 1 === R ? ' (the win)' : ''}</option>`).join('');
+    return `<button class="ghost vs-rs" title="Restart: start again from the dice roll" aria-label="Restart">⏮</button><button class="ghost vs-back"${at ? '' : ' disabled'} title="Back: go back one turn" aria-label="Back">‹ Back</button>` +
+      `<button class="vs-play primary"${gm.over ? ' disabled' : ''} title="Watch the game at the speed of the slider">${gm.playing ? '⏸ Pause' : '▶ Play'}</button><button class="vs-next"${gm.over ? ' disabled' : ''} title="Play one turn (one player's turn)">Step ›</button>` +
+      `<select class="vs-jump" aria-label="Jump to a round" title="Jump to a round">${jumps}</select><button class="vs-toend"${gm.over ? ' disabled' : ''} title="Play the rest of the game at once">⏭</button><button class="ghost vs-leave" title="Back to where you came from">Leave</button>`;
+  };
   // A game against a person on another device (remote.js). Both devices build the same game from the same seed, decks and options,
   // and from then on exchange only moves and answers. setup: { seed, first, names, decks: [{ cards, tokens, policy }], opts, local }.
   function startRemote(mode, setup, io) {
@@ -473,6 +574,7 @@
         if (g.pid === gm.human || g.pid === gm.remote) { await startHuman(mode, g); break; }
         if (n <= 0) break;
         await computerTurn(mode, g, pace);
+        gm.ply = (gm.ply || 0) + 1;
         n--;
         if (!finished(gm)) await respondWindow(mode, g);
         step(gm); render(mode);
@@ -490,7 +592,7 @@
   // the same decks and settings, and plays itself. A running tally of wins shows under the table.
   async function loopNext(mode, gm) {
     const st = V[mode], q = st.q;
-    if (!q('.vs-loop').checked || gm.human != null || gm.remote != null || !finished(gm) || gm.looped) return;
+    if (gm.replay || !q('.vs-loop').checked || gm.human != null || gm.remote != null || !finished(gm) || gm.looped) return;
     gm.looped = true;
     const s = st.loopStats = st.loopStats || { games: 0, wins: {} };
     s.games++; const w = gm.match.winner != null ? gm.match.names[gm.match.winner] : 'No winner'; s.wins[w] = (s.wins[w] || 0) + 1;
@@ -1098,7 +1200,7 @@
     const board = h('div', 'vs-board');
     if (g.dead) board.appendChild(h('div', 'vs-gone', 'Out of the game')); else board.append(fieldEl(st, gm, g, mine), pilesEl(st, gm, g, mine));
     const plate = plateEl(st, gm, g, mine);
-    if (!mine) return seat.replaceChildren(plate, board);
+    if (!mine) return seat.replaceChildren(...(gm.replay && !g.dead ? [handEl(st, gm, g), plate, board] : [plate, board]));          // a replay shows both hands, to learn from
     const foot = h('div', 'vs-foot');
     if (gm.human === g.pid) foot.appendChild(h('div', 'vs-me', ctlHtml(mode, gm)));
     if (!g.dead) foot.appendChild(handEl(st, gm, g));
@@ -1122,13 +1224,13 @@
     st.drawn = true;
     const who = esc(gm.match.names[cur(gm).pid]);
     // the bar is rewritten only when it changes (the step of the turn is lit in place), so its buttons stay put while a game plays itself
-    const bar = `<span class="vs-round">Round <b>${Math.min(gm.match.round, gm.rounds)}</b></span>` + C.stepsHtml(D) + (gm.over ? `<b>${esc(gm.over)}</b>` : gm.human == null
+    const bar = `<span class="vs-round">Round <b>${Math.min(gm.match.round, gm.rounds)}</b></span>` + C.stepsHtml(D) + (gm.replay ? replayBar(gm) : gm.over ? `<b>${esc(gm.over)}</b>` : gm.human == null
       ? `<button class="vs-play primary" title="Watch the game at the speed of the slider">${gm.playing ? '⏸ Pause' : '▶ Play'}</button><button class="vs-next" title="Play one turn">+1 turn</button><button class="vs-nextround" title="Play one round: every player takes a turn">+1 round</button><button class="vs-toend" title="Play the rest of the game at once">⏭<span class="wide"> Skip to the</span> end</button>`
       : `<span class="hint" data-status>${gm.choice ? 'Your choice' : gm.remote != null && !gm.over ? esc(waitText(gm)) : gm.phase === 'mull' ? 'Opening hands' : gm.phase === 'block' ? who + ' is attacking you' : gm.phase === 'respond' ? 'End of ' + who + "'s turn" : cur(gm).pid === gm.human ? 'Your turn' : who + ' is playing…'}</span>`) +
       (gm.io ? `<span class="vs-conn ${gm.io.connected() ? 'on' : 'off'}" title="${gm.io.connected() ? 'Connected to the other device' : 'Not connected: the game waits until the other device is back'}">${gm.io.connected() ? '● Connected' : '○ Not connected'}</span>` : '') +
-      (gm.remote == null ? `<button class="ghost vs-loopbtn${q('.vs-loop').checked ? ' on' : ''}" type="button" aria-pressed="${q('.vs-loop').checked}" title="Loop: with every seat on the autopilot, each game plays itself and the next one starts after a short pause. Tap again to stop after the game being played.">🔁<span class="wide"> Loop</span></button>` : '') +
-      `<button class="ghost vs-looks" title="Choose your own playmat and sleeves. The other players are dealt random sets.">🎨<span class="wide"> My playmat</span></button>` +
-        `<button class="ghost open-sound" title="Music and sound effects"><span class="sound-ic">${window.__isfAudio && !(window.__isfAudio.get().sfx || window.__isfAudio.get().music) ? '🔇' : '🔊'}</span><span class="wide"> Sound</span></button>` +
+      (gm.remote == null && !gm.replay ? `<button class="ghost vs-loopbtn${q('.vs-loop').checked ? ' on' : ''}" type="button" aria-pressed="${q('.vs-loop').checked}" title="Loop: with every seat on the autopilot, each game plays itself and the next one starts after a short pause. Tap again to stop after the game being played.">🔁<span class="wide"> Loop</span></button>` : '') +
+      (gm.replay ? '' : `<button class="ghost vs-looks" title="Choose your own playmat and sleeves. The other players are dealt random sets.">🎨<span class="wide"> My playmat</span></button>`) +
+        (gm.replay ? '' : `<button class="ghost open-sound" title="Music and sound effects"><span class="sound-ic">${window.__isfAudio && !(window.__isfAudio.get().sfx || window.__isfAudio.get().music) ? '🔇' : '🔊'}</span><span class="wide"> Sound</span></button>`) +
         `<button class="ghost tut-help vs-help" type="button" title="Help: tours of each tab" aria-label="Help and tours" aria-haspopup="menu">?</button>` +
       `<span class="vs-note hint">${esc(st.note || '')}</span>`;
     if (st.bar !== bar) { q('.vs-bar').innerHTML = bar; st.bar = bar; }
@@ -1201,6 +1303,7 @@
     root.addEventListener('change', e => {
       const gm = V[mode].game; if (!gm) return;
       if (e.target.classList.contains('vs-target')) { gm.target = +e.target.value; render(mode); }
+      if (e.target.classList.contains('vs-jump') && gm.replay && e.target.value !== '') seek(mode, +e.target.value);
       if (e.target.classList.contains('vs-blk') && gm.block) {          // blocks assigned: what gets through, live
         const b = gm.block, me = gm.games[gm.human], map = {};
         root.querySelectorAll('.vs-blk').forEach(sel => { if (sel.value) { const bl = me.battlefield.find(x => x.iid === +sel.dataset.iid); if (bl) (map[sel.value] = map[sel.value] || []).push(bl); } });
@@ -1231,6 +1334,8 @@
         if (gm.playing) { gm.playing = false; render(mode); } else if (gm.busy) gm.playing = true; else advance(mode, 9999, true);
         return;
       }
+      if (gm.replay && hit('vs-rs')) return watchGame(mode, gm.replay, 0, true).then(null, err => { if (err !== C.CANCELLED) info(mode, 'Could not restart: ' + (err.message || err)); });
+      if (gm.replay && hit('vs-back')) return seek(mode, (gm.ply || 0) - 1);
       if (hit('vs-next')) return advance(mode, 1);
       if (hit('vs-nextround')) return advance(mode, gm.games.filter(g => !g.dead).length);
       if (hit('vs-toend')) return advance(mode, 9999);

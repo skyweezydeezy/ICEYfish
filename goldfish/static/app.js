@@ -323,8 +323,50 @@
   // "Fastest possible" for a built-in deck that was checked: the earliest win turn seen and the share of games won by turns 2, 3 and 4 (T-093).
   // One compact line; what it means is behind the ⓘ.
   const pctS = x => (x < 1 && x > 0 ? x.toFixed(1) : Math.round(x * 10) / 10) + '%';
+  // The fastest win of the loaded deck: the stored one of a built-in deck (FASTEST), or one this browser found (Find fastest win), kept per deck in isf_fastest.
+  const deckKey = () => 'mine:' + [...(S.cards || [])].map(c => c.name + ':' + c.qty).sort().join('|').split('').reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0, 7);
+  const mineAll = () => { try { return JSON.parse(localStorage.getItem('isf_fastest') || '{}'); } catch (e) { return {}; } };
+  function showWatch(d) {          // T-137: one line under the speed line: "Fastest win vs <deck>: turn N ▶ Watch", and a button to find it for any deck
+    const el = $('#deckWatch'); if (!el) return;
+    if (!S.deck || !(S.cards || []).length) { el.hidden = true; return; }
+    const key = d ? d.file : deckKey(), mine = (m => m && m.v === (self.ISF_VERSION || 0) ? m : null)(mineAll()[key]), st = d && FASTEST[d.file] && !FASTEST[d.file].none ? FASTEST[d.file] : null;
+    const f = mine && (!st || mine.turn < st.turn) ? mine : st, opp = f && builtinByValue('builtin:' + f.opp);
+    el.dataset.file = d ? d.file : ''; el.dataset.key = key; el.dataset.name = d ? d.name : (S.deck.commanders[0] && S.deck.commanders[0].card.name) || 'Your deck';
+    const r = f && f.rarity, it = f && f.interaction, rare = r ? (r.oneIn ? `about 1 game in ${r.oneIn.toLocaleString()}` : `rarer than 1 in ${r.goldfish.toLocaleString()}`) : '';
+    const oname = opp ? opp.name.replace(/\s*\([^)]*\)\s*$/, '') : '', ln = el.querySelector('.dw-line');
+    ln.innerHTML = f && opp ? `<span class="dw-full">Fastest win vs ${esc(oname)}: turn ${f.turn}${rare ? ' · ' + rare : ''}</span><span class="dw-short">Fastest win vs ${esc(oname)}: T${f.turn}${r ? ' · 1 in ' + (r.oneIn ? r.oneIn.toLocaleString() : '>' + r.goldfish.toLocaleString()) : ''}</span>` : 'Fastest Duel win: not searched yet';
+    el.querySelector('.dw-detail').textContent = f && opp ? ` Found by playing ${r ? r.goldfish.toLocaleString() : 'many'} goldfish games to rank seeds, then ${f.stage2 || 'many'} Duels against ${opp.name.replace(/\s*\([^)]*\)\s*$/, '')}, a Bracket 3 deck with blockers, removal and counterspells that does not win fast itself. "About 1 game in N" is how often the goldfish games kill by turn ${f.turn}. In this game the opponent fought back ${it ? it.total : '?'} time${it && it.total === 1 ? '' : 's'}: ${it ? `${it.blocks} block${it.blocks === 1 ? '' : 's'}, ${it.counters} counterspell${it.counters === 1 ? '' : 's'}, ${it.removal} removal` : ''}.` : '';
+    el.querySelector('.dw-go').hidden = !(f && opp);
+    const fb = el.querySelector('.dw-find') || (() => { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost dw-find'; return b; })();
+    fb.textContent = f ? '🔍 Search again' : '🔍'; fb.title = 'Find fastest win: search this deck\'s quickest win in a Duel against the standard opponent (about half a minute)'; fb.setAttribute('aria-label', 'Find fastest win');
+    (f && opp ? el.querySelector('.dw-slot2') : el.querySelector('.dw-slot')).appendChild(fb);          // one line: a small 🔍 on it until there is a result; then Search again sits behind the i
+    ln.title = f && opp ? ln.querySelector('.dw-full').textContent : '';
+    el.dataset.spec = f && opp ? JSON.stringify(Object.assign({}, f, d ? { file: d.file } : { self: true, name: el.dataset.name })) : '';
+    el.hidden = false;
+  }
+  $('#deckWatch .dw-go').addEventListener('click', () => {
+    const sp = $('#deckWatch').dataset.spec;
+    if (sp && window.__isfVersus && window.__isfVersus.watch) window.__isfVersus.watch(JSON.parse(sp));
+  });
+  $('#deckWatch').addEventListener('click', async e => {
+    if (!e.target.closest('.dw-find')) return;
+    const el = $('#deckWatch'), btn = el.querySelector('.dw-find'), line = el.querySelector('.dw-line'), V = window.__isfVersus;
+    if (!V || !V.findFastest || btn.disabled) return;
+    const key = el.dataset.key, file = el.dataset.file, was = line.textContent;
+    btn.disabled = true; el.querySelector('.dw-go').hidden = true;
+    try {
+      const best = await V.findFastest({ file, name: el.dataset.name }, t => { line.textContent = t; });
+      if (best) { const all = mineAll(); all[key] = best; try { localStorage.setItem('isf_fastest', JSON.stringify(all)); } catch (e) { /* storage full: shown this time only */ } }
+      else line.textContent = 'No win found in the Duels played. Try again.';
+      if (best) { showWatch(file ? builtinByValue('builtin:' + file) : null); } else setTimeout(() => showWatch(file ? builtinByValue('builtin:' + file) : null), 2500);
+    } catch (e) { line.textContent = was; toast('Could not search: ' + (e.message || e)); }
+    btn.disabled = false;
+  });
+  { const t = $('#deckWatch .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckWatch .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }
   { const t = $('#deckSpeed .info-tog'); if (t) t.addEventListener('click', () => { const p = $('#deckSpeed .hint'), open = p.classList.toggle('folded') === false; t.setAttribute('aria-expanded', String(open)); t.classList.toggle('on', open); }); }
+  let FASTEST = {};          // decks/fastest.json (tools/fastest-kill.js): each built-in deck's fastest Duel win
   function showSpeed(d) {
+    showWatch(d);
     const el = $('#deckSpeed'); if (!el) return;
     if (!d || d.by2 == null) { el.hidden = true; return; }
     el.querySelector('.ds-line').textContent = `Fastest win ${d.earliestKill ? 'T' + d.earliestKill : 'after T4'} · ${pctS(d.by2)} by T2 · ${pctS(d.by3)} by T3 · ${pctS(d.by4)} by T4`;
@@ -795,6 +837,7 @@
       if (!r.ok) return;
       BUILTIN = ((await r.json()).decks || []).filter(d => d && d.file && d.name);
       decksListed = true; refreshSaved(); fillMirror();
+      fetch('decks/fastest.json').then(r => r.ok ? r.json() : null).then(j => { if (j && j.decks) { FASTEST = j.decks; window.__isfFastestMeta = { standard: j.standard, fallback: j.fallback }; showWatch(selLoaded && builtinByValue(selLoaded)); } }).catch(() => {});          // the Build line (T-137); no file or offline: no line
     } catch (e) { /* offline and never loaded: only saved decks are listed */ }
   }
   function refillDeckMenus() {            // the Deck order setting changed: every built-in deck menu is rebuilt, keeping what each one has selected

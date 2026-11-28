@@ -1521,3 +1521,12 @@ body.tfocus .vs-me .row:has(.vs-block-go), body.tfocus .vs-me > .row:last-child 
 .guess-from { font-size: 11px; color: var(--text-secondary); margin-right: 6px; font-style: italic; }
 .cov-card .lines .guessed { border-color: #fab219; background: rgba(250,178,25,.08); }
 .lb-cov .guessed { border-color: #fab219; }
+/* T-137: the Build tab's "Fastest win" line, and a replay on the Duel tab (both hands face up) */
+#deckWatch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+#deckWatch .dw-line { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }          /* one line: the full text is its title */
+#deckWatch .hint { flex: 1 1 100%; }
+.deck-speed .dw-go, .deck-speed .dw-find { padding: 2px 8px; font-size: .85rem; }
+.vs-seat.opp .vs-hand { justify-content: center; margin: 0 0 4px; }
+.vs-bar .vs-jump { max-width: 8.5em; }
+#deckWatch .dw-short { display: none; }
+@media (max-width: 600px) { #deckWatch .dw-full { display: none; } #deckWatch .dw-short { display: inline; } #deckWatch .dw-go { padding: 2px 6px; } #deckWatch .dw-line { font-size: .74rem; } }          /* a phone: the line says T6 · 1 in 294 */
