@@ -112,7 +112,7 @@ Which tests to run for a change:
 
 Known slow or timing-sensitive tests:
 
-- **`tune.test.js`:** about 210 s of the 300 s per-file limit.
+- **`tune*.test.js`:** split in four (tune, tune-kill, tune-next-bracket, tune-next-limits; T-133), each at most about 90 s of the 300 s per-file limit, so they run side by side.
 - **`tune-next.ui.js`:** times out if run beside another heavy UI test, so run it alone.
 - **`combo-odds.test.js`:** has an "in under 3 seconds" check.
 
