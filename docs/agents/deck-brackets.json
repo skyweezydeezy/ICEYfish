@@ -2553,39 +2553,39 @@
     "medianKill": 7,
     "by2": 0,
     "by3": 0,
-    "by4": 0.2,
-    "by5": 8.1,
-    "by6": 38.9,
-    "by7": 74.2,
-    "by8": 90.5,
-    "byT": 98.2,
+    "by4": 0.3,
+    "by5": 8.2,
+    "by6": 40.1,
+    "by7": 78.7,
+    "by8": 95.2,
+    "byT": 99.5,
     "earliestKill": 3,
     "killHist": [
      0,
      0,
-     0.015,
-     0.23,
-     7.88,
-     30.785,
-     35.25,
-     16.35,
-     5.73,
-     2.005,
-     1.755
+     0.005,
+     0.325,
+     7.915,
+     31.885,
+     38.53,
+     16.545,
+     3.63,
+     0.655,
+     0.51
     ],
     "cmdrMedian": 4,
-    "mana4": 4.02,
+    "mana4": 4.24,
     "winBy": {
-     "damage": 95.8,
-     "commander": 0.7,
-     "combo": 1.7,
+     "damage": 94.6,
+     "commander": 1,
+     "combo": 3.9,
      "poison": 0
     },
     "topLine": {
      "kind": "combo",
      "text": "Rionya, Fire Dancer + Combat Celebrant (Commander Spellbook): infinite combat phases; infinite creature tokens with haste",
-     "share": 0.0176,
-     "avgTurn": 6.318181818181818
+     "share": 0.0224,
+     "avgTurn": 6
     }
    },
    "field": null,
@@ -2602,30 +2602,18 @@
      "Magus of the Moon"
     ],
     "extraTurns": [],
-    "twoCardInfinite": 3,
-    "cheapTwoCard": [
-     {
-      "cards": [
-       "Breath of Fury",
-       "Loyal Apprentice"
-      ],
-      "mv": 6,
-      "does": [
-       "Infinite combat damage",
-       "Infinite combat phases"
-      ]
-     }
-    ],
+    "twoCardInfinite": 2,
+    "cheapTwoCard": [],
     "floor": 4,
     "why": [
      "6 Game Changers (B3 allows 3)",
      "mass land denial: Magus of the Moon",
-     "1 cheap two-card infinite combo (e.g. Breath of Fury + Loyal Apprentice, 6 mana)"
+     "2 two-card infinite combos (all over 6 mana)"
     ]
    },
    "speedBracket": 3,
-   "reason": "speed says B3 (median kill T7); card rules say at least B4 (6 Game Changers (B3 allows 3); mass land denial: Magus of the Moon; 1 cheap two-card infinite combo (e.g. Breath of Fury + Loyal Apprentice, 6 mana))",
-   "version": 225,
+   "reason": "speed says B3 (median kill T7); card rules say at least B4 (6 Game Changers (B3 allows 3); mass land denial: Magus of the Moon; 2 two-card infinite combos (all over 6 mana))",
+   "version": 226,
    "date": "2026-11-28"
   },
   {
@@ -4458,6 +4446,19 @@
    "matchTurns": 25,
    "seed": 20261123,
    "seconds": 73,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "rules-lawyers.txt"
+   ],
+   "version": 226,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 371,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 78,
    "jobs": 4
   }
  ]
