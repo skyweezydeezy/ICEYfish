@@ -3894,8 +3894,11 @@
 
   // T-127 stage 6: the priority loop is on by default. `priority: false` in a game's options (or ISF_PRIORITY=0 in the environment, for comparing with the old engine) turns it off.
   const PRIORITY_DEFAULT = !(typeof process !== 'undefined' && !!process.env && process.env.ISF_PRIORITY === '0');
+  // T-132: targets of triggered and activated abilities are chosen as they go on the stack (CR 602.2b, 603.3d) and checked again as they resolve (608.2b). Off unless opts.abilityTargets (ISF_ABILITY_TARGETS=1 turns it on for a whole run).
+  const ABILITY_TARGETS_ENV = typeof process !== 'undefined' && !!process.env && process.env.ISF_ABILITY_TARGETS === '1';
   function newGame(deck, opts, seed) {
     if (PRIORITY_DEFAULT && opts.priority === undefined) opts = Object.assign({}, opts, { priority: true });
+    if (ABILITY_TARGETS_ENV && opts.abilityTargets === undefined) opts = Object.assign({}, opts, { abilityTargets: true });
     const rnd = mulberry32(seed >>> 0);
     const g0 = {
       rnd, opts, seed, deck, U: deckFacts(deck),
@@ -5761,10 +5764,10 @@
     fireNow(g, trig, source, ev, subject, amount);
   }
   // T-127 stage 2: a triggered ability the engine plays by hand (Boromir's counter, Wandering Archaic) that waits to go on the stack like any other trigger and runs `run(ev)` when it resolves
-  function queueRun(g, source, text, run, kind) {
+  function queueRun(g, source, text, run, kind, lock) {
     const h = actingHost(g);
     if (!h) { run([]); return; }
-    (h.trigQ || (h.trigQ = [])).push({ g, kind, trig: { text, fx: [], kinds: [] }, source, run, subject: null, amount: undefined, x: g.xValue, last: g.lastCast, much: g.thatMuch, sc: g.spellsCast });
+    (h.trigQ || (h.trigQ = [])).push({ g, kind, lock, trig: { text, fx: [], kinds: [] }, source, run, subject: null, amount: undefined, x: g.xValue, last: g.lastCast, much: g.thatMuch, sc: g.spellsCast });
   }
   // effects that cannot make a state-based action apply (no permanent leaves, enters or shrinks; a player's life is checked anyway)
   const SBA_SAFE = new Set(['draw', 'gainLife', 'drain', 'loseLife', 'damage', 'scry', 'surveil', 'mill', 'treasure', 'food', 'poison']);
@@ -5796,8 +5799,8 @@
         if (h.trigQ && h.trigQ.length) {
           const q = h.trigQ.splice(0), ap = activePlayer(h);
           const mine = q.filter(x => x.g === ap), rest = q.filter(x => x.g !== ap);
-          for (const it of mine.reverse()) { it.seq = stackDepth(h); it.kind = it.kind || 'triggered'; it.controller = it.g; stack.push(it); }          // pushed first: resolves last (APNAP)
-          for (const it of rest.reverse()) { it.seq = stackDepth(h); it.kind = it.kind || 'triggered'; it.controller = it.g; stack.push(it); }
+          for (const it of mine.reverse()) { it.seq = stackDepth(h); it.kind = it.kind || 'triggered'; it.controller = it.g; stack.push(it); lockAbility(it); }          // pushed first: resolves last (APNAP)
+          for (const it of rest.reverse()) { it.seq = stackDepth(h); it.kind = it.kind || 'triggered'; it.controller = it.g; stack.push(it); lockAbility(it); }
         }
         if (stack.length <= base) break;
         if (matchOver(h) || (h.match && h.match.winner != null)) { stack.length = base; break; }
@@ -5811,7 +5814,8 @@
         const it = stack.pop(), x = it.g, px = x.xValue, pl = x.lastCast, pm = x.thatMuch, ps = x.spellsCast;
         x.xValue = it.x; x.lastCast = it.last; x.thatMuch = it.much; x.spellsCast = it.sc;          // what the ability remembers from when it triggered (the spell's X, the amount, the spells cast before it)
         const v0 = tableVer(h);
-        try { if (it.run) it.run(ev); else fireNow(x, it.trig, it.source, ev, it.subject, it.amount); } finally { x.xValue = px; x.lastCast = pl; x.thatMuch = pm; x.spellsCast = ps; }
+        const lw = LOCKS.get(x); if (it.lock) LOCKS.set(x, it.lock);          // T-132: the targets chosen as it went on the stack are used (and checked) as it resolves
+        try { if (it.run) it.run(ev); else fireNow(x, it.trig, it.source, ev, it.subject, it.amount); } finally { x.xValue = px; x.lastCast = pl; x.thatMuch = pm; x.spellsCast = ps; if (it.lock) { if (lw) LOCKS.set(x, lw); else LOCKS.delete(x); } }
         dirty = tableVer(h) !== v0 || !sbaSafe(it);
       }
     } finally { h.acts--; h.settling = false; }
@@ -10873,7 +10877,7 @@ g.actSeq = (g.actSeq || 0) + 1;
         const xv = g.xValue; if (X) g.xValue = X;
         try {
           // T-127 stage 4 (CR 602.2): with the priority rule on, the cost is paid above and the effect goes on the stack as an activated ability; it resolves after the triggers the cost caused
-          if (g.opts.priority && !g.dry && actingHost(g)) { me.stacked = true; queueRun(g, p, ab.text.replace(/^[^:]*:\s*/, '').replace(/~/g, p.card.name), e => applyEffects(g, ab.fx, p, e, null), 'activated'); }
+          if (g.opts.priority && !g.dry && actingHost(g)) { me.stacked = true; queueRun(g, p, ab.text.replace(/^[^:]*:\s*/, '').replace(/~/g, p.card.name), e => applyEffects(g, ab.fx, p, e, null), 'activated', lockAbilityFx(g, ab.fx, p, null) || undefined); }
           else applyEffects(g, ab.fx, p, ev, null);
         } finally { g.xValue = xv; }
       });
@@ -14405,6 +14409,21 @@ g.actSeq = (g.actSeq || 0) + 1;
     lockRec = rec;
     try { applyEffects(g, fxs.filter(lockable), null, [], null); } finally { lockRec = null; g.xValue = xv; }
     return rec.map.size ? rec : null;
+  }
+  // T-132 (CR 602.2b, 603.3d): a triggered ability's targets are chosen as it goes on the stack, by the same pickers a spell uses (the person's 'target' question, or the autopilot's pick), and kept on the stack object.
+  // An activated ability does the same in useAbility (lockAbilityFx). On resolution the handlers use the stored target and check it is still legal (608.2b). Off unless opts.abilityTargets.
+  function lockAbilityFx(x, fx, source, subject) {
+    if (!x.opts.abilityTargets || x.dry || !x.opp || lockRec || !fx || !fx.length || !fx.some(lockable)) return null;
+    const rec = { map: new Map(), taken: new Set() }, xv = x.xValue;
+    lockRec = rec;
+    try { applyEffects(x, fx.filter(lockable), source, [], subject); } finally { lockRec = null; x.xValue = xv; }
+    return rec.map.size ? rec : null;
+  }
+  function lockAbility(it) {
+    if (it.run || it.lock || !it.trig || it.trig.nth || trigOpp(it.g, it.trig)) return;          // hand-played triggers carry no effects; "first/second time" lists and "target opponent" choices stay as they were
+    const x = it.g, px = x.xValue, pl = x.lastCast, pm = x.thatMuch, ps = x.spellsCast;
+    x.xValue = it.x; x.lastCast = it.last; x.thatMuch = it.much; x.spellsCast = it.sc;
+    try { it.lock = lockAbilityFx(x, it.trig.fx, it.source, it.subject) || undefined; } finally { x.xValue = px; x.lastCast = pl; x.thatMuch = pm; x.spellsCast = ps; }
   }
   // what the question shows: each locked target as a card (or a player), plus "target opponent" players
   function targetView(g, inst) {
