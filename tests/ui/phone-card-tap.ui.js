@@ -4,6 +4,7 @@
 // Needs playwright, a static server on :8800 (node tests/run.js --ui phone-card-tap) and internet access to Scryfall.
 // (T-102, extended: every touch device selects first, iPad too; a desktop mouse keeps its own flow.)
 const { chromium, devices } = require('playwright');
+const { pin } = require('../ui-seed');
 const fs = require('fs'), path = require('path');
 let pass = 0, fail = 0;
 const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 'PASS' : 'FAIL') + '  ' + name + (detail !== undefined ? '   [' + detail + ']' : '')); };
@@ -54,6 +55,7 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
 
     // ---- Practice: find a land as the last (fully visible) card of the hand ----
     await p.click('[data-tab=table]');
+    await pin(p);          // T-138: the same sequence of Practice hands on every run
     let land = null;
     for (let k = 0; k < 14 && !land; k++) {
       await p.click('#tNew'); await p.waitForTimeout(500);
@@ -88,6 +90,7 @@ const SHOTS = process.env.PHONE_TAP_SHOTS;                                  // a
     for (const sel of await p.$$('#tab-duel .vs-opp')) await sel.selectOption('');
     await p.selectOption('#tab-duel .vs-you', 'human');
     await p.selectOption('#tab-duel .vs-ask', 'ask');
+    await pin(p);          // T-138: the same Duel opening on every run
     await p.click('#tab-duel .vs-new');
     await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g && g.phase === 'mull'; }, null, { timeout: 40000 }).catch(async e => { console.log('DBG', await p.evaluate(() => (document.querySelector('#tab-duel') || {}).innerText.slice(0, 400)), errs.join('|')); throw e; });
     await p.evaluate(() => document.querySelector('#tab-duel .vs-keep').click());

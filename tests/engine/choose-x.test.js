@@ -17,22 +17,22 @@ const cast = (g, inst, pick) => { let q = null; const ev = D.resolveSync([g], 0,
 
 (() => {
   const g = fresh(true); const sc = hand(g, 'Stonecoil Serpent');
-  const { q } = cast(g, sc, x => 2);          // the third option: X = 3
-  check('casting Stonecoil Serpent ({X}) asks for X, 1 to 6 with six lands', q && q.options.length === 6 && q.options[0].name === 'X = 1' && q.options[5].name === 'X = 6', q && q.options.map(o => o.name).join(','));
-  check('...the starting pick is all the mana (what the autopilot does)', q && q.def[0] === 5);
+  const { q } = cast(g, sc, x => 3);          // the fourth option: X = 3 (X = 0 is offered first, CR 107.3)
+  check('casting Stonecoil Serpent ({X}) asks for X, 0 to 6 with six lands', q && q.options.length === 7 && q.options[0].name === 'X = 0' && q.options[6].name === 'X = 6', q && q.options.map(o => o.name).join(','));
+  check('...the starting pick is all the mana (what the autopilot does)', q && q.def[0] === 6);
   const s = g.battlefield.find(p => /Stonecoil/.test(p.card.name));
   check('...X = 3: three counters, three lands tapped', s && s.counters === 3 && untapped(g) === 3, s && s.counters + ' counters, ' + untapped(g) + ' untapped');
 })();
 (() => {
   const g = fresh(true); const z = zimone(g, 2); const sc = hand(g, 'Stonecoil Serpent');
   const { q } = cast(g, sc, x => x.options.length - 1);
-  check('with two counters on Zimone the first X spell can have X = 8', q && q.options.length === 8 && /\{2\} less/.test(q.text), q && q.text);
+  check('with two counters on Zimone the first X spell can have X = 8', q && q.options.length === 9 && /\{2\} less/.test(q.text), q && q.text);
   const s = g.battlefield.find(p => /Stonecoil/.test(p.card.name));
   check('...and it enters with 8 counters', s && s.counters === 8);
   check('Zimone gets two counters from the first X spell', z.counters === 4, z.counters);
   g.battlefield.forEach(p => { p.tapped = false; });
-  const hw = hand(g, 'Hangarback Walker'); const r = cast(g, hw, x => 1);
-  check('the second X spell that turn has no discount ({X}{X}: X up to 3)', r.q && r.q.options.length === 3, r.q && r.q.options.length);
+  const hw = hand(g, 'Hangarback Walker'); const r = cast(g, hw, x => 2);
+  check('the second X spell that turn has no discount ({X}{X}: X up to 3)', r.q && r.q.options.length === 4, r.q && r.q.options.length);
   const w = g.battlefield.find(p => /Hangarback/.test(p.card.name));
   check('...X = 2 costs four mana', w && w.counters === 2 && untapped(g) === 2);
   check('...and Zimone gets no more counters', z.counters === 4, z.counters);
@@ -48,12 +48,12 @@ const cast = (g, inst, pick) => { let q = null; const ev = D.resolveSync([g], 0,
 // ---- X is applied as the card enters: nothing can happen between entering and getting its counters
 (() => {
   const g = fresh(true); const fa = G.enterWithTriggers(g, { iid: g.nextIid++, card: by('Forgotten Ancient') }, {}, []);
-  const ae = hand(g, 'Altered Ego'); cast(g, ae, x => 1);          // X = 2
+  const ae = hand(g, 'Altered Ego'); cast(g, ae, x => 2);          // X = 2
   const cp = g.battlefield.find(p => p.copyOf === 'Forgotten Ancient');
   check('Altered Ego enters as a copy with X additional +1/+1 counters', cp && cp.counters === 2, cp && cp.counters);
 })();
 (() => {
-  const g = fresh(true); const fh = hand(g, 'Fractal Harness'); cast(g, fh, x => 2);          // X = 3
+  const g = fresh(true); const fh = hand(g, 'Fractal Harness'); cast(g, fh, x => 3);          // X = 3
   const tok = g.battlefield.find(p => p.card.name === 'Fractal'), eq = g.battlefield.find(p => p.card.name === 'Fractal Harness');
   check('Fractal Harness: its 0/0 Fractal token gets X counters and survives', tok && tok.counters === 3, tok && tok.counters);
   check('...and the Harness is attached to it', tok && eq && eq.attachedTo === tok.iid);
@@ -70,7 +70,7 @@ const cast = (g, inst, pick) => { let q = null; const ev = D.resolveSync([g], 0,
   check('...and it does not pick a 0/0 Hydra that would die at once', !g.graveyard.includes(hy) && !g.battlefield.some(q => q.card.name === 'Primordial Hydra'));
 })();
 (() => {
-  const g = fresh(true); const ac = hand(g, 'Astral Cornucopia'); cast(g, ac, x => 1);          // X = 2: six mana
+  const g = fresh(true); const ac = hand(g, 'Astral Cornucopia'); cast(g, ac, x => 2);          // X = 2: six mana
   const p = g.battlefield.find(q => q.card.name === 'Astral Cornucopia');
   check('Astral Cornucopia, X = 2: it taps for two mana', p && p.produce && p.produce.amount === 2 && untapped(g) === 0, p && p.produce && p.produce.amount);
 })();
