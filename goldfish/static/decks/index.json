@@ -626,6 +626,27 @@
    "learnedVs": "field"
   },
   {
+   "file": "rules-lawyers.txt",
+   "name": "Rules Lawyers (Winota, Joiner of Forces)",
+   "commanders": [
+    "Winota, Joiner of Forces"
+   ],
+   "colors": "WR",
+   "cards": 100,
+   "bracket": 4,
+   "checkedMedian": 7,
+   "by5": 8.2,
+   "by7": 78.7,
+   "earliestKill": 3,
+   "by2": 0,
+   "by3": 0,
+   "by4": 0.3,
+   "medianKill": 7,
+   "floor": 4,
+   "speedBracket": 3,
+   "checkedAt": "2026-11-28"
+  },
+  {
    "file": "short-circuit.txt",
    "name": "Short Circuit (Vivi Ornitier)",
    "commanders": [

@@ -96,6 +96,7 @@
             <label class="check" title="When you pay a cost in Practice, Duel, Pod or Play a friend, pick which lands, mana creatures, Treasures and floating mana pay, and the colour each makes. Off: nothing is asked and the payment that wastes no mana is made for you."><input id="dispPayChoose" type="checkbox" checked> Choose how I pay mana</label>
             <label title="Smart: you are stopped only when you hold something you can cast or use right now, at the moments it could matter. At every step: you are asked at each step of every turn (slow, but complete). Never: you are not stopped, and the game plays on without asking.">Stop to respond
               <select id="dispStop"><option value="smart">Smart</option><option value="never">At every step</option><option value="always">Never</option></select></label>
+            <label class="check" title="Off by default. A rules line the engine can't read is compared with the lines it can, and played like the closest one if it is a close match. The guess can be wrong: it is marked 'guessed' with how sure it is, the card stays on the Teach list, and simulations and rankings never use it."><input id="dispFuzzy" type="checkbox"> Guess unknown rules</label>
           </div>
         </details>
       </div>

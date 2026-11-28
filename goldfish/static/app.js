@@ -179,10 +179,21 @@
     { const o = LEGACY_ORDER[d.deckOrder] || d.deckOrder; if (o && DECK_ORDERS.includes(o)) $('#dispDeckOrder').value = o; }
     $('#dispPayChoose').checked = d.payChoose !== false;          // T-099: on unless the person switched it off
     if (['smart', 'never', 'always'].includes(d.stop)) $('#dispStop').value = d.stop;
+    $('#dispFuzzy').checked = d.fuzzy === true;          // T-131: off unless the person turned it on
+    // T-131 "Guess unknown rules": the lines the engine can read are loaded the first time it is switched on; the deck is read again with it on or off.
+    // Only this page's own reading changes. Simulations (worker.js), the rankings and the bracket checks never guess.
+    let fuzzyIdx = null;
+    const applyFuzzy = async () => {
+      let on = $('#dispFuzzy').checked;
+      if (on) { try { if (!fuzzyIdx) { const r = await fetch('data/fuzzy-index.json'); if (!r.ok) throw new Error(r.status); fuzzyIdx = await r.json(); } G.setFuzzy(fuzzyIdx); } catch (e) { on = false; $('#dispFuzzy').checked = false; toast('Could not load the rules to guess from: guessing stays off.'); } }
+      if (!on) G.setFuzzy(null);
+      if (typeof S !== 'undefined' && S.deck) { S.deck = G.buildDeck(S.cards, S.tokens, currentPolicy().tribe); S.byUid = S.deck.unique; if (typeof renderCoverage === 'function') renderCoverage(); }
+    };
+    if (d.fuzzy === true) setTimeout(applyFuzzy, 0);
     apply();
-    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop']) $(id).addEventListener('change', () => {
-      apply();
-      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value })); } catch (e) { /* storage blocked */ }
+    for (const id of ['#dispFade', '#dispDeckOrder', '#dispPayChoose', '#dispStop', '#dispFuzzy']) $(id).addEventListener('change', () => {
+      apply(); if (id === '#dispFuzzy') applyFuzzy();
+      try { localStorage.setItem(KEY, JSON.stringify({ fade: $('#dispFade').value, deckOrder: $('#dispDeckOrder').value, payChoose: $('#dispPayChoose').checked, stop: $('#dispStop').value, fuzzy: $('#dispFuzzy').checked })); } catch (e) { /* storage blocked */ }
     });
   })();
 
@@ -267,6 +278,7 @@
   function pillHtml(x) {
     const side = x.back ? '<span class="pill back" title="A rule on the back face of this double-faced card">Back</span> ' : '';
     if (x.mirror) return side + '<span class="pill opp" title="Does nothing against a goldfish. It is used in a Mirror match (Simulation tab).">Mirror matches only</span> ';
+    if (x.status === 'guessed' && x.fuzzy) return side + `<span class="pill guess" title="${esc('Guessed, not understood: this line is played like "' + x.fuzzy.as + '" (from ' + x.fuzzy.from + '). The guess can be wrong. The card stays on the Teach list.')}">guessed ${Math.round(x.fuzzy.score * 100)}%</span><span class="guess-from">like ${esc(x.fuzzy.from)}</span> `;          // T-131
     if (x.status === 'ok' || !x.tag) return side;
     return side + `<span class="pill ${x.tag}" title="${esc(TAG_HELP[x.tag] || '')}">${TAG_LABEL[x.tag] || ''}</span> `;
   }
@@ -545,7 +557,7 @@
   // ---- Teach these cards: cards whose rules text the engine does not fully read become a pre-filled GitHub request (one click in
   // the app, then Create on GitHub). Only the card names, the unread lines and the app version are sent, never the decklist.
   const TEACH_REPO = 'https://github.com/skyweezydeezy/ICEYfish';
-  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial').map(r => r.text);
+  const unreadLines = c => (c.a.coverage || []).filter(r => r.status === 'ignored' || r.status === 'partial' || r.status === 'guessed').map(r => r.text);          // T-131: a guessed line is not a lesson
   function teachUrl(cards) {
     const list = cards.slice(0, 8);
     const block = c => `${c.name}\nhttps://scryfall.com/search?q=${encodeURIComponent('!"' + c.name + '"')}\n` + unreadLines(c).slice(0, 4).map(t => '- ' + t.slice(0, 240)).join('\n');
@@ -1669,7 +1681,7 @@
     ['manapool', 'ManaPool', (c, p) => (p || c.set) && (p ? p.cn : c.cn) ? `https://manapool.com/card/${enc((p ? p.set : c.set))}/${enc(p ? p.cn : c.cn)}/${slugOf(c.name)}` : `https://manapool.com/cards?q=${enc(c.name)}`],
   ];
   const LB_SCOPE = '.table, .vs-seat, .tags-results, .curve-wall, .land-wall, .coverage, .token-wall, .odds-picker, .replay, .hand-grid, .hand-stage';
-  const lb = { list: [], i: 0, sel: null, els: [] };
+  const lb = { list: [], i: 0, sel: null, els: [], at: 0 };
   // Choices for the card on show, supplied by whichever table it was opened from: fn(card, element) -> [[label, run, style, stay], ...] or null.
   const lbProviders = [];
   const viewerActions = (card, el) => { for (const f of lbProviders) { const a = el && f(card, el); if (a && a.length) return a; } return null; };
@@ -1747,7 +1759,7 @@
   }
   lbProviders.push((card, el) => { const m = el.closest && el.closest('.table') && el.dataset.iid != null ? ctxModel(el, true) : null; return m ? m.items : null; });
   function lbClose() { lightbox.classList.remove('show'); document.body.classList.remove('modal-open'); }
-  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; paintLb(); lightbox.scrollTop = 0; }
+  function lbGo(d) { if (lb.list.length < 2) return; lb.i = (lb.i + d + lb.list.length) % lb.list.length; lb.sel = null; lb.at = Date.now(); paintLb(); lightbox.scrollTop = 0; }
   function paintLb() {
     const card = lb.list[lb.i]; if (!card) return;
     const sel = lb.sel;
@@ -1777,9 +1789,11 @@
       if (acts) {
         const box = h('div', 'lb-acts'); box.appendChild(h('div', 'lb-sec', 'In this game'));
         const btns = h('div', 'lb-acts-row'); box.appendChild(btns);
-        acts.forEach(([label, run, style, stay]) => {
-          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label));
+        acts.forEach(([label, run, style, stay, off]) => {          // off: why it cannot be done now (greyed, with the reason) - T-134
+          const b = h('button', (style === 'primary' ? 'primary ' : 'ghost ') + 'lb-act', esc(label) + (off ? `<small class="lb-off">${esc(off)}</small>` : ''));
+          if (off) { b.disabled = true; b.title = off; }
           b.addEventListener('click', () => {
+            if (Date.now() - lb.at < 350) return;          // T-102/T-134 ghost-tap guard: the tap that opened the viewer cannot press a button in it
             if (stay) { const sc = lightbox.scrollTop; run(); paintLb(); lightbox.scrollTop = sc; }          // tap, counters: the viewer stays and updates
             else { lbClose(); run(); }                                                                         // anything else: close it so the table shows the result
           });
@@ -1854,7 +1868,7 @@
       if (l.indexOf(card) >= 0) list = l;
     }
     zoom.classList.remove('show');   // the hover preview would sit on top of the viewer
-    lb.list = list; lb.i = list.indexOf(card); lb.sel = null;
+    lb.list = list; lb.i = list.indexOf(card); lb.sel = null; lb.at = Date.now();
     lb.els = list.map(() => null);                                       // the card on the table behind each entry, so its choices can be offered
     if (sc && !Array.isArray(scopeEl)) { const seen = new Set(); sc.querySelectorAll('.mtg').forEach(e => { const c = cardOf(e); if (c && !e.closest('#lightbox') && !seen.has(c)) { seen.add(c); const k = list.indexOf(c); if (k >= 0) lb.els[k] = e; } }); }
     if (scopeEl && scopeEl.nodeType === 1 && lb.i >= 0) lb.els[lb.i] = scopeEl;          // the very one you opened (not the first of a stack)

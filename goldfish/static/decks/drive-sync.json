@@ -477,7 +477,16 @@
    "importedAt": "2026-11-26T18:45:56.336Z",
    "verified": 4,
    "verifiedAt": "2026-11-26"
+  },
+  "Rules Lawyers [B4] (Winota, Joiner of Forces).txt": {
+   "deck": "rules-lawyers.txt",
+   "bracket": 4,
+   "id": "1jlRpLGVx20tFAg_FLjOmlrKOwHQOVZN0",
+   "modifiedTime": "2026-11-28T10:57:57.697Z",
+   "importedAt": "2026-11-28T11:43:44.742Z",
+   "verified": 4,
+   "verifiedAt": "2026-11-28"
   }
  },
- "checkedAt": "2026-11-26T18:45:56.343Z"
+ "checkedAt": "2026-11-28T11:43:44.742Z"
 }

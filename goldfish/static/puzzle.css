@@ -47,7 +47,6 @@
 .pz-card { padding: 0; border: 2px solid transparent; border-radius: 7px; background: none; cursor: pointer; }
 .pz-card:disabled { cursor: default; opacity: .85; }
 .pz-card.can { border-color: rgba(143,216,255,.45); }
-.pz-card.sel { border-color: var(--warning); box-shadow: 0 0 0 2px rgba(250,178,25,.35); }
 .pz-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; position: sticky; bottom: 0; background: var(--page); padding: 8px 0; z-index: 2; }
 .pz-bar button { min-height: 42px; padding: 6px 14px; }
 .pz-bar .pz-hinttext, .pz-bar .pz-busy { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--text-secondary); }
@@ -92,7 +91,7 @@
 .pz-perm { padding: 0; border: 2px solid transparent; border-radius: 7px; background: none; cursor: pointer; }
 .pz-perm:disabled { cursor: default; }
 .pz-perm.can { border-color: rgba(143,216,255,.45); }
-.pz-perm.sel, .pz-perm.picked { border-color: var(--warning); box-shadow: 0 0 0 2px rgba(250,178,25,.35); }
+.pz-perm.picked { border-color: var(--warning); box-shadow: 0 0 0 2px rgba(250,178,25,.35); }
 .pz-perm.tapped .pz-t { transform: rotate(90deg); margin: 0 8px; opacity: .8; }
 .pz-opp-t.tapped { transform: rotate(90deg); margin: 0 8px; opacity: .8; }
 .pz-hint2 { font-size: 12px; color: var(--muted); align-self: center; }
