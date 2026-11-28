@@ -46,18 +46,31 @@ const KEY = 'isf_puzzle2';
     }
   };
   const open = async id => { await p.click('.pz-pick[data-id="' + id + '"]'); await p.waitForSelector('.pz-card', { timeout: 60000 }); await settle(); };
-  const cast = async name => { await p.click('.pz-card[data-name="' + name + '"]'); await p.click('.pz-do'); await settle(); };
+  // T-134: a tap on a card opens it in the viewer and what it can do is a button there (the 350 ms ghost-tap guard holds for a moment)
+  const tap = async (sel, label) => { await p.click(sel); await p.waitForSelector('#lightbox.show .lb-act'); await p.waitForTimeout(400); await p.locator('#lightbox .lb-act', { hasText: label }).first().click(); };
+  const cast = async name => { await tap('.pz-card[data-name="' + name + '"]', /^(Cast|Play) /); await settle(); };
   const attackAll = async () => { await p.click('.pz-atk'); await p.click('.pz-all'); await settle(); };
 
   // ---- Rocks before the dragon, paid for by hand: the person taps through the imprint choice and the payment sheet (T-119)
   await open('fast-1');
+  // T-134: a tap opens the card; a card with one action still opens, with that one button; the tap that opened it cannot press it; a card with nothing to do is for reading
+  await p.click('.pz-card[data-name="Mountain"]'); await p.waitForSelector('#lightbox.show .lb-act');
+  check('a tap on a card in hand opens it in the viewer with its one action as a button (and nothing was played)', await p.$$eval('#lightbox .lb-act', xs => xs.length === 1 && /^Play Mountain/.test(xs[0].textContent)) && await p.$$eval('.pz-card', xs => xs.length) === 7);
+  check('the viewer from a puzzle keeps the buy links, the printings and the rules lines beside the action', await p.$$eval('#lightbox .lb-shop a', xs => xs.length >= 3 && xs.some(a => /tcgplayer/.test(a.href)) && xs.some(a => /cardkingdom/.test(a.href)) && xs.some(a => /manapool/.test(a.href))) && await p.$('#lightbox .lb-prints') !== null);
+  await p.$eval('#lightbox .lb-act', b => b.click()); await p.waitForTimeout(100);
+  check('the ghost-tap guard: a press within 350 ms of opening does nothing', await p.$eval('#lightbox', e => e.classList.contains('show')) && await p.$$eval('.pz-card', xs => xs.length) === 7);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  check('Esc closes the viewer', await p.$eval('#lightbox', e => !e.classList.contains('show')));
+  await p.click('.pz-card[data-name="Goldspan Dragon"]'); await p.waitForSelector('#lightbox.show .lb-act');
+  check('a card you cannot cast yet shows its button greyed with the reason', await p.$eval('#lightbox .lb-act', b => b.disabled && /Not enough mana/.test(b.textContent)));
+  await p.keyboard.press('Escape');
   await cast('Mountain'); await cast('Sol Ring'); await p.click('.pz-pass'); await settle();
   await cast('Mountain');
-  await p.click('.pz-card[data-name="Chrome Mox"]'); await p.click('.pz-do'); await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });
+  await tap('.pz-card[data-name="Chrome Mox"]', /^Cast /); await p.waitForSelector('.ch-sheet.imprint', { timeout: 15000 });
   check('Chrome Mox asks which card to imprint (a person has to choose)', await p.$eval('.ch-sheet.imprint', e => /Lightning Bolt/.test(e.textContent) && /Goldspan Dragon/.test(e.textContent)));
   await p.click('.ch-sheet .ch-opt[title="Lightning Bolt"]'); await p.click('.ch-sheet .ch-ok'); await settle();
   await cast('Lotus Petal');
-  await p.click('.pz-card[data-name="Goldspan Dragon"]'); await p.click('.pz-do'); await p.waitForSelector('.ch-sheet.pay', { timeout: 15000 });
+  await tap('.pz-card[data-name="Goldspan Dragon"]', /^Cast /); await p.waitForSelector('.ch-sheet.pay', { timeout: 15000 });
   const chips = await p.$$eval('.ch-sheet.pay .ch-paychip', xs => xs.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   check('the pay sheet is shown for Goldspan Dragon: more sources than the cost needs (the Display setting does not hide it here)', chips.length === 6 && /Lotus Petal/.test(chips.join()) && /Chrome Mox/.test(chips.join()) && /\{3\}\{R\}\{R\}/.test(await p.$eval('.ch-sheet.pay', e => e.textContent)), chips.join(' | '));
   for (const c of await p.$$('.ch-sheet.pay .ch-paychip')) { const t = await c.textContent(), on = await c.evaluate(e => e.classList.contains('sel')); if (on !== !/Lotus Petal/.test(t)) await (await c.$('.ch-opt')).click(); }
@@ -118,7 +131,7 @@ const KEY = 'isf_puzzle2';
   await p.click('.pz-list'); await p.waitForSelector('.pz-pick'); await open('fast-4');
   await cast('Island'); await cast('Sol Ring'); await p.click('.pz-pass'); await settle();
   await cast('Island'); await cast('Ornithopter'); await cast('Lotus Petal'); await cast('Jace, Wielder of Mysteries');
-  await p.click('.pz-perm[data-name^="Jace"]'); await p.click('.pz-pw[data-i="0"]'); await settle();
+  await tap('.pz-perm[data-name^="Jace"]', /^\+1/); await settle();
   await p.waitForSelector('.pz-banner', { timeout: 30000 });
   check("Jace's +1 is a button and the draw from an empty library wins", await p.$eval('.pz-banner', e => e.classList.contains('win')));
   check('the best streak and progress are kept in localStorage', await p.evaluate(k => { const s = JSON.parse(localStorage.getItem(k)); return s && s.solved['end-2'] && s.solved['fast-2'] && s.solved['fast-3'] && s.solved['fast-4'] && s.solved['fast-1'] && s.best >= 4; }, KEY));

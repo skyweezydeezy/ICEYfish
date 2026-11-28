@@ -2,6 +2,13 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 226,
+      "lines": [
+        "Puzzles: tap a card to open it large, with its actions (Cast, Play, abilities, Attack) as buttons inside, next to its prices and printings.",
+        "New built-in deck: Rules Lawyers (Winota, Joiner of Forces), checked as Bracket 4."
+      ]
+    },
+    {
       "v": 225,
       "lines": [
         "ICEYfish now carries its copyright notice (SWD Marketing, all rights reserved), and the app's own tests run more reliably."

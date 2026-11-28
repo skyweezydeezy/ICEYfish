@@ -2542,6 +2542,93 @@
    "reason": "speed says B3 (median kill T7); card rules say at least B4 (7 Game Changers (B3 allows 3))"
   },
   {
+   "file": "rules-lawyers.txt",
+   "name": "Rules Lawyers (Winota, Joiner of Forces)",
+   "stated": 4,
+   "verified": 4,
+   "commander": true,
+   "goldfish": {
+    "games": 20000,
+    "errors": 0,
+    "medianKill": 7,
+    "by2": 0,
+    "by3": 0,
+    "by4": 0.2,
+    "by5": 8.1,
+    "by6": 38.9,
+    "by7": 74.2,
+    "by8": 90.5,
+    "byT": 98.2,
+    "earliestKill": 3,
+    "killHist": [
+     0,
+     0,
+     0.015,
+     0.23,
+     7.88,
+     30.785,
+     35.25,
+     16.35,
+     5.73,
+     2.005,
+     1.755
+    ],
+    "cmdrMedian": 4,
+    "mana4": 4.02,
+    "winBy": {
+     "damage": 95.8,
+     "commander": 0.7,
+     "combo": 1.7,
+     "poison": 0
+    },
+    "topLine": {
+     "kind": "combo",
+     "text": "Rionya, Fire Dancer + Combat Celebrant (Commander Spellbook): infinite combat phases; infinite creature tokens with haste",
+     "share": 0.0176,
+     "avgTurn": 6.318181818181818
+    }
+   },
+   "field": null,
+   "rules": {
+    "gameChangers": [
+     "Ancient Tomb",
+     "Chrome Mox",
+     "Drannith Magistrate",
+     "Enlightened Tutor",
+     "Mana Vault",
+     "Mox Diamond"
+    ],
+    "massLandDenial": [
+     "Magus of the Moon"
+    ],
+    "extraTurns": [],
+    "twoCardInfinite": 3,
+    "cheapTwoCard": [
+     {
+      "cards": [
+       "Breath of Fury",
+       "Loyal Apprentice"
+      ],
+      "mv": 6,
+      "does": [
+       "Infinite combat damage",
+       "Infinite combat phases"
+      ]
+     }
+    ],
+    "floor": 4,
+    "why": [
+     "6 Game Changers (B3 allows 3)",
+     "mass land denial: Magus of the Moon",
+     "1 cheap two-card infinite combo (e.g. Breath of Fury + Loyal Apprentice, 6 mana)"
+    ]
+   },
+   "speedBracket": 3,
+   "reason": "speed says B3 (median kill T7); card rules say at least B4 (6 Game Changers (B3 allows 3); mass land denial: Magus of the Moon; 1 cheap two-card infinite combo (e.g. Breath of Fury + Loyal Apprentice, 6 mana))",
+   "version": 225,
+   "date": "2026-11-28"
+  },
+  {
    "file": "salt-mine.txt",
    "name": "Salt Mine (Nekusar, the Mindrazer)",
    "stated": 4,
@@ -4358,6 +4445,19 @@
    "matchTurns": 25,
    "seed": 20261123,
    "seconds": 86,
+   "jobs": 4
+  },
+  {
+   "only": [
+    "rules-lawyers.txt"
+   ],
+   "version": 225,
+   "date": "2026-11-28",
+   "gamesPerDeck": 20000,
+   "matchesPerPair": 378,
+   "matchTurns": 25,
+   "seed": 20261123,
+   "seconds": 73,
    "jobs": 4
   }
  ]

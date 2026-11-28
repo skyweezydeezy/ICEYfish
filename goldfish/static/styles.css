@@ -1518,3 +1518,4 @@ body.tfocus .vs-me .row:has(.vs-block-go), body.tfocus .vs-me > .row:last-child 
 }
 .replay-ctl { align-items: center; gap: 8px; margin-top: 8px; }
 .replay-turn { min-width: 96px; text-align: center; font-weight: 600; }
+.lb-off { display: block; font-size: 11px; font-weight: 400; opacity: .8; }
