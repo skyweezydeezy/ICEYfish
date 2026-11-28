@@ -568,6 +568,8 @@
   // Tickets (T-120): with a public endpoint set in ticket-config.js, the Teach button POSTs the request there (no GitHub or Google sign-in);
   // with none, or after a failed send, it stays the GitHub link above. ticket.js and ticket-config.js load on demand (not in the SHELL).
   const teachSets = [];
+  const driveScripts = {};
+  const driveLoad = src => driveScripts[src] || (driveScripts[src] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = res; s.onerror = () => { delete driveScripts[src]; rej(new Error('load')); }; document.head.appendChild(s); }));
   let ticketReady = null, ticketRendered = false;
   const ticketEndpoint = () => { const c = self.ISF_TICKET, T = self.__isfTicket; return c && T && T.isUrl(c.endpoint) ? c.endpoint : ''; };
   function ticketLoad() {
@@ -593,99 +595,15 @@
     e.preventDefault();
     if (a.dataset.ticket === 'sent' || a.getAttribute('aria-busy')) return;
     sendTicket('teach', { cards: teachLines(teachSets[+a.dataset.tk] || []), source: a.closest('#teachBanner') ? 'banner' : 'newcards' }, a,
-      { sent: 'Sent ✓ thank you', toast: 'Sent to ICEYfish. Thank you!', failed: 'Send failed: open GitHub instead', fallback: 'Tap again to open GitHub.' });
+      { sent: 'Sent ✓ thank you', toast: 'Request sent: ' + (teachSets[+a.dataset.tk] || []).length + ' card' + ((teachSets[+a.dataset.tk] || []).length === 1 ? '' : 's'), failed: 'Send failed: open GitHub instead', fallback: 'Tap again to open GitHub.' });
   });
-  // ---- Save to Drive for teaching (T-109): a deck that is not built in, with unread lines, becomes a .txt in the built-in deck format. A phone's
-  // share sheet (Web Share, files) lets the person pick Google Drive and the ManaBox folder; elsewhere the file downloads. Nothing is sent by the app.
-  const isBuiltinLoaded = () => /^builtin:/.test(selLoaded || '');
-  function driveDeck() {
-    const cards = (S.cards || []).filter(c => c && c.name), cmd = cards.filter(c => c.commander), rest = cards.filter(c => !c.commander);
-    const cname = cmd.map(c => c.name).join(' + '), bm = /^\s*\/\/\s*bracket\s*([1-5])/im.exec(S.deckText || ''), br = bm ? bm[1] : '?';
-    const saved = selLoaded && !isBuiltinLoaded() ? selLoaded : '';
-    const clean = t => String(t).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim();
-    const name = clean(saved || (cmd[0] ? cmd[0].name.split(',')[0] : 'Imported deck')) || 'Imported deck';
-    const file = `${name} [B${br}]${cname ? ' (' + clean(cname) + ')' : ''}.txt`;
-    const text = [`// ${name}${cname ? ' (' + cname + ')' : ''}`, br === '?' ? '// Bracket ?' : '// Bracket ' + br, '// COMMANDER', ...cmd.map(c => `${c.qty || 1} ${c.name}`), '// MAINBOARD', ...rest.map(c => `${c.qty || 1} ${c.name}`)].join('\n') + '\n';
-    return { file, text };
-  }
-  async function saveToDrive(why) {          // why: the short reason the direct upload fell back to this
-    const pre = why ? why + ' ' : '';
-    const d = driveDeck(), f = new File([d.text], d.file, { type: 'text/plain' });
-    if (navigator.canShare && navigator.canShare({ files: [f] }) && navigator.share) {
-      try { await navigator.share({ files: [f], title: d.file }); return toast(pre + 'Shared. Pick Google Drive and your ManaBox folder.'); }
-      catch (e) { if (e && e.name === 'AbortError') return; }          // closed the sheet: nothing happens; any other failure falls back to the download
-    }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = d.file; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast(pre + 'Saved ' + d.file + '. Put it in your ManaBox folder in Google Drive.');
-  }
-  // ---- Save to my Drive (T-109 phase 2): Google Identity Services (a drive.file token from the tap, kept in memory only) and the Picker (the
-  // person picks the ManaBox folder once; only its id is remembered). The scripts and drive-config.js load on the first tap, not at startup.
-  // No config, a blocked popup, offline or any error falls back to the share sheet / download of phase 1, with a short reason.
-  const DRIVE_FOLDER = 'isf_drive_folder';
-  let driveTok = null, driveTokEnd = 0;
-  const driveScripts = {};
-  const driveLoad = src => driveScripts[src] || (driveScripts[src] = new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = res; s.onerror = () => { delete driveScripts[src]; rej(new Error('load')); }; document.head.appendChild(s); }));
-  const driveFolder = () => { try { return localStorage.getItem(DRIVE_FOLDER) || ''; } catch (e) { return ''; } };
-  const driveToken = cfg => driveTok && Date.now() < driveTokEnd ? Promise.resolve(driveTok) : new Promise((res, rej) => {
-    const tc = google.accounts.oauth2.initTokenClient({ client_id: cfg.clientId, scope: 'https://www.googleapis.com/auth/drive.file',
-      callback: r => { if (r && r.access_token) { driveTok = r.access_token; driveTokEnd = Date.now() + ((+r.expires_in || 3600) - 60) * 1000; res(driveTok); } else rej(new Error(r && r.error === 'access_denied' ? 'denied' : 'token')); },
-      error_callback: e => rej(new Error(e && e.type === 'popup_failed_to_open' ? 'popup' : e && e.type === 'popup_closed' ? 'closed' : 'token')) });
-    tc.requestAccessToken({ prompt: '' });
-  });
-  const drivePick = (cfg, tok) => new Promise(res => {
-    const v = new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setIncludeFolders(true).setMimeTypes('application/vnd.google-apps.folder');
-    new google.picker.PickerBuilder().addView(v).setTitle('Pick your ManaBox folder').setOAuthToken(tok).setDeveloperKey(cfg.apiKey).setAppId(cfg.appId)
-      .setCallback(d => { const A = google.picker.Action; if (d.action === A.PICKED) res(d.docs && d.docs[0] && d.docs[0].id || ''); else if (d.action === A.CANCEL) res(''); }).build().setVisible(true);
-  });
-  async function driveUpload(tok, folder, d) {
-    const b = 'isf' + Math.random().toString(36).slice(2), meta = { name: d.file, parents: [folder], mimeType: 'text/plain' };
-    const body = `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${d.text}\r\n--${b}--`;
-    return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', { method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'multipart/related; boundary=' + b }, body });
-  }
-  let driveBusy = false;
-  async function saveDirect() {
-    if (driveBusy) return; driveBusy = true;
-    try {
-      if (ticketEndpoint()) {          // a public endpoint is set: no Google sign-in, the deck goes straight to the owner
-        const b = $('#driveDirect'), d = driveDeck(), st = await sendTicket('deck', { deck: d, cards: teachLines(S.deck ? S.deck.unique.filter(c => c.a && c.a.coverageLevel && c.a.coverageLevel !== 'ok' && !(c.a.isLand && /Basic/.test(c.type_line))) : []), source: 'deck' }, b,
-          { sent: 'Sent ✓', toast: 'Deck sent to ICEYfish for teaching. Thank you!', failed: 'Send failed', fallback: 'Saving it to your device instead.', restore: true });
-        if (st === 'failed') await saveToDrive('Could not send it.');
-        return;
-      }
-      if (navigator.onLine === false) return await saveToDrive('Offline.');
-      let cfg;
-      try { await driveLoad('drive-config.js?v=' + (self.ISF_VERSION || 0)); cfg = self.ISF_DRIVE; } catch (e) { return await saveToDrive('Could not reach Google.'); }
-      if (!cfg || !cfg.clientId || !cfg.apiKey) return await saveToDrive('Drive upload is not set up.');
-      let tok;
-      try { await driveLoad('https://accounts.google.com/gsi/client'); tok = await driveToken(cfg); }
-      catch (e) { const m = e.message; if (m === 'closed') return toast('Cancelled.'); return await saveToDrive(m === 'popup' ? 'The sign-in popup was blocked.' : m === 'denied' ? 'Drive access was not allowed.' : 'Could not sign in to Google.'); }
-      let folder = driveFolder();
-      if (!folder) {
-        try { await driveLoad('https://apis.google.com/js/api.js'); await new Promise(r => gapi.load('picker', r)); folder = await drivePick(cfg, tok); }
-        catch (e) { return await saveToDrive('Could not open the folder picker.'); }
-        if (!folder) return toast('No folder picked: nothing was saved.');
-        try { localStorage.setItem(DRIVE_FOLDER, folder); } catch (e) { /* remembered only for this visit */ }
-        renderTeach();
-      }
-      let r;
-      try { r = await driveUpload(tok, folder, driveDeck()); } catch (e) { return await saveToDrive('Could not reach Drive.'); }
-      if (r.ok) return toast('Saved to your ManaBox folder. ICEYfish checks it within the hour.');
-      if (r.status === 401) { driveTok = null; return await saveToDrive('Google sign-in expired: tap again.'); }
-      if (r.status === 404) { try { localStorage.removeItem(DRIVE_FOLDER); } catch (e) { /* ignore */ } renderTeach(); return await saveToDrive('The folder was not found: you will pick it again.'); }
-      return await saveToDrive('Drive refused the file (' + r.status + ').');
-    } finally { driveBusy = false; }
-  }
   function renderTeach() {
     const box = $('#teachBanner'); if (!box) return;
     ticketLoad();
     const cards = S.deck ? S.deck.unique.filter(c => c.a && c.a.coverageLevel && c.a.coverageLevel !== 'ok' && !(c.a.isLand && /Basic/.test(c.type_line))) : [];
     if (!cards.length) { box.hidden = true; box.innerHTML = ''; return; }
     const names = cards.slice(0, 4).map(c => esc(c.name)).join(', ') + (cards.length > 4 ? ` and ${cards.length - 4} more` : '');
-    box.innerHTML = `<span class="teach-icon">🧠</span><span class="teach-text"><b>${cards.length} card${cards.length > 1 ? 's' : ''} ${cards.length > 1 ? "aren't" : "isn't"} fully understood yet:</b> ${names}. Their results are rough until the simulator learns them.</span>${teachButton(cards)}${isBuiltinLoaded() ? '' : '<button type="button" class="teach-btn teach-drive" id="driveSave">Save to Drive for teaching</button><button type="button" class="teach-btn teach-drive" id="driveDirect">' + (ticketEndpoint() ? 'Send deck for teaching' : 'Save to my Drive') + '</button>' + (!ticketEndpoint() && driveFolder() ? '<a href="#" class="teach-folder" id="driveFolder">Change folder</a>' : '')}${isBuiltinLoaded() ? '' : '<span class="hint teach-how teach-drive-how">Save it in your ManaBox folder in Google Drive; ICEYfish checks it within the hour and teaches its cards.</span>'}<span class="hint teach-how">${ticketEndpoint() ? 'Sends the request straight to ICEYfish: no account needed. Only the card names and their unread lines are sent, never your list.' : 'Opens GitHub with the request filled in: just press Create. Only the card names are sent, never your list.'}</span>`;
-    const ds = $('#driveSave'); if (ds) ds.addEventListener('click', () => saveToDrive());
-    const dd = $('#driveDirect'); if (dd) dd.addEventListener('click', saveDirect);
-    const df = $('#driveFolder'); if (df) df.addEventListener('click', e => { e.preventDefault(); try { localStorage.removeItem(DRIVE_FOLDER); } catch (x) { /* ignore */ } renderTeach(); toast('Folder forgotten: you will pick it on your next save.'); });
+    box.innerHTML = `<span class="teach-icon">🧠</span><span class="teach-text"><b>${cards.length} card${cards.length > 1 ? 's' : ''} ${cards.length > 1 ? "aren't" : "isn't"} fully understood yet:</b> ${names}. Their results are rough until the simulator learns them.</span>${teachButton(cards, 'Request Cards to be added')}<span class="hint teach-how">${ticketEndpoint() ? 'Sent straight to ICEYfish: no account needed. Only the card names are sent, never your list.' : 'Opens GitHub with the request filled in: just press Create. Only the card names are sent, never your list.'}</span>`;
     box.hidden = false;
   }
   function renderCoverage() {

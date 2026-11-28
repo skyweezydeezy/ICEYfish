@@ -112,7 +112,8 @@
     r.bubble.querySelector('.tut-count').textContent = (s.chapter ? s.chapter + ' · ' : '') + (total > 1 ? `${i + 1} of ${total}` : '');
     r.bubble.querySelector('.tut-title').textContent = (typeof s.title === 'function' ? s.title() : s.title) || '';
     r.bubble.querySelector('.tut-text').innerHTML = s.html || esc((typeof s.text === 'function' ? s.text() : s.text) || '');
-    r.bubble.querySelector('.tut-back').hidden = i === 0 || s.back === false;
+    const bk = r.bubble.querySelector('.tut-back');
+    bk.hidden = r.opts.cards ? false : (i === 0 || s.back === false); bk.disabled = !!r.opts.cards && i === 0;          // what's new cards: Back stays, greyed on the first
     const next = r.bubble.querySelector('.tut-next');
     next.hidden = (!!s.tap || !!s.until) && !!el;
     r.lostAt = 0;
@@ -149,6 +150,7 @@
     const t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) && !run.root.contains(t);
     if (typing) return;
     const s = run.steps[run.i];
+    if (e.key === 'ArrowRight' && run.opts.cards && run.i === run.steps.length - 1) { e.preventDefault(); return; }          // cards stop at the ends: only "Got it" closes
     if (e.key === 'ArrowRight' && !(s && (s.tap || s.until) && findEl(s)) && !run.bubble.querySelector('.tut-next').disabled) { e.preventDefault(); go(1); }
     else if (e.key === 'ArrowLeft' && s && s.back !== false && run.i > 0) { e.preventDefault(); go(-1); }
     else if (e.key === 'Tab') {          // focus stays in the bubble (or on the spotlit element of a tap step)
@@ -811,8 +813,19 @@
     const items = all ? list.slice(0, 6) : list.filter(e => e.v > last && e.v <= now);
     try { localStorage.setItem(WN, String(now)); } catch (e) { /* private mode */ }
     if (!items.length) { if (all) toast('Nothing new yet'); return; }
-    const html = '<ul class="tut-new">' + items.map(e => `<li><span class="tut-new-v">v${e.v}</span> ${e.lines.map(esc).join(' ')}</li>`).join('') + '</ul>';
-    return start('', [{ title: all ? 'What\'s new' : `What's new in v${now}`, html, nextLabel: 'Got it', skipLabel: 'Close' }]);
+    // one card per version, newest first; Next goes to older. Swipe left/right, the arrow keys, Back/Next, "N of M" (the tour's own counter).
+    const steps = items.map(e => ({ title: `What's new in v${e.v}`, html: '<ul class="tut-new">' + e.lines.map(l => `<li>${esc(l)}</li>`).join('') + '</ul>', nextLabel: items.length > 1 && e !== items[items.length - 1] ? 'Next' : 'Got it', skipLabel: 'Close' }));
+    const done = start('', steps, { cards: true });
+    const r = run; if (r) {
+      let sx = null, sy = 0;          // the card viewer's swipe feel (app.js lbSwipe): a clear sideways move, vertical scroll never moves the card
+      const fin = (X, Y) => { if (sx == null) return; const dx = X - sx, dy = Y - sy; sx = null; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { if (dx < 0 && r.i < r.steps.length - 1) go(1); else if (dx > 0 && r.i > 0) go(-1); } };
+      let lx = 0, ly = 0;
+      r.bubble.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || e.target.closest('button')) return; sx = lx = e.clientX; sy = ly = e.clientY; });
+      r.bubble.addEventListener('pointermove', e => { lx = e.clientX; ly = e.clientY; });
+      r.bubble.addEventListener('pointerup', e => fin(e.clientX, e.clientY));
+      r.bubble.addEventListener('pointercancel', () => fin(lx, ly));
+    }
+    return done;
   }
 
   // ---- on load: what's new after an update, or the welcome card on the first visit ever, then the first tab's tour ----
