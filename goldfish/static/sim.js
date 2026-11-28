@@ -3135,6 +3135,7 @@
           : /^target player mills (\w+) cards\.?$/i.test(pwt) ? { fx: [{ type: 'millOpp', n: NUM[pwt.match(/mills (\w+) cards/i)[1].toLowerCase()] || +pwt.match(/mills (\w+) cards/i)[1] || 20 }] }          // Jace Beleren
           : /^until your next turn, you may cast sorcery spells as though they had flash/i.test(pwt) ? { fx: [{ type: 'flashUntil', phrases: [['sorcery']] }] }
           : /^~ deals (\d+) damage to each non-[a-z]+ creature\.?$/i.test(pwt) ? { fx: [{ type: 'sweepDamage', n: +pwt.match(/deals (\d+)/i)[1], noExile: true, noFly: false }] }          // Chandra, Awakened Inferno (every creature: rules batch 38)
+          : /^draw two cards\. then discard two cards unless you discard an artifact card\.?$/i.test(pwt) ? { fx: [{ type: 'draw', n: 2 }, { type: 'discardUnlessArt', n: 2 }] }          // T-139: Tezzeret, Betrayer of Flesh
           : /^you draw a card\. each opponent exiles a card from their hand or a permanent they control\.?$/i.test(pwt) ? { fx: [{ type: 'draw', n: 1 }, { type: 'oppExileHP' }] }          // T-139: Nicol Bolas, Dragon-God
           : /^search your library for any number of colorless nonland cards, exile them, then shuffle\. until end of turn, you may cast those cards without paying their mana costs\.?$/i.test(pwt) ? { fx: [{ type: 'ugin11' }] }          // T-139: Ugin, Eye of the Storms
           : /^exile the top card of your library face down and look at it\. create a 2\/2 colorless spirit creature token\. when that token leaves the battlefield, put the exiled card into your hand\.?$/i.test(pwt) ? { fx: [{ type: 'uginSpirit' }] }          // T-139: Ugin, the Ineffable
@@ -8919,6 +8920,11 @@
           break;
         }
         case 'eachDiscard': { discardWorst(g, ev); const os = otherPlayers(g); if (os.length) os.forEach(o => { if (o.hand.length) discardWorst(o, ev); }); else ghostDiscards(g, 1, ev); break; }          // the goldfish discards too
+        case 'discardUnlessArt': {          // T-139: Tezzeret, Betrayer of Flesh +1: discard two cards unless you discard an artifact card (one cheap artifact is the better price)
+          const arts = g.hand.filter(i => i.card.a.isArtifact).sort((x, y) => discardValue(g, x) - discardValue(g, y));
+          if (arts.length && (!g.ask || askUse(g, `discard ${arts[0].card.name} (an artifact) instead of two cards`, source ? source.card.name : 'Tezzeret', source, null))) { const i = arts[0]; g.hand.splice(g.hand.indexOf(i), 1); g.graveyard.push(i); ev.push({ type: 'note', text: `${source ? source.card.name + ': ' : ''}discards ${i.card.name}, an artifact card`, source }); break; }
+          for (let k = 0; k < Math.min(n, 5); k++) discardWorst(g, ev); break;
+        }
         case 'discardSelf': for (let k = 0; k < Math.min(n, 5); k++) discardWorst(g, ev); break;
         case 'putBack': {                                                                                 // Brainstorm: the cards you least want go back on top
           for (let k = 0; k < Math.min(n, 5) && g.hand.length; k++) {
@@ -13577,7 +13583,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     k.rings = /whenever you activate an ability, if it isn't a mana ability, you may pay \{2\}\. if you do, copy that ability/i.test(t);
     k.ballista = /remove a \+1\/\+1 counter from ~: (it|~) deals 1 damage to any target/i.test(t) || (/remove a \+1\/\+1 counter from/i.test(t) && /deals 1 damage to any target/i.test(t) && a.cost.x > 0);
     k.xBurn = a.cost.x > 0 && /deals x damage to (any target|target player|each opponent|target opponent)|each opponent loses x life/i.test(t);
-    k.drawEngine = a.activated.some(x => !x.tap && x.fx.some(f => f.type === 'draw'));          // Thrasios: pay mana, draw (scry and reveal)
+    k.drawEngine = a.activated.some(x => !x.tap && x.fx.some(f => f.type === 'draw' || f.type === 'thrasios'));          // Thrasios: pay mana, draw (scry and reveal)
     // C: two cards that go off on the battlefield
     k.lifeCounter = /whenever you gain life, put a \+1\/\+1 counter on target creature/i.test(t) ? ((a.activated.find(x => x.fx.some(f => f.type === 'pumpOne' && (f.keywords || []).includes('lifelink'))) || {}).cost || null) : null;          // Heliod, Sun-Crowned: the cost of giving lifelink
     k.pinger = /remove a \+1\/\+1 counter from [^:.]*: [^.]*deals 1 damage to any target/i.test(t);          // Walking Ballista, Triskelion

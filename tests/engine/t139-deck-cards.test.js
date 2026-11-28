@@ -144,5 +144,16 @@ T('Emry: choose target artifact card in your graveyard, you may cast it this tur
   check('read ok with yardCastArtifact', a.coverage.every(r => r.status === 'ok') && a.activated.some(x => x.fx.some(f => f.type === 'yardCastArtifact')));
 });
 
+T('Tezzeret, Betrayer of Flesh +1: draw two, then discard two unless you discard an artifact card', () => {
+  const t = find('Tezzeret, Betrayer of Flesh'); const d2 = G.buildDeck(cards.concat([t]), base.tokens), by2 = n => d2.unique.find(c => c.name === n);
+  check('the line is read ok', by2('Tezzeret, Betrayer of Flesh').a.coverage.every(r => r.status === 'ok' || r.status === 'neutral'));
+  const g = G.newGame(d2, O, 3); g.turn = 6; g.hand = []; g.battlefield = []; g.graveyard = []; g.library = g.library.slice(0, 40);
+  const mk = n => ({ iid: g.nextIid++, card: by2(n) }); g.hand = [mk('Sol Ring')]; const h = g.hand.length;
+  G.applyEffects(g, [{ type: 'draw', n: 2 }, { type: 'discardUnlessArt', n: 2 }], null, [], null);
+  check('with an artifact in hand: two drawn, only the artifact discarded', g.hand.length === h + 1 && g.graveyard.length === 1 && g.graveyard[0].card.name === 'Sol Ring', g.hand.length + '/' + g.graveyard.length);
+  g.hand = []; g.graveyard = []; g.library = [mk('Plains'), mk('Plains'), mk('Plains')]; G.applyEffects(g, [{ type: 'draw', n: 2 }, { type: 'discardUnlessArt', n: 2 }], null, [], null);
+  check('with no artifact: two cards discarded', g.graveyard.length === 2 && g.hand.length === 0, g.graveyard.length);
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
