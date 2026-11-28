@@ -8,6 +8,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ ...devices['iPad (gen 7) landscape'], deviceScaleFactor: 1, serviceWorkers: 'block' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('isf_dice', '0'); } catch (e) {} });          // the 3D dice are not under test here, and they can starve the page of frames for seconds
   await ctx.addInitScript(() => { try { const d = JSON.parse(localStorage.getItem('isf_display') || '{}'); if (d.payChoose == null) { d.payChoose = false; localStorage.setItem('isf_display', JSON.stringify(d)); } } catch (e) {} });          // T-099: the pay sheet is on by default; these tests answer other questions, so the setting is off
   await ctx.addInitScript(() => { try { localStorage.setItem('isf_sound', JSON.stringify({ bg: false })); localStorage.setItem('isf_autosave', '0'); } catch (e) {} });
   await ctx.route(u => /scryfall\.(com|io)$/.test(u.hostname), async route => {
@@ -81,9 +82,9 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
     }
   }
   await p.waitForFunction(() => { const g = window.__isfVersus.duel.game; return g.phase === 'main' || !!g.over; }, null, { timeout: 90000 });
-  await p.evaluate(() => { const gm = window.__isfVersus.duel.game, g = gm.games[gm.human]; if (!g.hand.some(i => i.card.a.isLand)) { const k = g.library.findIndex(i => i.card.a.isLand); g.hand.push(g.library.splice(k, 1)[0]); } window.__isfVersus.redraw('duel'); });
+  await p.evaluate(() => { const gm = window.__isfVersus.duel.game, g = gm.games[gm.human]; const plain = i => i.card.a.isLand && !/return a land you control|search your library|sacrifice/i.test(i.card.oracle_text || ''); if (!g.hand.some(plain)) { const k = g.library.findIndex(plain); g.hand.push(g.library.splice(k, 1)[0]); } window.__isfVersus.redraw('duel'); });          // a plain land: a bounce land or a fetch land does not add one to the count
   await p.waitForTimeout(500);
-  const before = await p.evaluate(() => { const gm = window.__isfVersus.duel.game, g = gm.games[gm.human]; return { lands: g.battlefield.filter(x => x.asLand).length, iid: g.hand.find(i => i.card.a.isLand).iid }; });
+  const before = await p.evaluate(() => { const gm = window.__isfVersus.duel.game, g = gm.games[gm.human]; return { lands: g.battlefield.filter(x => x.asLand).length, iid: g.hand.find(i => i.card.a.isLand && !/return a land you control|search your library|sacrifice/i.test(i.card.oracle_text || '')).iid }; });
   await p.evaluate(iid => document.querySelector('#tab-duel .vs-hand .vs-card[data-iid="' + iid + '"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 200, clientY: 200 })), before.iid);
   await p.waitForTimeout(500);
   check('1v1: a land you can play offers "Play land" in the viewer', await p.isVisible('#lightbox.show') && (await p.$$eval('.lb-act', xs => xs.map(x => x.textContent))).includes('▶ Play land'), (await p.$$eval('.lb-act', xs => xs.map(x => x.textContent))).join(' | '));

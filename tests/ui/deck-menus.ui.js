@@ -9,7 +9,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await ctx.addInitScript(() => { try { localStorage.setItem('isf_sound', JSON.stringify({ bg: false })); localStorage.setItem('gf_decks', JSON.stringify({ 'My brew': '1 Forest' })); } catch (e) {} });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://127.0.0.1:8800/');
-  await p.waitForFunction(() => document.querySelectorAll('#savedDecks optgroup').length > 2, null, { timeout: 30000 });
+  await p.waitForFunction(() => document.querySelectorAll('#savedDecks option[value^="builtin:"]').length > 10, null, { timeout: 30000 });
   await p.click('[data-tab=duel]'); await p.click('[data-tab=pod]'); await p.waitForTimeout(500);
   await p.evaluate(() => { const m = document.querySelector('#plMode'), o = document.querySelector('#plOpp'); if (m && o) { m.value = 'field'; m.dispatchEvent(new Event('change', { bubbles: true })); o.value = 'selected'; o.dispatchEvent(new Event('change', { bubbles: true })); } });
   await p.waitForTimeout(300);

@@ -19,7 +19,7 @@ const started = Date.now();
 let failed = 0, next = 0;
 const runOne = f => new Promise(resolve => {
   const t0 = Date.now();
-  const p = spawn(process.execPath, [path.join(dir, f)], { env: Object.assign({}, process.env, { NODE_USE_ENV_PROXY: '1' }), cwd: __dirname });
+  const p = spawn(process.execPath, [path.join(dir, f)], { env: Object.assign({}, process.env, { NODE_USE_ENV_PROXY: '1' }, ui ? { NODE_OPTIONS: ((process.env.NODE_OPTIONS || '') + ' --require ' + path.join(__dirname, 'ui-fetch-cache.js')).trim() } : {}), cwd: __dirname });
   let out = '', timedOut = false;
   p.stdout.on('data', d => { out += d; }); p.stderr.on('data', d => { out += d; });
   const timer = setTimeout(() => { timedOut = true; p.kill('SIGKILL'); }, ui ? 600000 : 300000);

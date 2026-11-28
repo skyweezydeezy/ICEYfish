@@ -30,7 +30,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   await p.check('#tFast');
   await p.evaluate(() => { const S = window.__isf, g = S.game; g.hand = g.hand.filter(i => !i.card.a.isLand); const card = S.deck.unique.find(c => /Marsh Flats/.test(c.name)); g.hand.unshift({ iid: g.nextIid++, card }); });       // make sure a fetch land is in the opening hand
   await p.fill('#tAutoToN', '2');
-  await p.click('#tAutoTo');
+  await p.click('#tAutoTo', { position: { x: 12, y: 12 } });
   await p.waitForFunction(() => window.__isf.game && window.__isf.game.turn >= 2 && window.__isf.game.turnDone, null, { timeout: 60000 });
   const st = await p.evaluate(() => { const g = window.__isf.game; return { fetchInYard: g.graveyard.filter(i => i.card.a.fetchSpec).length, fetchOnTable: g.battlefield.filter(q => q.card.a.fetchSpec).length, lands: g.battlefield.filter(q => q.asLand).length }; });
   check('after the autopilot has played the fetch land no uncracked fetch land is on the table', st.fetchOnTable === 0, JSON.stringify(st));

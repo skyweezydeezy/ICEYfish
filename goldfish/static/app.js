@@ -105,7 +105,7 @@
     const v = num(running) || latest || (self.ISF_VERSION ? String(self.ISF_VERSION) : null);
     versionOk(v);
     if (!v || !el) return;
-    el.hidden = false; el.textContent = 'v' + v; el.title = 'ICEYfish version ' + v;
+    el.hidden = false; el.textContent = 'v' + v; el.title = 'ICEYfish version ' + v + ' · © 2026 SWD Marketing, all rights reserved. Licensed to SWD Marketing';
     if (latest && +latest > +v) { el.classList.add('update'); el.title = 'Version ' + latest + ' is out. Tap to update.'; }          // the pill keeps showing only the version you run; a thin outline says a newer one is ready
     else el.title += '. Tap to check for a newer one.';
     // A tap loads the newest version for certain. Asking the service worker to update and reloading straight away is not enough: the reload

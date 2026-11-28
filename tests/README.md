@@ -15,6 +15,12 @@ Test files run side by side: one per processor core for the engine tests, 3 at a
 every pull request and every push to a work branch (`.github/workflows/tests.yml`), so before asking for a merge a session only needs to
 run the tests for what it changed and wait for the green check.
 
+Browser tests (T-110): `run.js --ui` preloads `tests/ui-fetch-cache.js` into every test. The tests answer the page's Scryfall requests with Node's
+fetch; the preload keeps each successful Scryfall answer on disk (`$TMPDIR/isf-scryfall-cache`, or `ISF_SCRY_CACHE`) and retries errors, 429 and 5xx,
+so a cold cache or a busy proxy no longer times out the later tests of a long run (`ISF_NO_SCRY_CACHE=1` turns it off). Running a test file by hand
+(`node tests/ui/x.ui.js`) with the server on :8800 does not use the cache unless you add `NODE_OPTIONS="--require ./tests/ui-fetch-cache.js"`.
+Click `#tAutoTo` at `{ position: { x: 12, y: 12 } }`: its middle is the turn number box, which does nothing.
+
 The played 1v1 and Pod games have their own two files: `engine/decisions.test.js` (one scenario per decision point, and the proof that a
 played game with every default taken is the autopilot's game) and `ui/decisions.ui.js` (the same decision points in the browser).
 

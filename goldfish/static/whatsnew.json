@@ -2,6 +2,24 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 225,
+      "lines": [
+        "ICEYfish now carries its copyright notice (SWD Marketing, all rights reserved), and the app's own tests run more reliably."
+      ]
+    },
+    {
+      "v": 224,
+      "lines": [
+        "More groundwork for full priority: activated abilities now pay their cost and wait on the stack, so there is a chance to respond, and the autopilot can respond during blocks and damage. Still switched off, so games play as before."
+      ]
+    },
+    {
+      "v": 223,
+      "lines": [
+        "More groundwork for full priority: triggered abilities now wait on the stack with a chance to respond between each one. Still switched off, so games play as before."
+      ]
+    },
+    {
       "v": 222,
       "lines": [
         "Groundwork for full priority and a real stack (the Comprehensive Rules' way of responding to spells and triggers). It stays switched off for now, so games play as before."

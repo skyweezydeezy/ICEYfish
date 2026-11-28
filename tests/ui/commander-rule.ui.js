@@ -23,7 +23,7 @@ const check = (name, ok, detail) => { (ok ? pass++ : fail++); console.log((ok ? 
   });
   const p = await ctx.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://127.0.0.1:8800/');
-  await p.waitForFunction(() => document.querySelectorAll('#savedDecks optgroup').length > 2, null, { timeout: 30000 });
+  await p.waitForFunction(() => document.querySelectorAll('#savedDecks option[value^="builtin:"]').length > 10, null, { timeout: 30000 });
   const Source = require(path.join(__dirname, '..', '..', 'goldfish', 'static', 'source.js'));
   const D = path.join(__dirname, '..', '..', 'goldfish', 'static', 'decks'), idx = JSON.parse(fs.readFileSync(path.join(D, 'index.json'), 'utf8'));
   const frodo = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'frodo.txt'), 'utf8');
