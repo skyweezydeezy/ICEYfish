@@ -37,6 +37,7 @@ games to make sure nothing throws. Add a new `tests/engine/<feature>.test.js` fo
 | food | Food economy, Food payoffs |
 | life | Lifegain, lifelink, Exquisite Blood / Sanguine Bond loop |
 | tokens | Token replacement effects and triggers |
+| korvold-fae-cursed | Korvold, Fae-Cursed King: the enter/attack sacrifice (a person chooses), a +1/+1 counter and a card for every sacrifice you make (outlets, fetch lands, costs), counted once |
 | chandra-torch | Chandra, Torch of Defiance (Teach #205): +1 exile and may cast (paid, else 2 damage to each opponent; a person's yes/no with a greyed Cast and its reason), +1 {R}{R}, -3 4 damage to target creature, -7 emblem: 5 damage to any target whenever you cast a spell |
 | ajani-sleeper-agent | Ajani, Sleeper Agent: +1 reveals the top card (creature or planeswalker to hand, else may bottom it, a person is asked), -3 distributes three counters among up to three chosen creatures with vigilance, -6 emblem poison, Compleated (life paid: two fewer loyalty) |
 | master-of-dark-rites | Master of Dark Rites: {T}, sacrifice another creature for {B}{B}{B} that only Vampire, Cleric and Demon spells can use (menu, restriction, leftovers, person's choice, autopilot only for a spell it cannot pay for and a creature worth losing) |
