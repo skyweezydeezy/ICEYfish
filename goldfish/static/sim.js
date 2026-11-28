@@ -15087,6 +15087,7 @@ g.actSeq = (g.actSeq || 0) + 1;
   const lockableF = f => false;          // graveyard and other non-battlefield targets: yardExileOne, yardBottom, sozinReanimate, deathReturn, returnOwn, bounceUp
   //
   const lockableG = f => false;          // damage with several targets or other shapes (damage multi, divided), redirectSpell, putFromHand / lookBf, airbendOwn
+  // spells (T-072) lock only lockableBase; abilities (T-132, T-143) lock every group
   const lockable = f => lockableBase(f) || lockableA(f) || lockableB(f) || lockableC(f) || lockableD(f) || lockableE(f) || lockableF(f) || lockableG(f);
   const holderOf = (g, t) => (isPod(g) ? g.match.players : [g, g.opp]).find(x => x && x.battlefield.includes(t));
   // CR 608.2b: the target must still be on the battlefield, of the right kind and not hexproof / shroud / protected now
@@ -15096,10 +15097,10 @@ g.actSeq = (g.actSeq || 0) + 1;
   }
   function lockTargets(g, inst) {
     const a = inst.card.a, fxs = inst.overloaded ? (a.overload && a.overload.fx) : a.spellFx;
-    if (g.dry || !g.opp || !a.isInstantSorcery || !fxs || !fxs.length || a.jeska || lockRec || !fxs.some(lockable)) return null;
+    if (g.dry || !g.opp || !a.isInstantSorcery || !fxs || !fxs.length || a.jeska || lockRec || !fxs.some(lockableBase)) return null;
     const rec = { map: new Map(), taken: new Set() }, xv = g.xValue;
     lockRec = rec;
-    try { applyEffects(g, fxs.filter(lockable), null, [], null); } finally { lockRec = null; g.xValue = xv; }
+    try { applyEffects(g, fxs.filter(lockableBase), null, [], null); } finally { lockRec = null; g.xValue = xv; }
     return rec.map.size ? rec : null;
   }
   // T-132 (CR 602.2b, 603.3d): a triggered ability's targets are chosen as it goes on the stack, by the same pickers a spell uses (the person's 'target' question, or the autopilot's pick), and kept on the stack object.
