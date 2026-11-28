@@ -28,11 +28,11 @@ INTEGRATION NOTES:
 ```
 
 ## Send finished work to the Visuals session
-One session gathers everyone's work and merges it: the **Visuals** session (session `session_01K5kL4WCRt94PhekjADso9A`).
+One session gathers everyone's work and merges it: the **Visuals** session (session `session_01K5kL4X71yAbkpEVcRH5Z38`).
 This keeps merges in one place, so branches stop colliding on the live branch.
 
 - **Push, don't hold.** When a piece of work is finished and its tests pass, commit it and push it to your own work branch. Work that is only committed in your session's copy cannot be merged.
-- **Then tell the Visuals session.** Send it a message (`send_message` to `session_01K5kL4WCRt94PhekjADso9A`) with your branch name, the commit it ends on, and one or two sentences on what it does. Bring your branch up to date with the default branch and re-run the tests first.
+- **Then tell the Visuals session.** Send it a message (`send_message` to `session_01K5kL4X71yAbkpEVcRH5Z38`) with your branch name, the commit it ends on, and one or two sentences on what it does. Bring your branch up to date with the default branch and re-run the tests first.
 - **Don't merge into the default branch yourself**, unless the user asks you to in your own conversation. The Visuals session merges your branch into its work branch, runs the tests, and asks the user before anything goes live (the rules below still hold).
 - **The Visuals session** reports each merge back to the session that sent the work, with the new version number, or says what failed and leaves the fix to that session's area (for example, the engine's `goldfish/static/sim.js`).
 

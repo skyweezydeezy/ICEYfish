@@ -2,6 +2,13 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 235,
+      "lines": [
+        "Planeswalker abilities with \u2212X that deal damage now really remove X loyalty. You pick X; the autopilot pays the smallest X that does the job.",
+        "Taught in full: Chandra, Awakened Inferno; Chandra, Flamecaller; Commodore Guff; Dihada; Domri; Jace, Mirror Mage; Kaito, Bane of Nightmares; Narset of the Ancient Way; and Jaya Ballard's +1. Mana that can only be spent on certain spells is now tracked."
+      ]
+    },
+    {
       "v": 234,
       "lines": [
         "Honest card reading: a planeswalker or activated ability now counts as understood only when ICEYfish plays every sentence of it. Cards that dropped part of their text now show as not fully understood, so you can teach them.",
