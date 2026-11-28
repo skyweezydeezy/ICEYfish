@@ -142,12 +142,18 @@ function speedBracket(median) { for (const [t, b] of RULES.speed) if (median < t
 function medianTurn(share) { let s = 0; for (let t = 0; t < share.length; t++) { s += share[t]; if (s >= 0.5) return t + 1; } return share.length; }
 const pct = x => Math.round(1000 * x) / 10;
 
+// the Drive claim (the [Bn] of the Drive file name, kept in drive-sync.json) is "stated"; the deck file's own bracket line is the verified one once checked
+let DRIVE_CLAIMS = null;
+function driveClaim(file) {
+  if (!DRIVE_CLAIMS) { DRIVE_CLAIMS = {}; try { for (const r of Object.values(JSON.parse(fs.readFileSync(path.join(DECKS, 'drive-sync.json'), 'utf8')).files)) if (r.deck && r.bracket) DRIVE_CLAIMS[r.deck] = r.bracket; } catch (e) { /* no drive-sync: the deck file's bracket is the claim */ } }
+  return DRIVE_CLAIMS[file] || null;
+}
 function verdict(L, gf, field) {
   const T = gf.kill.length - 1, cum = t => gf.kill.slice(0, t).reduce((a, b) => a + b, 0);
   const median = medianTurn(gf.kill), spd = L.cmdr ? speedBracket(median) : null, rules = cardRules(L);
   const verified = L.cmdr ? Math.max(rules.floor, spd) : null;
   return {
-    file: L.d.file, name: L.d.name, stated: L.d.bracket || null, verified, commander: L.cmdr,
+    file: L.d.file, name: L.d.name, stated: driveClaim(L.d.file) || L.d.bracket || null, verified, commander: L.cmdr,
     goldfish: { games: gf.n, errors: gf.errors, medianKill: median > T ? `>${T}` : median, by2: pct(cum(2)), by3: pct(cum(3)), by4: pct(cum(4)), by5: pct(cum(5)), by6: pct(cum(6)), by7: pct(cum(7)), by8: pct(cum(8)), byT: pct(cum(T)),
       earliestKill: (i => i < 0 || i >= T ? null : i + 1)(gf.kill.findIndex(x => x > 0)), killHist: gf.kill.map(x => Math.round(x * 100000) / 1000),          // earliest turn a game was won (null: none by T10); killHist: % of games won on turn 1..T, then % not won by T
       cmdrMedian: L.cmdr ? (medianTurn(gf.cmdr) > T ? `>${T}` : medianTurn(gf.cmdr)) : null, mana4: Math.round(gf.mana4 * 100) / 100,
