@@ -10,7 +10,7 @@
 - `priorityRound(g, step, ev, over)`: off unless `opts.priority`; skipped at once when nobody is seated (`ps.some(p => p.ask)`); only a seated person acts (question kind `priority`, default Pass). `over = {controller, text, card}` lets it run with an object on the stack (step `'stack'`, called from `settle` before each trigger resolves). `wantsPriority` implements `opts.autoPass` ('smart' default, 'stops', 'never', 'always').
 - Hooks (inert unless `opts.priority`): end of upkeep, draw, main phases (once a turn), beginning of combat, after blockers, after damage, end of combat, before each trigger resolves. The declare-attackers and end-step windows are `instantWindow`, which asks the `priority` question when the rule is on.
 - `autoRespond(g, d, inst, ev, ps, by)`: the autopilot's responders to a spell (caster's veil, `stackResponses`, `tryCounter0`), called from `tryCounter`. `queueRun` queues hand-played triggers (Boromir, Archaic) that `settle` runs (`it.run`).
-- `opts.priority` is off by default. `ISF_PRIORITY=1` turns it on for every game that does not set `priority` itself (so the whole suite runs with the rule on: `ISF_PRIORITY=1 node tests/run.js`). `PRIORITY=1 node tools/every-default-sweep.js` is the sweep with the rule on and a question at every step.
+- `opts.priority` is ON by default since stage 6 (`priority: false` or `ISF_PRIORITY=0` turns it off). `ISF_PRIORITY=1` turns it on for every game that does not set `priority` itself (so the whole suite runs with the rule on: `ISF_PRIORITY=1 node tests/run.js`). `PRIORITY=1 node tools/every-default-sweep.js` is the sweep with the rule on and a question at every step.
 
 ## Gate for every stage (all must hold)
 

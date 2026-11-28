@@ -130,6 +130,7 @@
     const a = ctx.card.a, c = ctx.card;
     switch (R.k) {
       case 'creature': return a.isCreature;
+      case 'types': return matchesFilter(c, R.ts.join('|'));          // Master of Dark Rites: Vampire, Cleric and/or Demon spells
       case 'type': return (R.anySpell || a.isCreature) && matchesFilter(c, R.t);
       case 'legendary': return a.isLegendary;
       case 'eldrazi': return !colorsOf(g, c).length && matchesFilter(c, 'eldrazi');
@@ -654,6 +655,7 @@
       const rec = { text: stPre + raw, status: 'ignored' };
       a.coverage.push(rec);
       if (TRACING) traceStart(a, rec);
+      { const sr = line.match(/^\{t\}, sacrifice another creature: add ((?:\{[wubrgc]\})+)\. spend this mana only to cast ([a-z,/ ]+?) spells\.?$/i); if (sr) { const pr = parseAdd('add ' + sr[1]), ts = sr[2].toLowerCase().split(/,? and\/or |, and |, | and /).map(x => x.trim()).filter(Boolean); if (pr && ts.length) { a.sacRestrict = { colors: pr.colors, amount: pr.amount, ts }; rec.status = 'ok'; continue; } } }          // Master of Dark Rites: {T}, sacrifice another creature, mana only for some creature types' spells
       if (/^choose a creature type\. for each [^.]*, create a token that's a copy of that creature\. those tokens gain haste\. exile them at the beginning of the next end step\.?$/i.test(raw)) { a.spellFx.push({ type: 'tribeSpell', op: 'charge' }); rec.status = 'ok'; continue; }          // Kindred Charge (it was read as a copy effect that made nothing)
       // draw, then a discard the generic reading dropped (only the draw was played)
       { let dm;
@@ -1776,6 +1778,8 @@
         if (/^exile all attacking creatures target player controls\. that player may search their library for that many basic land cards/i.test(line)) { a.combatAnswer = 'exile'; MIRW(); continue; }          // Settle the Wreckage
         if (/^whenever ~ deals combat damage to a player, it deals that much damage to each creature that player controls\.?$/i.test(line)) { a.balefire = true; MIRW(); continue; }          // Balefire Dragon
         if (/^−x: exile each permanent with mana value x or less that's one or more colors\.?$/i.test(line)) { a.pwAbilities.push({ cost: 0, x: true, fx: [{ type: 'uginWipe' }], text: raw }); rec.status = 'ok'; continue; }          // Ugin, the Spirit Dragon: yours too
+        if (/^[−-]x: return target creature card with mana value x from your graveyard to the battlefield\. that creature is a vampire in addition to its other types\.?$/i.test(line)) { a.pwAbilities.push({ cost: 0, x: true, fx: [{ type: 'reanimateX', addType: 'Vampire' }], text: raw }); rec.status = 'ok'; continue; }          // Sorin, Vengeful Bloodlord
+        if (/^during your turn, creatures and planeswalkers you control have lifelink\.?$/i.test(line)) { a.statics.sorinLife = true; rec.status = 'ok'; continue; }
         if ((wm = line.match(/^((?:\{[^}]+\})+): each opponent sacrifices a permanent of their choice\. transform ~\. activate only as a sorcery/i))) { a.activated.push({ cost: parseCost(wm[1]), tap: false, fx: [{ type: 'edictPerm' }, { type: 'transform', same: true }], text: raw, gate: 'transformOk' }); rec.status = 'ok'; continue; }          // Kefka, Court Mage: the back face is the point
       }
       // ---- land and mana denial (see landKillUse, landWipe, moonOf, oppEntersTapped, Vorinclex, Rishadan Port, Mana Vortex). The symmetric ones
@@ -3481,6 +3485,105 @@
     a.coverageLevel = !total || bad === 0 ? 'ok' : bad === total ? 'none' : 'partial';
   }
 
+  // ---------- T-131: guess unknown rules lines by fuzzy matching (optional, off by default) ----------
+  // With G.setFuzzy(index) on, a rules line no rule reads (status 'ignored') is compared with the lines the engine already builds (the templates in
+  // data/fuzzy-index.json, made by tools/build-fuzzy-index.js). If one is close enough (score 0.80 or more), the card is read again with that template
+  // line, this card's numbers, mana symbols, colours, creature types and counter names put in. If the engine builds something from it, the line becomes
+  // status 'guessed' with rec.fuzzy = { score, from, as }: it plays as the template, it is never called understood, and it stays on the Teach list.
+  // G.setFuzzy(null) (the default) leaves every reading exactly as it was.
+  let FUZZY = null;
+  const FZ_MIN = 0.80, FZ_STOP = new Set(['a', 'an', 'the', 'of', 'to', 'it', 'its', 'that', 'this', 'and', 'or', 'you', 'your', 'in', 'on', 'from', 'with', 'for', 'is', 'are', 'if', 'then', 'as', 'be', 'by']);
+  const FZ_NUMW = /^(?:two|three|four|five|six|seven|eight|nine|ten)$/i, FZ_COLOR = /^(?:white|blue|black|red|green)$/i;
+  const FZ_NOCOUNT = new Set(['may', 'to', 'you', "can't", 'not', 'and', 'or', 'then', 'would', 'that', 'it', 'spell', 'abilities', 'ability', 'cannot', 'be', 'is', 'target', 'a', 'an', 'the', 'each', 'those', 'all', 'of', 'more', 'if', 'unless', 'instead', 'N', 'its', 'their', 'your']);
+  const fzPlural = t => { const s = new Set([t, t + 's', t + 'es']); if (/(?:f|fe)$/.test(t)) s.add(t.replace(/fe?$/, 'ves')); if (/y$/.test(t)) s.add(t.slice(0, -1) + 'ies'); if (/man$/.test(t)) s.add(t.slice(0, -3) + 'men'); if (t === 'mouse') s.add('mice'); if (t === 'ox') s.add('oxen'); return s; };
+  // A rules line as tokens. Slots (what a card changes without changing what the line does): its own name (~), numbers and number words, mana symbols,
+  // colours, creature types and counter names. Each token: { v: the text, t: the slot kind or null, w: the word it matches on, s, e: where it sits }.
+  function fzTokens(line) {
+    const src = String(line).replace(/\([^)]*\)/g, ' ').replace(/[−–]/g, '-'), out = [], re = /\{[^}]+\}|~|[A-Za-z][A-Za-z'’]*|\d+|[+\-\/:,]/g; let m;
+    while ((m = re.exec(src))) {
+      const v = m[0], lo = v.toLowerCase(); let t = null;
+      if (/^\{[0-9WUBRGCSXPwubrgcsxp\/]+\}$/.test(v)) t = 'M';
+      else if (/^\d+$/.test(v) || FZ_NUMW.test(v)) t = 'N';
+      else if (FZ_COLOR.test(v)) t = 'C';
+      else if (FUZZY && FUZZY.types.has(lo)) t = 'T';
+      out.push({ v, t, w: t ? '§' + t : lo, s: m.index, e: m.index + v.length });
+    }
+    for (let i = 0; i + 1 < out.length; i++) {          // "a charge counter", "two time counters": the word before "counter(s)" names the counters
+      const n = out[i + 1].w;
+      if ((n === 'counter' || n === 'counters') && !out[i].t && /^[a-z]+$/.test(out[i].w) && !FZ_NOCOUNT.has(out[i].w) && !FZ_STOP.has(out[i].w) && !(out[i + 2] && /^(?:target|that|it|unless|spell)$/.test(out[i + 2].w))) { out[i].t = 'K'; out[i].w = '§K'; }
+    }
+    return out;
+  }
+  function fzPrep(line) {
+    const toks = fzTokens(line), uni = new Map(), bi = new Map(), word = x => (x === '§N' || x === '§M' || x === '§C' || x === '§T' || x === '§K' || x === '~') ? 1 : FZ_STOP.has(x) ? 0.35 : 1;
+    let uw = 0, bw = 0;
+    toks.forEach((k, i) => {
+      const w = word(k.w); uni.set(k.w, (uni.get(k.w) || 0) + w); uw += w;
+      if (i) { const g = toks[i - 1].w + ' ' + k.w, gw = (word(toks[i - 1].w) + w) / 2; bi.set(g, (bi.get(g) || 0) + gw); bw += gw; }
+    });
+    const txt = ' ' + toks.map(k => k.w).join(' ') + ' ', f = new Set();
+    for (const [k, re] of [['target', / target /], ['each', / each /], ['may', / may /], ['sac', / sacrifice /], ['counter', / counters? /], ['eot', / until end of turn /], ['opp', / opponents? /], ['ctl', / you control /]]) if (re.test(txt)) f.add(k);
+    // words that change how much, where or who: a template that differs in any of them is out (score 0), never a close guess (MAIN, 2026-11-28)
+    const hard = new Set();
+    for (const [k, re] of [['twice', / twice /], ['double', / (?:double|doubles|doubled) /], ['half', / half /], ['triple', / (?:triple|triples) /], ['x', / x /], ['upto', / up to /], ['another', / another /], ['other', / other /], ['token', / tokens? /], ['nontoken', / nontoken /], ['zone', / from (?:your |a |an |their |that player's )?(?:graveyard|hand|library|exile) /], ['dontctl', / you don't control /], ['instead', / instead /], ['cant', / can't /], ['unless', / unless /]]) if (re.test(txt)) hard.add(k);
+    for (const k of ['target', 'each', 'opp', 'ctl', 'eot']) if (f.has(k)) hard.add(k);
+    for (const m of txt.matchAll(/ to (?:your |the |its owner's |their |that player's |a )?(hand|battlefield|graveyard|library|exile) /g)) hard.add('to:' + m[1]);          // where it goes: hand is not battlefield
+    const first = toks.length ? toks[0].w : ''; f.add('@' + (first === 'whenever' || first === 'when' ? 'when' : first === 'at' ? 'at' : toks.some(k => k.w === ':') ? 'cost' : 'other'));
+    return { toks, uni, bi, uw, bw, f, hard, sig: toks.filter(k => k.t).map(k => k.t).join('') };
+  }
+  // graded membership 0..1: weighted word overlap and two-word overlap, less a penalty for each key word the two lines do not share
+  function fzScore(A, B) {
+    for (const k of A.hard) if (!B.hard.has(k)) return 0;          // a key word one line has and the other lacks: no guess
+    for (const k of B.hard) if (!A.hard.has(k)) return 0;
+    const dice = (x, y, tx, ty) => { let s = 0; for (const [k, v] of x) { const u = y.get(k); if (u) s += Math.min(v, u); } return tx + ty ? 2 * s / (tx + ty) : 0; };
+    const base = 0.4 * dice(A.uni, B.uni, A.uw, B.uw) + 0.6 * dice(A.bi, B.bi, A.bw, B.bw);
+    let diff = 0; for (const k of A.f) if (!B.f.has(k)) diff++; for (const k of B.f) if (!A.f.has(k)) diff++;
+    return Math.max(0, base - 0.07 * diff);
+  }
+  function fzShape(line) { return fzPrep(line).toks.map(k => k.w).join(' '); }          // a line with its slots blanked: lines of one shape are one template
+  function setFuzzy(index) {
+    if (!index || !Array.isArray(index.templates)) { FUZZY = null; return; }
+    FUZZY = { types: new Set(), by: new Map() };
+    for (const t of index.types || []) for (const p of fzPlural(String(t).toLowerCase())) FUZZY.types.add(p);
+    for (const [raw, from] of index.templates) { const p = fzPrep(raw); if (p.toks.length < 4) continue; p.raw = raw; p.from = from; (FUZZY.by.get(p.sig) || FUZZY.by.set(p.sig, []).get(p.sig)).push(p); }
+  }
+  // the best template for one unknown line: { score, from, as } (as: the template with this line's slot values put in), or null under 0.80
+  function fzMatch(text) {
+    if (!FUZZY || /^•|\n/.test(text)) return null;
+    const U = fzPrep(text); if (U.toks.length < 5) return null;
+    let best = null, bs = 0;
+    for (const T of FUZZY.by.get(U.sig) || []) { const s = fzScore(U, T); if (s > bs) { bs = s; best = T; } }
+    if (!best || bs < FZ_MIN) return null;
+    const vals = U.toks.filter(k => k.t).map(k => k.v); let as = best.raw, at = 0;
+    const src = String(best.raw).replace(/\([^)]*\)/g, ' ').replace(/[−–]/g, '-');          // the template's reminder text is not part of its tokens
+    const slots = best.toks.filter(k => k.t); let out = '', pos = 0;
+    slots.forEach((k, i) => { out += src.slice(pos, k.s) + vals[i]; pos = k.e; });
+    as = (out + src.slice(pos)).replace(/\s+/g, ' ').trim();
+    return { score: Math.round(bs * 100) / 100, from: best.from, as };
+  }
+  // The call site (end of analyze): read the card again with each close guess put in; keep a guess only if the engine builds something from it.
+  function fuzzyPass(card, a, deckColors) {
+    if (!FUZZY || card._fz || !a.coverage.some(r => r.status === 'ignored' && !r.back)) return a;
+    const src = normText(card, (card.front_oracle != null ? card.front_oracle : card.oracle_text) || ''), lines = src.split('\n').map(s => s.trim());
+    let cur = a, curLines = lines, changed = false; const made = [];
+    for (const rec of a.coverage) {
+      if (rec.status !== 'ignored' || rec.back) continue;
+      const i = curLines.indexOf(rec.text); if (i < 0) continue;
+      const m = fzMatch(rec.text); if (!m) continue;
+      const next = curLines.slice(); next[i] = m.as; const t = next.join('\n');
+      const c2 = Object.assign({}, card, { oracle_text: t, front_oracle: card.front_oracle != null ? t : card.front_oracle, _fz: true }); delete c2.a;
+      let a2; try { a2 = analyze(c2, deckColors); } catch (e) { continue; }
+      const r2 = a2.coverage.find(r => r.text === m.as && !r.back);
+      if (!r2 || (r2.status !== 'ok' && r2.status !== 'partial') || traceSig(a2) === traceSig(cur)) continue;          // it built nothing: the line stays unknown
+      cur = a2; curLines = next; changed = true; made.push({ as: m.as, orig: rec.text, fuzzy: { score: m.score, from: m.from } });
+    }
+    if (!changed) return a;
+    for (const g of made) { const r = cur.coverage.find(x => x.text === g.as && !x.back && x.status !== 'guessed'); if (r) { r.text = g.orig; r.status = 'guessed'; r.tag = 'guess'; r.fuzzy = g.fuzzy; r.fuzzy.as = g.as; } }
+    const bad = cur.coverage.filter(c => c.status === 'ignored' || c.status === 'partial' || c.status === 'guessed').length;          // a guess is never understood
+    cur.coverageLevel = !cur.coverage.length || bad === 0 ? 'ok' : bad === cur.coverage.length ? 'none' : 'partial';
+    return cur;
+  }
+
   // ---------- Card analysis ----------
   // Cards whose rules lines switch on in stages: station levels ("8+ | Flying"), Class levels and solved Cases. The card is read once
   // for each stage (the lines in force from the start, plus every line unlocked so far); the permanent swaps to the reading for the stage
@@ -3644,7 +3747,7 @@
     { const cm = (card.oracle_text || '').match(/\bas (?:it|~|this [a-z]+|[A-Z][A-Za-z' ,]+) enters, choose a color(?: other than (white|blue|black|red|green))?/i);          // "As ~ enters, choose a color": kept on the permanent (chosenColor)
       if (cm) { const L = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }, mm = (card.oracle_text || '').match(/\{T\}: Add (?:\{([WUBRG])\} or )?(one|two|three|four) mana of the chosen color/i);
         a.choosesColor = { not: cm[1] ? L[cm[1].toLowerCase()] : null, mana: mm ? { base: mm[1] || null, amount: NUM[mm[2].toLowerCase()] || 1 } : null }; } }
-    return a;
+    return FUZZY ? fuzzyPass(card, a, deckColors) : a;          // T-131: off unless G.setFuzzy(index)
   }
 
   // ---------- Tribe: the creature type the deck is built around ----------
@@ -3690,7 +3793,7 @@
   // cards are read each time (their other faces carry the card's place in the deck).
   const ANALYSES = new Map();
   function analyzeOnce(card, deckColors) {
-    const key = deckColors.join('') + '|' + (curTribe || '') + '|' + (curCardType || '') + '|' + (card.a ? JSON.stringify(card, (k, v) => k === 'a' ? undefined : v) : JSON.stringify(card));
+    const key = (FUZZY ? 'fz|' : '') + deckColors.join('') + '|' + (curTribe || '') + '|' + (curCardType || '') + '|' + (card.a ? JSON.stringify(card, (k, v) => k === 'a' ? undefined : v) : JSON.stringify(card));
     let a = ANALYSES.get(key);
     if (a === undefined) { a = analyze(card, deckColors); if (a.backCard || a.stages) return a; if (ANALYSES.size >= 1500) ANALYSES.clear(); ANALYSES.set(key, a); }
     return a;
@@ -3892,9 +3995,10 @@
     const u = Object.assign(Object.create(null), ...games.map(x => x.U)); games.forEach(x => { x.U = u; });
   }
 
-  const PRIORITY_ENV = typeof process !== 'undefined' && !!process.env && process.env.ISF_PRIORITY === '1';          // T-127: run the whole test suite with the priority rules on (ISF_PRIORITY=1 node tests/run.js)
+  // T-127 stage 6: the priority loop is on by default. `priority: false` in a game's options (or ISF_PRIORITY=0 in the environment, for comparing with the old engine) turns it off.
+  const PRIORITY_DEFAULT = !(typeof process !== 'undefined' && !!process.env && process.env.ISF_PRIORITY === '0');
   function newGame(deck, opts, seed) {
-    if (PRIORITY_ENV && opts.priority === undefined) opts = Object.assign({}, opts, { priority: true });
+    if (PRIORITY_DEFAULT && opts.priority === undefined) opts = Object.assign({}, opts, { priority: true });
     const rnd = mulberry32(seed >>> 0);
     const g0 = {
       rnd, opts, seed, deck, U: deckFacts(deck),
@@ -4182,7 +4286,7 @@
     if (st.monolith) info.monolith = true;
     if (st.allyMana) info.allyMana = true; if (a.warpedSpace && q.unlocked) info.warpedSpace = true; if (st.ownDouble) info.ownDouble = (info.ownDouble || 0) + 1;
     if (st.yardLess) info.yardLess = (info.yardLess || 0) + st.yardLess; if (st.allIslands) info.allIslands = true; if (st.virtueStrength) info.virtueStrength = true; if (a.tenLandsAnthem) info.tenLands = a.tenLandsAnthem;
-    if (st.assault) info.assault = true; if (st.defendersAttack) info.defendersAttack = true; if (a.defenderAttack) info.defenderAttack = a.defenderAttack; if (st.ingaEsika) info.ingaEsika = true; if (st.lifeEnch) info.lifeEnch = (info.lifeEnch || 0) + st.lifeEnch; if (st.docAurlock) info.docAurlock = (info.docAurlock || 0) + st.docAurlock; if (st.offHandLess) info.offHandLess = (info.offHandLess || 0) + st.offHandLess; if (st.splitSecond) info.splitSecond = true; if (st.plotLess) info.plotLess = (info.plotLess || 0) + st.plotLess; if (st.loadingZone) info.loadingZone = (info.loadingZone || 0) + 1; if (a.porcelain && q.unlocked) info.porcelain = true; if (a.worldOoze) info.worldOoze = true; if (a.tevalScale) (info.tevalScale = info.tevalScale || []).push(q);
+    if (st.assault) info.assault = true; if (st.defendersAttack) info.defendersAttack = true; if (a.defenderAttack) info.defenderAttack = a.defenderAttack; if (st.ingaEsika) info.ingaEsika = true; if (st.sorinLife) info.sorinLife = true; if (st.lifeEnch) info.lifeEnch = (info.lifeEnch || 0) + st.lifeEnch; if (st.docAurlock) info.docAurlock = (info.docAurlock || 0) + st.docAurlock; if (st.offHandLess) info.offHandLess = (info.offHandLess || 0) + st.offHandLess; if (st.splitSecond) info.splitSecond = true; if (st.plotLess) info.plotLess = (info.plotLess || 0) + st.plotLess; if (st.loadingZone) info.loadingZone = (info.loadingZone || 0) + 1; if (a.porcelain && q.unlocked) info.porcelain = true; if (a.worldOoze) info.worldOoze = true; if (a.tevalScale) (info.tevalScale = info.tevalScale || []).push(q);
     if (st.lute) info.lute = true; if (st.behemoth) info.behemoth = (info.behemoth || 0) + st.behemoth; if (st.manaFlare) info.manaFlare = (info.manaFlare || 0) + st.manaFlare; if (a.landAnyColor) info.landAnyAura = true; if (a.halvar) info.halvar = true;
     if (a.perEquip) info.perEquip = { p: (info.perEquip ? info.perEquip.p : 0) + a.perEquip.p, t: (info.perEquip ? info.perEquip.t : 0) + a.perEquip.t };          // Bruenor Battlehammer
     if (st.millLands) info.millLands = true;
@@ -4396,6 +4500,7 @@
     if (k === 'flying' && p.card.a.jumpFly && g.activeTurn !== false) return true;          // Cid: jump
     if (k === 'flying' && bfInfo(g).nocturnus && isCreaturePerm(p) && matchesFilter(p.card, 'vampire') && g.library[0] && colorsOf(g, g.library[0].card).includes('B')) return true;          // Vampire Nocturnus
     if ((k === 'first strike' || k === 'vigilance' || k === 'lifelink') && bfInfo(g).greymonds && isCreaturePerm(p) && matchesFilter(p.card, 'human') && bfInfo(g).greymonds.some(q => q.greyChosen && q.greyChosen.includes(k))) return true;          // Greymond, Avacyn's Stalwart
+    if (k === 'lifelink' && bfInfo(g).sorinLife && g.activeTurn !== false && (isCreaturePerm(p) || p.card.a.isPlaneswalker) && g.battlefield.includes(p)) return true;          // Sorin, Vengeful Bloodlord: during your turn, your creatures and planeswalkers
     if (k === 'vigilance' && bfInfo(g).ingaEsika && isCreaturePerm(p) && g.battlefield.includes(p)) return true;          // Inga and Esika
     if (k === 'swampwalk' && !p.card.a.zombieWalk && isCreaturePerm(p) && g.battlefield.includes(p) && matchesFilter(p.card, 'zombie') && (tableHas(g, 'zombieWalk') && g.battlefield.some(q => q.card.a.zombieWalk))) return true;          // Zombie Master
     if ((k === 'trample' || k === 'double strike') && bfInfo(g).jetmir && isCreaturePerm(p) && g.battlefield.includes(p)) { const n = g.battlefield.filter(isCreaturePerm).length; if (k === 'trample' ? n >= 6 : n >= 9) return true; }          // Jetmir
@@ -4591,7 +4696,7 @@
   // T-061: with infinite mana taken (g.infMana, this turn only) the floating pool is topped up to a big finite number whenever it runs low
   function topUpInf(g) { const im = g.infMana; if (!im || im.turn !== g.turn || g.floating.length >= 50) return; const cols = new Set(im.colors); while (g.floating.length < COMBO_BIG) g.floating.push({ src: null, colors: cols, floating: true }); }
   let wbG = null;          // T-104: the game whose units canPay may extend with the waterbend taps (a cost with .wb)
-  function allUnits(g) { wbG = g; if (g._noMana) return []; if (g._comOnly) return g.floating.filter(u => u.combat); if (g.infMana) topUpInf(g); const f = g.floating, u = manaUnits(g); return f && f.length ? f.concat(u) : u; }          // g._comOnly: only the firebending mana (what a combat ability may spend before it is lost)
+  function allUnits(g) { wbG = g; if (g._noMana) return []; if (g._comOnly) return g.floating.filter(u => u.combat); if (g.infMana) topUpInf(g); const f = g.floating, u = manaUnits(g); return f && f.length ? (f.some(x => x.restrict) ? f.filter(x => !x.restrict || restrictOk(g, x.restrict, g._payFor)) : f).concat(u) : u; }          // g._comOnly: only the firebending mana (what a combat ability may spend before it is lost)
   // Mycosynth Lattice: every permanent is an artifact; Enchanted Evening: every permanent is an enchantment
   const latticeOn = g => !!(bfInfo(g).lattice || (g.opp && bfInfo(g.opp).lattice));
   const artOn = (g, q) => q.card.a.isArtifact || !!q.eotArt || latticeOn(g) || (tableHas(g, 'statics.myco') && mycoOn(g, q));
@@ -5520,6 +5625,7 @@
     else if (a.isLand) perm.tapped = o.tapped ? true : landEntersTapped(g, a, inst);          // put onto the battlefield tapped: a shock land pays no life
     else { perm.sick = a.isCreature; if (a.etbTapped) perm.tapped = true; }
     perm.enteredSeq = turnSeq(g);          // the shared turn sequence (a match's turns, not only this player's): Neriv's "entered this turn"
+    if (o.addType) perm.card = Object.assign({}, inst.card, { type_line: /—/.test(inst.card.type_line || '') ? inst.card.type_line + ' ' + o.addType : (inst.card.type_line || '') + ' — ' + o.addType });          // Sorin, Vengeful Bloodlord: a Vampire in addition to its other types
     if (o.noCreature) perm.noCreature = true;          // Enduring creatures return as enchantments: not a creature as it enters (so -X/-X from Elesh Norn cannot kill it, again and again)
     if (o.flyCounter) perm.flyCounter = true;          // the counters a returning creature comes back with are on it as it enters (Luminous Broodmoth, persist, undying,
     if (o.counters) perm.counters = (perm.counters || 0) + o.counters;          // Undying Malice), so dying at once (Elesh Norn's -X/-X) does not bring it back again and again
@@ -5826,7 +5932,8 @@
   // every player has passed in a row. Stage 1 only lets a seated person act (the autopilot's responses still live in the old windows: tryCounter, instantWindow, protectLethal;
   // autoRespond takes them over in stage 2), so with nobody seated the round is skipped at once (the fast path) and a person who takes every default (Pass) changes nothing.
   const PRIORITY_STEPS = { stack: 'Ability on the stack', upkeep: 'Upkeep', draw: 'Draw step', main: 'Main phase', beginCombat: 'Beginning of combat', blockers: 'Blockers declared', damage: 'Combat damage', endCombat: 'End of combat' };
-  const SMART_OWN = new Set(['beginCombat', 'blockers', 'endCombat']), SMART_OTHER = new Set(['stack', 'upkeep', 'main', 'beginCombat', 'attackers', 'blockers', 'damage', 'endCombat', 'end']);
+  // T-127 stage 6: 'smart' (the default) stops where a person would expect it: after blockers on your own turn; on another player's turn at the objects on the stack, the attackers, the blockers and the end step. 'stops' / 'never' ask elsewhere.
+  const SMART_OWN = new Set(['blockers']), SMART_OTHER = new Set(['stack', 'attackers', 'blockers', 'end']);
   const PRIO_MAIN = new WeakMap();          // kept off the game object: the played copy and the plain copy must dump the same (every-default sweep)
   function priorityPlayers(g) { const all = g.match && g.match.players ? g.match.players.filter(x => !x.dead) : [g].concat(g.opp ? [g.opp] : []), i = all.indexOf(g); return i > 0 ? all.slice(i).concat(all.slice(0, i)) : all; }
   function wantsPriority(p, g, step) {          // opts.autoPass: 'smart' (default), 'stops', 'never' (asks at every step) or 'always' (never asks)
@@ -5849,7 +5956,7 @@
     return true;
   }
   function priorityRound(g, step, ev, over) {          // over: an object waits on the stack (a trigger, between two resolutions): over = { controller, text }
-    if (!g.opts.priority || g.dry || matchOver(g) || (tableStack(g).length && !over)) return 0;          // off, a rehearsal, or something is still on the stack (stage 2 resolves those)
+    if (!g.opts.priority || g.dry || matchOver(g) || (!g.opp && !g.match) || (tableStack(g).length && !over)) return 0;          // a lone goldfish game has nobody to answer: no rounds (the Table page's auto-play would stop at every step)          // off, a rehearsal, or something is still on the stack (stage 2 resolves those)
     const ps = priorityPlayers(g);
     // T-127 stage 5: after blockers and after damage the autopilot defender acts through the loop (its instant-speed play, as in instantWindow); a seated defender's default is that same pick
     const dfn = !over && (step === 'blockers' || step === 'damage') && g.opp && !g.opp.dead && g.activeTurn !== false ? g.opp : null;
@@ -6568,8 +6675,10 @@
     if (!(n > 0)) return;
     if (!loss && !g.dry) n += plusBonus(g, source && source.card ? source : g.lastCast);          // Torbran (a spell's damage has no source permanent: the spell being cast)
     if (!loss && source && source.card && !g.dry) n *= infernoMult(g, source);          // Collective Inferno
+    const llSrc = source && source.card && source.card.a.isPlaneswalker && !loss && !g.dry && hasKw(g, source, 'lifelink');          // lifelink on a planeswalker's damage (Sorin, Vengeful Bloodlord)
     n = dealToOpp(g, n, !!one, loss); if (!(n > 0)) { ev.push({ type: 'note', text: 'The damage is prevented', source }); return; }
     ev.push({ type: 'damage', n, source, total: g.damage });
+    if (llSrc) gainLife(g, n, ev, source);
     checkKill(g, ev);
     oppLostLife(g, n, ev);
     if (!g.dry && g.emetTurn !== g.turn && (tableHas(g, 'emetSelch') && g.battlefield.some(q => q.card.a.emetSelch))) { const t = g.graveyard.filter(i => i.card.a.isInstantSorcery && i.card.a.spellFx.length && i.yardCastTurn !== g.turn).sort((x, y) => fxValue(g, y.card.a.spellFx) - fxValue(g, x.card.a.spellFx))[0]; if (t) { g.emetTurn = g.turn; t.yardCastTurn = g.turn; t.exileInstead = true; } }          // Emet-Selch: castable from your graveyard this turn
@@ -7939,6 +8048,19 @@
         } if (!g.opp && !g.dry) { g.oppHand = 0; } break;
         case 'exileYards': if (f.mode && !otherPlayers(g).some(o => o.graveyard.length > g.graveyard.length)) break; for (const x of [g].concat(otherPlayers(g))) x.exile.push(...x.graveyard.splice(0)); ev.push({ type: 'note', text: 'Every graveyard is exiled', source }); break;          // Farewell
         case 'edictPerm': for (const o of otherPlayers(g)) { const v = o.battlefield.filter(q => !q.card.commander).sort((x, y) => (threat(o, g, x) + (x.asLand ? landWorth(o, x) : 0)) - (threat(o, g, y) + (y.asLand ? landWorth(o, y) : 0)))[0]; if (v) { ev.push({ type: 'note', text: `The other player sacrifices ${v.card.name}`, source }); leavePerm(o, v, ev); flushLeaves(o, ev); } } break;          // Kefka: each opponent, a permanent of their choice
+        case 'reanimateX': {          // Sorin, Vengeful Bloodlord -X: the target is the card, X is its mana value
+          if (!source) break;
+          if (entryBlocked(g, { a: { isCreature: true } }, 'gy')) { ev.push({ type: 'note', text: 'Nothing returns: creature cards cannot enter the battlefield from a graveyard (Grafdigger\'s Cage, Containment Priest)', source }); break; }
+          const cands = xReanimateCands(g, source); let b = xReanimateBest(g, source);
+          if (g.ask && !g.dry && cands.length) b = gyAsk(g, b, cands, 'battlefield', source);
+          if (!b || !cands.includes(b)) break;
+          const X = b.card.a.mv || 0; source.loyalty -= X;
+          g.graveyard.splice(g.graveyard.indexOf(b), 1);
+          const np = enterWithTriggers(g, b, { addType: f.addType }, ev);
+          ev.push({ type: 'note', text: `${source.card.name}: -${X}, ${b.card.name} returns from your graveyard to the battlefield as a ${f.addType} too`, source });
+          ev.push({ type: 'rampLand', inst: b, perm: np, source });
+          break;
+        }
         case 'uginWipe': {          // Ugin, the Spirit Dragon -X: the X that takes the most from them and the least from you (colorless things stay)
           const lose = (x, X) => x.battlefield.filter(q => !q.asLand && colorsOf(x, q.card).length && (q.card.a.mv || 0) <= X).reduce((t, q) => t + Math.max(1, threat(x, g, q)), 0);
           let bx = 0, bv = 0; const L = source ? Math.max(0, (source.loyalty || 0) - 1) : 0;
@@ -8685,6 +8807,13 @@
     if (a.isLand) return g.battlefield.filter(p => p.asLand).length < 7 ? 2.5 : 0.3;
     if (a.produce) return 3;
     return 1.5 + a.triggers.length * 1.5 + (a.altar || a.sacScry || a.sacOutlet ? 2 : 0) + (a.statics.anthems.length ? 2 : 0);
+  }
+  // Sorin, Vengeful Bloodlord -X: the creature cards whose mana value the loyalty can pay, and the autopilot's pick (X is the mana value of the card)
+  function xReanimateCands(g, p) { const L = Math.max(0, (p && p.loyalty) || 0); return g.graveyard.filter(i => i.card.a.isCreature && !i.card.commander && (i.card.a.mv || 0) <= L); }
+  function xReanimateBest(g, p) {
+    let b = null, bs = 0;
+    for (const i of xReanimateCands(g, p)) { const mv = i.card.a.mv || 0, v = reanimateValue(g, i); if (v <= 0) continue; const sc = v - 0.4 * mv - (mv >= p.loyalty ? 6 : 0); if (sc > bs) { bs = sc; b = i; } }
+    return b;
   }
   function reanimateCandidates(g, f) {
     const out = [];
@@ -10442,6 +10571,22 @@ g.actSeq = (g.actSeq || 0) + 1;
         return ev2 ? pre.concat(ev2) : pre;
       }
     }
+    // Master of Dark Rites: {T}, sacrifice another creature for {B}{B}{B} that only a Vampire, Cleric or Demon spell can use: only for such a spell nothing else can pay for, and only a creature that is fine to lose
+    if (!best && !g.dry && (tableHas(g, 'sacRestrict') && g.battlefield.some(p => p.card.a.sacRestrict && !sickTap(g, p)))) {
+      const mk = g.battlefield.find(p => p.card.a.sacRestrict && !sickTap(g, p)), R = mk.card.a.sacRestrict, v = fodderList(g, true).find(x => x.p !== mk);
+      if (v) {
+        const more = units.concat(Array.from({ length: R.amount }, () => ({ src: null, colors: R.colors, floating: true })));
+        for (const c of cands) { const a = c.card.a; if (!a.isCreature || !matchesFilter(c.card, R.ts.join('|')) || (a.mv || 0) < 3) continue; if (!canPay(effectiveCost(g, c), more) || (a.sacCreatureCost && !pickSacrifice(g, a))) continue; const sc = spellScore(g, c); if (sc > -1 && (!best || sc > bestScore)) { best = c; bestScore = sc; } }
+        if (best) {
+          const pre = []; mk.tapped = true; sacEvent(g, v.p, pre); leavePerm(g, v.p, pre); flushLeaves(g, pre);
+          const RR = { k: 'types', ts: R.ts };
+          for (let j = 0; j < R.amount; j++) g.floating.push({ src: null, colors: R.colors, floating: true, restrict: RR });
+          pre.push({ type: 'note', text: `${mk.card.name}: sacrificed ${v.p.card.name} for ${R.amount} mana that only ${R.ts.join(', ')} spells can use`, source: mk });
+          const ev2 = castCard(g, best);
+          return ev2 ? pre.concat(ev2) : pre;
+        }
+      }
+    }
     if (!best && !g.dry && (tableHas(g, 'steamMana') && g.battlefield.some(p => p.card.a.steamMana && (p.counters || 0) >= 3))) {            // Runaway Steam-Kin: remove three +1/+1 counters for {R}{R}{R}
       const kin = (tableHas(g, 'steamMana') ? g.battlefield.filter(p => p.card.a.steamMana && (p.counters || 0) >= 3) : []); let kk = 0;
       for (let k = 1; k <= kin.length && !best; k++) {
@@ -10601,6 +10746,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       if (f.type === 'poisonWin') v += Math.max(0, 9 - (g.poisonDealt || 0)) * poisonWorth(g) + 4;          // nine counters: the next proliferate or toxic hit wins
       if (f.type === 'poison') { const k = typeof n === 'number' ? n : 1; v += (g.poisonDealt || 0) + k >= 10 ? 1000 : k * poisonWorth(g); }
       if (f.type === 'ajaniEmblem') v += 6;
+      if (f.type === 'reanimateX') { const sp = g.battlefield.find(q => (q.card.a.pwAbilities || []).some(ab => ab.fx.includes(f))), b = sp ? xReanimateBest(g, sp) : null; v += b ? reanimateValue(g, b) : -30; }          // Sorin, Vengeful Bloodlord: the best creature card the loyalty can pay for
       if (f.type === 'tapOpp') v += g.opp && !g.combatDone && g.battlefield.some(q => canAttack(g, q)) ? (f.what === 'all' ? 2 * g.opp.battlefield.filter(q => isCreaturePerm(q) && !q.tapped).length : 2) : 0.2;
       if (f.type === 'landWipe') v += g.opp && landWipeWorth(g, f) ? 12 : -20;          // only when it hurts them more
       if (f.type === 'wrath') { const hitW = (gg, p) => wrathHit(gg, p, f); v += otherPlayers(g).reduce((t, o) => t + o.battlefield.filter(p => hitW(o, p)).reduce((u, p) => u + creatureValue(o, p), 0), 0) - g.battlefield.filter(p => hitW(g, p)).reduce((t, p) => t + creatureValue(g, p), 0); }
@@ -10888,6 +11034,14 @@ g.actSeq = (g.actSeq || 0) + 1;
       const v = sacVictim(ev, p.card.name); if (!v) return;
       for (let i = 0; i < a.altar.n; i++) g.floating.push({ src: null, colors: a.altar.any ? new Set(['W', 'U', 'B', 'R', 'G']) : new Set(['C']), floating: true });
       ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${v.card.name} for ${a.altar.n} mana`, source: p });
+    });
+    if (a.sacRestrict) add(`{T}, Sacrifice another creature: add ${'{' + [...a.sacRestrict.colors][0] + '}'}×${a.sacRestrict.amount} (only for ${a.sacRestrict.ts.join(', ')} spells)`, '{T}, Sacrifice another creature', blocked || sickTap(g, p) || (g.battlefield.some(q => q !== p && isCreaturePerm(q)) ? null : 'you control no other creature'), ev => {
+      const vs = g.battlefield.filter(q => q !== p && isCreaturePerm(q)); let v = fodderList(g, true).map(x => x.p).find(q => q !== p) || vs.slice().sort((x, y) => creatureValue(g, x) - creatureValue(g, y))[0];
+      if (g.ask) v = decide(g, { kind: 'sacrifice', options: vs, def: v, ability: p.card.name, optional: true, source: p });
+      if (!v || !g.battlefield.includes(v)) return;
+      p.tapped = true; sacEvent(g, v, ev); leavePerm(g, v, ev); flushLeaves(g, ev);
+      for (let i = 0; i < a.sacRestrict.amount; i++) g.floating.push({ src: null, colors: a.sacRestrict.colors, floating: true, restrict: { k: 'types', ts: a.sacRestrict.ts } });
+      ev.push({ type: 'note', text: `${p.card.name}: sacrificed ${v.card.name} for ${a.sacRestrict.amount} mana that only ${a.sacRestrict.ts.join(', ')} spells can use`, source: p });
     });
     if (a.sacScry) add(`Sacrifice a creature: ${a.sacSurveil ? 'surveil' : 'scry'} ${a.sacScry}`, 'Sacrifice a creature', blocked || anyCreature, ev => {
       const v = sacVictim(ev, p.card.name); if (!v) return;
@@ -11722,6 +11876,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       let no = null;
       if (!ab.x && p.loyalty + ab.cost < 0) no = `needs ${-ab.cost} loyalty (it has ${p.loyalty})`;
       else if (!ab.fx.length) no = 'the engine does not play this ability yet';
+      else if (ab.fx.some(f => f.type === 'reanimateX') && !xReanimateCands(g, p).length) no = 'no creature card in your graveyard that its loyalty can pay for';
       return { i, ab, label, text: String(ab.text || '').replace(/^[+−-]?(?:\d+|x|X):\s*/, ''), x: !!ab.x, ok: !no && !out.why, why: no || out.why, own: p.card.a.pwAbilities.includes(ab) };
     });
     out.auto = out.why ? null : autoLoyalty(g, p);
@@ -14578,7 +14733,7 @@ g.actSeq = (g.actSeq || 0) + 1;
       else if (me.ask) {                                                                                       // a person: any instant or flash card they can pay for, the autopilot's pick as the default, or not now
         const opts = peekCards(me.hand, () => me.hand.filter(c => c.card.a && !c.card.a.isLand && !c.card.a.counter && instantSpeedFor(me, c.card) && canPay(effectiveCost(me, c), units)));
         if (!opts.length) break;
-        best = decide(me, { kind: me.opts.priority ? 'priority' : 'instant', options: opts, def: best, optional: true, step, caster: me.opp, active: me.opp });          // T-127: with opts.priority the person gets the priority question here (the autopilot's pick is still the default)
+        best = decide(me, { kind: 'instant', options: opts, def: best, optional: true, step, caster: me.opp, active: me.opp });          // T-127: with opts.priority the person gets the priority question here (the autopilot's pick is still the default)
       }
       if (!best) break;
       if (best.card.a.cost.x && best.extraX == null) best.extraX = Math.max(0, Math.min(20, Math.floor((units.length - (best.card.a.cost.generic + best.card.a.cost.pips.length) + xDiscountNow(me)) / (best.card.a.cost.x || 1))));          // an X spell takes all the spare mana, as in the main phase (a person's starting X is the same)
@@ -15745,6 +15900,7 @@ g.actSeq = (g.actSeq || 0) + 1;
     dealOpening, keepOpening, mullCost, podFocus, podAlive, podMonteCarlo, podMonteCarloPart, podMonteCarloMerge, podLog, turnSummary, eliminate, canAttack,
     parseCost, parseAdd, gyTarget, inLoop, sba, unlegendary, stackView, abilityMenu, useAbility, ABIL_STATS, instantPick, priorityRound, yardCastable, otherAbilities, setChosenColor, autoColor, eachTrigger, bestTribeOnBoard, castAftermath, comboPlan, deckLines, xDiscountNow, flashLandWindow, actCost, deckCombos, boardCombo, moreCombos, bookCombo, bookList, exploreMill, tribeBonus, tutorScore, tutorContext, lifeFloor, pumpLethal, activeLocks, ghostDraws, ghostDiscards, wheel, comboKind, comboNeed, sendHome, crackHeld, heldFetches, resolveCombatVs, creatureValue, sagaAdvance, tokenGroups, counterMult, foodsOf, pickSacrifice, linkPod, pickTarget, playPod,
   };
+  api.setFuzzy = setFuzzy; api.fuzzyMatch = fzMatch; api.fuzzyShape = fzShape;          // T-131 (kept out of the list above)
   root.Goldfish = api;
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof self !== 'undefined' ? self : this);

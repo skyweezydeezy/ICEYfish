@@ -63,7 +63,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const p = await mk(big);
     const sel = await p.$('#dispStop');
     check('Display has "Stop to respond": Smart, At every step, Never; Smart by default', !!sel && (await p.$$eval('#dispStop option', os => os.map(o => o.textContent).join('|'))) === 'Smart|At every step|Never' && (await p.$eval('#dispStop', e => e.value)) === 'smart');
-    check('Smart (default) adds nothing to the game options; priority is off (hidden toggle off)', await p.evaluate(() => { const o = window.__isfApi.opts(); return o.autoPass === undefined && o.priority === undefined; }));
+    check('Smart (default) adds nothing to the game options; opts.priority is not set in the options (it is on by default in the engine)', await p.evaluate(() => { const o = window.__isfApi.opts(); return o.autoPass === undefined && o.priority === undefined; }));
     await p.click('#displaySettings > summary');
     await p.selectOption('#dispStop', 'never');
     check('"At every step" is opts.autoPass "never" (asks at every step)', await p.evaluate(() => window.__isfApi.opts().autoPass) === 'never');
@@ -74,8 +74,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     check('...and is still chosen after a reload', await p.$eval('#dispStop', e => e.value) === 'always' && await p.evaluate(() => window.__isfApi.opts().autoPass) === 'always');
     check('no page errors (setting)', p.errs.length === 0, p.errs.join(' | '));
     await (p.stopPump && p.stopPump(), p.context().close());
-    const q = await mk(big, { priority: true, stop: 'never' });
-    check('the hidden test toggle (isf_display.priority) turns opts.priority on, and the saved setting is read', await q.evaluate(() => { const o = window.__isfApi.opts(); return o.priority === true && o.autoPass === 'never'; }));
+    const q = await mk(big, { stop: 'never' });
+    check('opts.priority is on by default (no toggle: T-127 stage 6), and the saved setting is read', await q.evaluate(() => { const o = window.__isfApi.opts(); return o.priority !== false && o.autoPass === 'never'; }));
     (q.stopPump && q.stopPump(), await q.context().close());
   }
 

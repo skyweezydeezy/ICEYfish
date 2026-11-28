@@ -2,6 +2,47 @@
   "about": "What's new, shown once after an update (tutorial.js). Newest first. v = the version number the change went live in; lines = one or two short sentences a player understands. MAIN adds an entry at each merge: v is the version on the default branch before the merge, plus 1.",
   "entries": [
     {
+      "v": 231,
+      "lines": [
+        "On a phone, Practice, Duel and Pod now show the tabs in two rows of four, like every other screen."
+      ]
+    },
+    {
+      "v": 230,
+      "lines": [
+        "New built-in deck: Blood Bank (Edgar Markov). Its Drive name says Bracket 4; ICEYfish's check puts it at Bracket 3 (3 Game Changers, no cheap combo, turn-7 median kill).",
+        "Taught: Master of Dark Rites. Tap it and sacrifice another creature for {B}{B}{B}, which only pays for Vampire, Cleric or Demon spells."
+      ]
+    },
+    {
+      "v": 229,
+      "lines": [
+        "Full priority is on: spells, triggers and abilities now go on a real stack, the way the Comprehensive Rules have it, so you and the autopilot can respond to each one in turn.",
+        "Cast triggers now resolve before the spell that caused them, so a few game results shift slightly.",
+        "Rules Lawyers (Winota) is updated to its newest list from Drive (14 cards changed, still Bracket 4)."
+      ]
+    },
+    {
+      "v": 228,
+      "lines": [
+        "Taught: Sorin, Vengeful Bloodlord. Your creatures and planeswalkers have lifelink during your turn, and his −X returns a creature card with mana value X from your graveyard as a Vampire."
+      ]
+    },
+    {
+      "v": 227,
+      "lines": [
+        "Duel on an upright phone: the whole top bar fits on the screen again, with no sideways scrolling to reach the playmat, sound and help buttons.",
+        "New, off by default: Settings → Display → Guess unknown rules. A rules line ICEYfish can't read yet is played like the closest line it knows, marked \"guessed N%\" with the card it was matched to. Guesses can be wrong, so the card stays on the Teach list."
+      ]
+    },
+    {
+      "v": 226,
+      "lines": [
+        "Puzzles: tap a card to open it large, with its actions (Cast, Play, abilities, Attack) as buttons inside, next to its prices and printings.",
+        "New built-in deck: Rules Lawyers (Winota, Joiner of Forces), checked as Bracket 4."
+      ]
+    },
+    {
       "v": 225,
       "lines": [
         "ICEYfish now carries its copyright notice (SWD Marketing, all rights reserved), and the app's own tests run more reliably."
